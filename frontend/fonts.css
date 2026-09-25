@@ -1,0 +1,77 @@
+/* ============================================================
+   NURA self-hosted fonts
+   Drop the .woff2 files into a /fonts folder next to your HTML.
+   Filenames below follow google-webfonts-helper's naming.
+   If your downloaded files have different version numbers
+   (e.g. v16 instead of v15), just update the paths to match.
+   ============================================================ */
+
+/* ---- DM Sans (body / --sans) ---- */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('fonts/dm-sans-v17-latin-300.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/dm-sans-v17-latin-regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('fonts/dm-sans-v17-latin-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/dm-sans-v17-latin-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/dm-sans-v17-latin-700.woff2') format('woff2');
+}
+
+/* ---- Bebas Neue (display / --display) ---- */
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/bebas-neue-v16-latin-regular.woff2') format('woff2');
+}
+
+/* ============================================================
+   Fallback metric overrides — makes the system fallback font
+   occupy nearly the same space as the real font, so when the
+   swap happens there's little or no visible reflow ("jump").
+   These names are referenced by the --sans / --display fallback
+   chains below.
+   ============================================================ */
+@font-face {
+  font-family: 'DM Sans Fallback';
+  src: local('Arial');
+  ascent-override: 92%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+@font-face {
+  font-family: 'Bebas Neue Fallback';
+  src: local('Arial Narrow'), local('Arial');
+  ascent-override: 95%;
+  descent-override: 0%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}

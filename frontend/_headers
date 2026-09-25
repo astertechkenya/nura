@@ -1,0 +1,14 @@
+# NURA security headers (Netlify). Stage A ships the CSP as Report-Only:
+# violations appear in the browser console but nothing is blocked.
+# Phase 8 renames the header to Content-Security-Policy to enforce it.
+/*
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+# Shared scripts change between deploys; make browsers check for a new version.
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
