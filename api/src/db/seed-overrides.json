@@ -1,0 +1,285 @@
+{
+  "_readme": [
+    "Facts about each product that the storefront files do not hold.",
+    "The seed script combines this with NURA_PRODUCTS in frontend/js/search.js.",
+    "arrivedDaysAgo is relative to the day you seed. New In items are 3-14 days old; everything else is over 400 days old, so NEW_IN_DAYS can be anything from 15 to 365.",
+    "Edit freely, then run: npm run db:seed"
+  ],
+  "products": {
+    "nura-001": {
+      "department": "WOMEN",
+      "style": null,
+      "compareAtKes": null,
+      "arrivedDaysAgo": 3,
+      "imageFocus": "50% 55%",
+      "stock": {
+        "ONE SIZE": 7
+      }
+    },
+    "nura-002": {
+      "department": "WOMEN",
+      "style": "Casual",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 5,
+      "imageFocus": "50% 45%",
+      "stock": {
+        "XS": 4,
+        "S": 7,
+        "M": 1,
+        "L": 4,
+        "XL": 5
+      }
+    },
+    "nura-003": {
+      "department": "WOMEN",
+      "style": null,
+      "compareAtKes": 9500,
+      "arrivedDaysAgo": 8,
+      "imageFocus": "50% 39%",
+      "stock": {
+        "XS": 3,
+        "S": 7,
+        "M": 5,
+        "L": 8,
+        "XL": 7
+      }
+    },
+    "nura-004": {
+      "department": "UNISEX",
+      "style": null,
+      "compareAtKes": 3200,
+      "arrivedDaysAgo": 10,
+      "imageFocus": "60% 20%",
+      "stock": {
+        "ONE SIZE": 7
+      }
+    },
+    "nura-005": {
+      "department": "WOMEN",
+      "style": null,
+      "compareAtKes": null,
+      "arrivedDaysAgo": 12,
+      "imageFocus": "50% 90%",
+      "stock": {
+        "ONE SIZE": 5
+      }
+    },
+    "nura-006": {
+      "department": "WOMEN",
+      "style": null,
+      "compareAtKes": null,
+      "arrivedDaysAgo": 14,
+      "imageFocus": "50% 70%",
+      "stock": {
+        "ONE SIZE": 5
+      }
+    },
+    "nura-007": {
+      "department": "WOMEN",
+      "style": "Formal",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 442,
+      "imageFocus": "50% 30%",
+      "stock": {
+        "XS": 7,
+        "S": 5,
+        "M": 7,
+        "L": 4,
+        "XL": 8
+      }
+    },
+    "nura-008": {
+      "department": "WOMEN",
+      "style": "Streetwear",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 449,
+      "imageFocus": "50% 0%",
+      "stock": {
+        "XS": 7,
+        "S": 4,
+        "M": 8,
+        "L": 8,
+        "XL": 5
+      }
+    },
+    "nura-009": {
+      "department": "WOMEN",
+      "style": "Evening",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 456,
+      "imageFocus": "50% 30%",
+      "stock": {
+        "XS": 6,
+        "S": 7,
+        "M": 4,
+        "L": 3,
+        "XL": 7
+      }
+    },
+    "nura-010": {
+      "department": "WOMEN",
+      "style": "Casual",
+      "compareAtKes": 7200,
+      "arrivedDaysAgo": 463,
+      "imageFocus": "50% 65%",
+      "stock": {
+        "XS": 4,
+        "S": 6,
+        "M": 4,
+        "L": 3,
+        "XL": 7
+      }
+    },
+    "nura-011": {
+      "department": "WOMEN",
+      "style": "Formal",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 470,
+      "imageFocus": "center top",
+      "stock": {
+        "XS": 7,
+        "S": 8,
+        "M": 7,
+        "L": 5,
+        "XL": 8
+      }
+    },
+    "nura-012": {
+      "department": "MEN",
+      "style": "Casual",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 477,
+      "imageFocus": "50% 45%",
+      "stock": {
+        "XS": 8,
+        "S": 5,
+        "M": 4,
+        "L": 7,
+        "XL": 6
+      }
+    },
+    "nura-013": {
+      "department": "MEN",
+      "style": "Formal",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 484,
+      "imageFocus": "center top",
+      "stock": {
+        "XS": 5,
+        "S": 5,
+        "M": 5,
+        "L": 8,
+        "XL": 8
+      }
+    },
+    "nura-014": {
+      "department": "MEN",
+      "style": "Streetwear",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 491,
+      "imageFocus": "50% 70%",
+      "stock": {
+        "XS": 6,
+        "S": 6,
+        "M": 3,
+        "L": 8,
+        "XL": 4
+      }
+    },
+    "nura-015": {
+      "department": "MEN",
+      "style": "Evening",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 498,
+      "imageFocus": "50% 55%",
+      "stock": {
+        "XS": 8,
+        "S": 5,
+        "M": 7,
+        "L": 8,
+        "XL": 5
+      }
+    },
+    "nura-016": {
+      "department": "MEN",
+      "style": "Casual",
+      "compareAtKes": 6500,
+      "arrivedDaysAgo": 505,
+      "imageFocus": "center top",
+      "stock": {
+        "XS": 7,
+        "S": 7,
+        "M": 8,
+        "L": 3,
+        "XL": 5
+      }
+    },
+    "nura-017": {
+      "department": "MEN",
+      "style": "Formal",
+      "compareAtKes": null,
+      "arrivedDaysAgo": 512,
+      "imageFocus": "50% 55%",
+      "stock": {
+        "XS": 8,
+        "S": 4,
+        "M": 3,
+        "L": 6,
+        "XL": 6
+      }
+    },
+    "nura-018": {
+      "department": "UNISEX",
+      "style": null,
+      "compareAtKes": 13000,
+      "arrivedDaysAgo": 519,
+      "imageFocus": "center center",
+      "stock": {
+        "UK 6": 5,
+        "UK 7": 4,
+        "UK 8": 5,
+        "UK 9": 5,
+        "UK 10": 3,
+        "UK 11": 6
+      }
+    },
+    "nura-019": {
+      "department": "MEN",
+      "style": null,
+      "compareAtKes": 4800,
+      "arrivedDaysAgo": 526,
+      "imageFocus": "center top",
+      "stock": {
+        "XS": 6,
+        "S": 7,
+        "M": 8,
+        "L": 6,
+        "XL": 8
+      }
+    },
+    "nura-020": {
+      "department": "WOMEN",
+      "style": null,
+      "compareAtKes": 5500,
+      "arrivedDaysAgo": 533,
+      "imageFocus": "50% 70%",
+      "stock": {
+        "XS": 5,
+        "S": 6,
+        "M": 8,
+        "L": 7,
+        "XL": 3
+      }
+    },
+    "nura-021": {
+      "department": "UNISEX",
+      "style": null,
+      "compareAtKes": 3200,
+      "arrivedDaysAgo": 540,
+      "imageFocus": "center center",
+      "stock": {
+        "ONE SIZE": 5
+      }
+    }
+  }
+}
