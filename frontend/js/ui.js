@@ -142,6 +142,21 @@
     img.style.objectPosition = img.dataset.gridPos || 'center top';
   });
 
+  /* Arriving from a search result (page.html#nura-001): bring that card into view and mark it
+     briefly, so the shopper sees at once which product they clicked. */
+  function showLinkedCard() {
+    var sku = decodeURIComponent(location.hash.slice(1));
+    if (!/^[a-z0-9-]{1,40}$/.test(sku)) return;              // only product IDs, nothing else
+    var card = document.querySelector('[data-sku="' + sku + '"]');
+    if (!card) return;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+    card.classList.add('is-linked');
+    setTimeout(function () { card.classList.remove('is-linked'); }, 2400);
+  }
+  showLinkedCard();
+  window.addEventListener('hashchange', showLinkedCard);   // result on the page you're already on
+
   /* Sign-out confirmation */
   var signout = document.getElementById('signoutOverlay');
   function closeSignout() { if (signout) signout.classList.remove('open'); }

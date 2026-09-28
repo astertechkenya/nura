@@ -10,7 +10,7 @@ npm install
 copy .env.example .env        # then fill in DATABASE_URL and TEST_DATABASE_URL
 npm run db:migrate            # create the tables
 npm run db:seed               # load the 21 products and 2 demo accounts
-npm test                      # 169 tests against the TEST database
+npm test                      # all tests, against the TEST database
 npm run dev                   # http://localhost:3000/api/products
 ```
 
@@ -38,10 +38,11 @@ src/
     schema.js       Every table, with its constraints
     client.js       Connection pool + Drizzle
     migrate.js      Applies drizzle/*.sql
-    seed.js         Catalogue from ../frontend/js/search.js + seed-overrides.json
+    seed.js         Loads seed-catalogue.json + seed-overrides.json
   routes/           One file per area of the API
   services/         Business rules with no HTTP in them (order state machine)
-  middleware/       Error handling
+  middleware/       Errors, request validation, rate limits
+  lib/              Small helpers (client IP behind the signed Netlify proxy)
 drizzle/            Generated SQL migrations (committed, never hand-edited)
 test/               Vitest + Supertest
 ```
@@ -51,4 +52,9 @@ test/               Vitest + Supertest
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/api/health` | `{ ok: true }` when the database answers |
-| GET | `/api/products` | All active products with brand, sizes and stock |
+| GET | `/api/products` | Active products with brand, sizes and stock. Filters: `department`, `sale=true`, `new=true`, `brand`, `q`, `limit` |
+| GET | `/api/products/:slug` | One product, or 404 |
+| POST | `/api/newsletter` | `{ email }` → `{ ok: true }` (same answer for new and existing addresses; 5 per hour per shopper) |
+
+Run the storefront locally with the API behind it, the way Netlify does it in production:
+`npm run dev` here, then `python server.py` from the repository root, then open http://localhost:8000.

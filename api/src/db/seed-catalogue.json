@@ -1,0 +1,177 @@
+{
+  "_readme": [
+    "The catalogue the seed loads: one entry per product.",
+    "Moved here from frontend/js/search.js in Phase 1: the storefront now reads products from the API, and the API owns the data.",
+    "Prices are whole Kenya shillings. Facts the pages never held (department, sizes, stock...) are in seed-overrides.json."
+  ],
+  "products": [
+    {
+      "sku": "nura-001",
+      "name": "Pearl Chain Bracelet",
+      "brand": "Chanel",
+      "priceKes": 8500,
+      "imageUrl": "images/pearl.webp",
+      "cardBg": "#cccccc"
+    },
+    {
+      "sku": "nura-002",
+      "name": "Linen Oversized Blazer",
+      "brand": "KikoRomeo",
+      "priceKes": 14200,
+      "imageUrl": "images/linen_blazer.webp",
+      "cardBg": "#c8c8c6"
+    },
+    {
+      "sku": "nura-003",
+      "name": "Printed Wrap Dress",
+      "brand": "Zara",
+      "priceKes": 5700,
+      "imageUrl": "images/printed_dress.webp",
+      "cardBg": "#cccccc"
+    },
+    {
+      "sku": "nura-004",
+      "name": "Handwoven Bucket Hat",
+      "brand": "Ann McCreath",
+      "priceKes": 2080,
+      "imageUrl": "images/handwoven_bucket_hat.webp",
+      "cardBg": "#bbbbbb"
+    },
+    {
+      "sku": "nura-005",
+      "name": "Neverfull Tote Bag",
+      "brand": "Louis Vuitton",
+      "priceKes": 18500,
+      "imageUrl": "images/Neverfull.webp",
+      "cardBg": "#d0c8c0"
+    },
+    {
+      "sku": "nura-006",
+      "name": "Gold Chain Earrings",
+      "brand": "Chanel",
+      "priceKes": 4800,
+      "imageUrl": "images/goldchain1.webp",
+      "cardBg": "#c0bab4"
+    },
+    {
+      "sku": "nura-007",
+      "name": "Tailored Column Dress",
+      "brand": "Ann McCreath",
+      "priceKes": 22500,
+      "imageUrl": "images/columndress.webp",
+      "cardBg": "#c8c8c6"
+    },
+    {
+      "sku": "nura-008",
+      "name": "Wide Leg Cargo Pants",
+      "brand": "Zara",
+      "priceKes": 9800,
+      "imageUrl": "images/widelegcargo.webp",
+      "cardBg": "#bbbbbb"
+    },
+    {
+      "sku": "nura-009",
+      "name": "Draped Evening Gown",
+      "brand": "Louis Vuitton",
+      "priceKes": 38000,
+      "imageUrl": "images/drapedgown.webp",
+      "cardBg": "#c0bab4"
+    },
+    {
+      "sku": "nura-010",
+      "name": "Cotton Wrap Skirt",
+      "brand": "KikoRomeo",
+      "priceKes": 5400,
+      "imageUrl": "images/cottonwrap.webp",
+      "cardBg": "#cccccc"
+    },
+    {
+      "sku": "nura-011",
+      "name": "Structured Blazer Set",
+      "brand": "Ann McCreath",
+      "priceKes": 28000,
+      "imageUrl": "images/structuredblazer.webp",
+      "cardBg": "#b8b4b0"
+    },
+    {
+      "sku": "nura-012",
+      "name": "Relaxed Linen Shirt",
+      "brand": "KikoRomeo",
+      "priceKes": 8200,
+      "imageUrl": "images/relaxedlinen.avif",
+      "cardBg": "#efefed"
+    },
+    {
+      "sku": "nura-013",
+      "name": "Slim Tapered Trousers",
+      "brand": "Ann McCreath",
+      "priceKes": 12800,
+      "imageUrl": "images/slimtaper.webp",
+      "cardBg": "#c8c8c6"
+    },
+    {
+      "sku": "nura-014",
+      "name": "Tech Fleece Jacket",
+      "brand": "Nike",
+      "priceKes": 16500,
+      "imageUrl": "images/techfleece.webp",
+      "cardBg": "#bbbbbb"
+    },
+    {
+      "sku": "nura-015",
+      "name": "Structured Evening Blazer",
+      "brand": "Louis Vuitton",
+      "priceKes": 32000,
+      "imageUrl": "images/blazerevening.webp",
+      "cardBg": "#c0bab4"
+    },
+    {
+      "sku": "nura-016",
+      "name": "Cargo Shorts",
+      "brand": "KikoRomeo",
+      "priceKes": 4800,
+      "imageUrl": "images/cargoshort.avif",
+      "cardBg": "#cccccc"
+    },
+    {
+      "sku": "nura-017",
+      "name": "Double-Breasted Suit",
+      "brand": "Ann McCreath",
+      "priceKes": 45000,
+      "imageUrl": "images/breastedsuit.webp",
+      "cardBg": "#b8b4b0"
+    },
+    {
+      "sku": "nura-018",
+      "name": "Air Max 270 Sneakers",
+      "brand": "Nike",
+      "priceKes": 9750,
+      "imageUrl": "images/airmax.avif",
+      "cardBg": "#e8eaed"
+    },
+    {
+      "sku": "nura-019",
+      "name": "Dri-FIT Training Shorts",
+      "brand": "Nike",
+      "priceKes": 3200,
+      "imageUrl": "images/drifit.webp",
+      "cardBg": "#dce4ec"
+    },
+    {
+      "sku": "nura-020",
+      "name": "Satin Midi Slip Skirt",
+      "brand": "Zara",
+      "priceKes": 3600,
+      "imageUrl": "images/satinskirt.webp",
+      "cardBg": "#d4ccd8"
+    },
+    {
+      "sku": "nura-021",
+      "name": "Woven Leather Belt",
+      "brand": "KikoRomeo",
+      "priceKes": 2100,
+      "imageUrl": "images/leatherbelt.webp",
+      "cardBg": "#c8b89a"
+    }
+  ]
+}

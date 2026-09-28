@@ -11,6 +11,8 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { db } from './db/client.js';
 import { productsRouter } from './routes/products.js';
+import { newsletterRouter } from './routes/newsletter.js';
+import { verifyNetlifySignature } from './lib/clientIp.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 export function createApp() {
@@ -39,7 +41,10 @@ export function createApp() {
     // shoppers' IP addresses and cookies: personal data we have no reason to keep
     // (Kenya's Data Protection Act asks for data minimisation).
     serializers: {
-      req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+      // viaNetlify: true when the request came through our signed Netlify proxy. If storefront
+      // requests ever log false in production, the NETLIFY_PROXY_SECRET values don't match.
+      req: (req) => ({ id: req.id, method: req.method, url: req.url,
+                       viaNetlify: Boolean(verifyNetlifySignature(req.headers['x-nf-sign'])) }),
       res: (res) => ({ statusCode: res.statusCode }),
     },
   }));
@@ -54,6 +59,7 @@ export function createApp() {
   });
 
   app.use('/api/products', productsRouter);
+  app.use('/api/newsletter', newsletterRouter);
 
   app.use(notFound);
   app.use(errorHandler);

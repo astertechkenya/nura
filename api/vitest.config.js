@@ -24,7 +24,11 @@ process.env.DATABASE_URL = testUrl; // for globalSetup, which runs in this proce
 
 export default defineConfig({
   test: {
-    env: { NODE_ENV: 'test', DATABASE_URL: testUrl }, // for the test files
+    env: {                   // for the test files
+      NODE_ENV: 'test',
+      DATABASE_URL: testUrl,
+      NETLIFY_PROXY_SECRET: 'test-only-secret-that-is-long-enough-123', // never a real secret
+    },
     globalSetup: ['./test/globalSetup.js'],
     fileParallelism: false,  // files share one database, so run them one at a time
   },

@@ -1,6 +1,6 @@
 /* NURA filters.js: category-page controls (subcategory tiles, sort, grid/list view, load more).
-   Loaded on men, women, new-in and sale. Subcategory counts come from data-count on each tile
-   until Phase 1 replaces them with real counts from the API. */
+   Loaded on men, women, new-in and sale. The item count shows how many products are
+   actually on screen. (Until Phase 1 it showed invented numbers such as "180 items".) */
 (function () {
   'use strict';
   var NURA = window.NURA;
@@ -11,11 +11,36 @@
   cards().forEach(function (c, i) { c.dataset.sortIndex = i; });
   var currentStyle = 'All';
 
+  var plural = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+
+  // Every number on these pages is counted from the cards that are really on it, so it can
+  // never drift from what the shopper sees. (Until Phase 1 they were invented: "48 pieces",
+  // "240 pieces".) Phase 7, rendering from the API, keeps the same rule.
   function applyStyleFilter() {
+    var shown = 0;
     cards().forEach(function (c) {
-      c.style.display = (currentStyle === 'All' || c.dataset.style === currentStyle) ? '' : 'none';
+      var match = currentStyle === 'All' || c.dataset.style === currentStyle;
+      c.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+    document.querySelectorAll('.sort-bar__count').forEach(function (el) {
+      el.textContent = plural(shown, 'item', 'items');
     });
   }
+  function countTotals() {
+    var all = cards();
+    document.querySelectorAll('[data-live-count]').forEach(function (el) {
+      el.textContent = plural(all.length, 'piece', 'pieces');
+    });
+    document.querySelectorAll('.subcat[data-style]').forEach(function (tile) {
+      var style = tile.dataset.style;
+      var n = style === 'All' ? all.length : all.filter(function (c) { return c.dataset.style === style; }).length;
+      var label = tile.querySelector('.subcat__count');
+      if (label) label.textContent = plural(n, 'piece', 'pieces');
+    });
+  }
+  countTotals();
+  applyStyleFilter();
 
   NURA.on('subcat', function (el) {
     currentStyle = el.dataset.style || 'All';
@@ -23,8 +48,6 @@
       t.classList.toggle('active', t === el);
     });
     applyStyleFilter();
-    var count = document.getElementById('itemCount');
-    if (count && el.dataset.count) count.textContent = el.dataset.count + ' items';
     var target = document.getElementById('grid');
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });

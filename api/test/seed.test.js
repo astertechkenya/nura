@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { parseKsh, slugify, readStorefrontProducts, buildCatalogue } from '../src/db/seed.js';
+import { parseKsh, slugify, readCatalogue, buildCatalogue } from '../src/db/seed.js';
 
 const overrides = JSON.parse(readFileSync(new URL('../src/db/seed-overrides.json', import.meta.url), 'utf8'));
 
@@ -16,16 +16,16 @@ describe('seed helpers', () => {
 });
 
 describe('catalogue sources', () => {
-  const storefront = readStorefrontProducts();
+  const storefront = readCatalogue();
 
-  it('reads all 21 products from the storefront script', () => {
+  it('reads all 21 products from seed-catalogue.json', () => {
     expect(storefront).toHaveLength(21);
   });
   it('has an override for every product (nothing silently skipped)', () => {
-    for (const p of storefront) expect(overrides.products[p.id], p.id).toBeDefined();
+    for (const p of storefront) expect(overrides.products[p.sku], p.sku).toBeDefined();
   });
   it('fails loudly when a product has no override', () => {
-    expect(() => buildCatalogue([{ id: 'nura-999', name: 'Ghost', price: 'KSh 1' }], overrides)).toThrow(/nura-999/);
+    expect(() => buildCatalogue([{ sku: 'nura-999', name: 'Ghost', priceKes: 1 }], overrides)).toThrow(/nura-999/);
   });
   it('every sale price is below its "was" price', () => {
     for (const { product } of buildCatalogue(storefront, overrides)) {

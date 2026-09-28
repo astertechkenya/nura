@@ -1,15 +1,15 @@
 // seed.js: fills the database with NURA's catalogue and two demo accounts.
 //
-// The catalogue is NOT retyped. It is read from the storefront's own product list
-// (frontend/js/search.js) and combined with seed-overrides.json, which holds what the
-// pages never modelled: departments, styles, sale prices, arrival dates, sizes and stock.
+// Two files feed it: seed-catalogue.json (what each product is: name, brand, price, image)
+// and seed-overrides.json (what the old pages never modelled: department, style, sale price,
+// arrival date, sizes and stock). Both were generated from the original storefront in
+// Phases 0 and 1, so nothing was retyped by hand.
 //
 // Safe to run again and again: every write is an upsert (insert, or update if it exists),
 // so a second run changes nothing unless you edited the source files. Stock is reset to the
 // values in seed-overrides.json each run, which is what you want for a demo database.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 import argon2 from 'argon2';
 import { eq, sql } from 'drizzle-orm';
 import { db, pool } from './client.js';
@@ -20,40 +20,36 @@ const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 export const slugify = (s) =>
   s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-/** 'KSh 14,200' → 14200 */
+/** 'KSh 14,200' → 14200. Kept for anyone importing old price strings. */
 export const parseKsh = (s) => {
   const n = Number(String(s).replace(/[^0-9]/g, ''));
   if (!Number.isInteger(n) || n <= 0) throw new Error(`Not a price: ${s}`);
   return n;
 };
 
-/** Reads the NURA_PRODUCTS array out of the storefront script without running the page. */
-export function readStorefrontProducts(file = here('../../../frontend/js/search.js')) {
-  const src = readFileSync(file, 'utf8');
-  const match = src.match(/NURA_PRODUCTS\s*=\s*(\[[\s\S]*?\]);/);
-  if (!match) throw new Error(`NURA_PRODUCTS not found in ${file}`);
-  // Evaluate ONLY the array literal, in an empty sandbox with no access to anything else.
-  // This is our own file, but there is no reason to give it more power than it needs.
-  return vm.runInNewContext(match[1], Object.create(null), { timeout: 1000 });
+/** The product list the seed loads. */
+export function readCatalogue(file = here('./seed-catalogue.json')) {
+  return JSON.parse(readFileSync(file, 'utf8')).products;
 }
 
-export function buildCatalogue(storefront, overrides, now = new Date()) {
-  return storefront.map((p) => {
-    const o = overrides.products[p.id];
-    if (!o) throw new Error(`${p.id} (${p.name}) has no entry in seed-overrides.json`);
+export function buildCatalogue(catalogue, overrides, now = new Date()) {
+  return catalogue.map((p) => {
+    const o = overrides.products[p.sku];
+    if (!o) throw new Error(`${p.sku} (${p.name}) has no entry in seed-overrides.json`);
+    if (!Number.isInteger(p.priceKes) || p.priceKes <= 0) throw new Error(`${p.sku}: priceKes must be a positive whole number`);
     return {
       product: {
-        sku: p.id,
+        sku: p.sku,
         slug: slugify(p.name),
         name: p.name,
         brandName: p.brand,
         department: o.department,
         style: o.style ?? null,
-        priceKes: parseKsh(p.price),
+        priceKes: p.priceKes,
         compareAtKes: o.compareAtKes ?? null,
-        imageUrl: p.img,
+        imageUrl: p.imageUrl,
         imageFocus: o.imageFocus ?? '50% 50%',
-        cardBg: p.bg,
+        cardBg: p.cardBg,
         arrivedAt: new Date(now.getTime() - o.arrivedDaysAgo * 24 * 60 * 60 * 1000),
       },
       stock: o.stock,
@@ -63,7 +59,7 @@ export function buildCatalogue(storefront, overrides, now = new Date()) {
 
 export async function seed({ log = console.log } = {}) {
   const overrides = JSON.parse(readFileSync(here('./seed-overrides.json'), 'utf8'));
-  const catalogue = buildCatalogue(readStorefrontProducts(), overrides);
+  const catalogue = buildCatalogue(readCatalogue(), overrides);
 
   // One transaction: the seed either lands completely or not at all.
   await db.transaction(async (tx) => {

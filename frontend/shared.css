@@ -191,3 +191,20 @@ to{right:0}
 @media(max-width:960px){.nav__wish-wrap{display:none;}.nav__account-wrap{display:none;}.cart-text{display:none;}}
 .mobile-menu{display:none;}
 @media(max-width:960px){.mobile-menu{display:none;flex-direction:column;position:fixed;top:0;right:0;bottom:0;width:80vw;max-width:320px;background:var(--bg);z-index:200;padding:28px 28px 40px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.12);}.mobile-menu.open{display:flex;}}
+
+/* ── Live catalogue states (Phase 1, js/catalogue.js) ─────────────────── */
+/* Low stock: a quiet line under the price. */
+.nura-stock{margin:4px 0 0;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--purple);}
+/* Sold out / unavailable: dimmed image, the button stays visible and says why it can't be used. */
+.is-sold-out img{opacity:.5;filter:grayscale(.4);}
+.is-sold-out [data-sold-out]{transform:translateY(0);background:#e6e6e6;color:#555;cursor:not-allowed;}
+/* While a sleeping server wakes up, prices gently pulse so the wait looks intentional. */
+.nura-syncing .product-card__price,.nura-syncing .product__price{animation:nura-pulse 1.4s ease-in-out infinite;}
+@keyframes nura-pulse{50%{opacity:.35;}}
+/* People who ask their system for less motion get a still, dimmed price instead of a pulse. */
+@media (prefers-reduced-motion: reduce){
+  .nura-syncing .product-card__price,.nura-syncing .product__price{animation:none;opacity:.6;}
+}
+/* A card you arrived at from search: outlined in brand purple for a moment. */
+[data-sku]{transition:outline-color .6s ease;outline:2px solid transparent;outline-offset:6px;}
+[data-sku].is-linked{outline-color:var(--purple);}

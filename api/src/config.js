@@ -20,6 +20,12 @@ const schema = z.object({
   // Keep 30 for a real shop; a portfolio demo that sits untouched for months may want 365.
   NEW_IN_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Shared secret between Netlify and this API (Phase 1). Netlify signs every request it
+  // proxies with it (the x-nf-sign header). Only signed requests may tell us the shopper's
+  // real IP; anyone can type an x-nf-client-connection-ip header, but nobody can forge the
+  // signature without this secret. Leave unset locally.
+  NETLIFY_PROXY_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
+
   // Checkout (Phase 4). Orders at or above the threshold ship free: the marquee's promise.
   FREE_SHIPPING_THRESHOLD_KES: z.coerce.number().int().positive().default(5000),
   SHIPPING_FEE_KES: z.coerce.number().int().nonnegative().default(300),

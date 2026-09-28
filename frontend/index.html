@@ -1027,8 +1027,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <p class="newsletter__eyebrow">Join the movement</p>
         <h2 class="newsletter__title" id="nl-heading">STAY IN THE LOOP</h2>
         <p class="newsletter__sub">New drops, exclusive deals, zero spam.</p>
-        <form class="newsletter__form" name="newsletter" method="POST"
-              netlify netlify-honeypot="bot-field" novalidate>
+        <form class="newsletter__form" name="newsletter" novalidate>
           <p style="display:none"><label>Leave blank: <input name="bot-field" /></label></p>
           <input class="newsletter__input" type="email" name="email"
                  placeholder="your@email.com" required aria-label="Email address" />
@@ -1060,7 +1059,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 
 
 
-  <div class="nura-toast" id="subToast">Subscribed. Welcome to NURA.</div>
+  <div class="nura-toast" id="subToast" role="status" aria-live="polite">Subscribed. Welcome to NURA.</div>
 
 
   <!-- Sign Out Confirm Modal -->
@@ -1076,10 +1075,12 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   </div>
   
   <script src="js/ui.js" defer></script>
+  <script src="js/api.js" defer></script>
   <script src="js/cart.js" defer></script>
   <script src="js/wishlist.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/search.js" defer></script>
+  <script src="js/catalogue.js" defer></script>
   <script src="js/home.js" defer></script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+# netlify.toml: Netlify's settings, kept in the repository so they are versioned and reviewed
+# like code. Settings here override the ones in Netlify's web dashboard.
+
+[build]
+  publish = "frontend"      # only the storefront is published; api/ never is
+
+# The API appears under the storefront's own address: nuramob.netlify.app/api/...
+# status 200 makes this a REWRITE (Netlify fetches from Render and hands the answer back),
+# not a redirect, so the browser only ever talks to one site. Cookies are first-party and
+# there is no CORS to configure.
+#
+# `signed` makes Netlify add an x-nf-sign header, a token signed with the secret stored in
+# the NETLIFY_PROXY_SECRET environment variable (set on Netlify AND on Render). The API
+# believes the shopper-IP header only when that signature checks out.
+[[redirects]]
+  from = "/api/*"
+  to = "https://nura-api-w1nm.onrender.com/api/:splat"
+  status = 200
+  force = true
+  signed = "NETLIFY_PROXY_SECRET"
