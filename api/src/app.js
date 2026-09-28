@@ -32,7 +32,16 @@ export function createApp() {
       res.setHeader('X-Request-Id', id);
       return id;
     },
-    autoLogging: !config.isTest,
+    // Render calls /api/health every few seconds. Logging each one buries real traffic,
+    // so health checks are served but not logged.
+    autoLogging: config.isTest ? false : { ignore: (req) => req.url === '/api/health' },
+    // Log only what's needed to trace a request. The default logs every header, including
+    // shoppers' IP addresses and cookies: personal data we have no reason to keep
+    // (Kenya's Data Protection Act asks for data minimisation).
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
   }));
 
   app.use(express.json({ limit: '100kb' })); // rejects oversized bodies before any route sees them
