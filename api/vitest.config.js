@@ -32,6 +32,15 @@ export default defineConfig({
       DATABASE_URL: testUrl,
       NETLIFY_PROXY_SECRET: 'test-only-secret-that-is-long-enough-123', // never a real secret
       SESSION_SECRET: TEST_SESSION_SECRET,
+      // M-Pesa against a FAKE Daraja that test/fakeDaraja.js runs on this port. No test ever
+      // talks to Safaricom.
+      DARAJA_BASE_URL: 'http://127.0.0.1:4599',
+      DARAJA_CONSUMER_KEY: 'test-key',
+      DARAJA_CONSUMER_SECRET: 'test-secret',
+      DARAJA_SHORTCODE: '174379',
+      DARAJA_PASSKEY: 'test-passkey',
+      PUBLIC_API_URL: 'https://api.example.test',
+      MPESA_CALLBACK_SECRET: 'test-only-callback-secret-0123456789abcdef',
     },
     globalSetup: ['./test/globalSetup.js'],
     fileParallelism: false,  // files share one database, so run them one at a time

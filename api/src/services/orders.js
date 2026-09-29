@@ -6,7 +6,7 @@
 // pressing "Place order" for the last blazer at the same moment can't both win: Postgres runs
 // the two UPDATEs one after the other, the second finds stock 0 and changes nothing, and that
 // checkout rolls back completely.
-import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
   brands, carts, cartItems, orderEvents, orderItems, orders, payments, productVariants, products,
@@ -14,10 +14,12 @@ import {
 import { config } from '../config.js';
 import { httpError } from '../middleware/errors.js';
 import { priceOrder } from './pricing.js';
-import { assertTransition, sideEffects } from './orderStates.js';
+import { MAX_STK_ATTEMPTS, assertTransition, sideEffects } from './orderStates.js';
+import { amountToRequest } from './daraja.js';
+import { paymentSummary } from './payments.js';
 
-/** Payment methods that can take orders today. M-Pesa arrives in Phase 5, cards in Phase 6. */
-export const AVAILABLE_METHODS = Object.freeze({ COD: true, MPESA: false, CARD: false });
+/** Payment methods that can take orders today. M-Pesa once Daraja is configured; cards in Phase 6. */
+export const AVAILABLE_METHODS = Object.freeze({ COD: true, MPESA: config.mpesaEnabled, CARD: false });
 
 /** Can this order be paid in cash? `rules` defaults to the configured ones (tests pass their own). */
 export const codAvailable = (county, totalKes, rules = config) =>
@@ -84,6 +86,7 @@ export async function placeOrder({ cartId, userId, details }) {
       const number = `NURA-${String(n).padStart(6, '0')}`;
 
       const cod = details.paymentMethod === 'COD';
+      const mpesa = details.paymentMethod === 'MPESA';
       const status = cod ? 'AWAITING_COD' : 'PENDING_PAYMENT';
       const [order] = await tx.insert(orders).values({
         number,
@@ -99,6 +102,7 @@ export async function placeOrder({ cartId, userId, details }) {
         addressCity: details.county,
         deliveryNotes: details.notes || null,
         checkoutKey: details.checkoutKey,
+        stkAttempts: mpesa ? 1 : 0,                   // the checkout itself sends the first prompt
         // COD orders wait for the rider, not for a payment prompt, so they never expire.
         expiresAt: cod ? null : new Date(Date.now() + config.PAYMENT_WINDOW_MINUTES * 60 * 1000),
       }).returning({ id: orders.id });
@@ -110,8 +114,9 @@ export async function placeOrder({ cartId, userId, details }) {
       })));
       await tx.insert(payments).values({
         orderId: order.id,
-        provider: cod ? 'COD' : details.paymentMethod === 'MPESA' ? 'DARAJA' : 'PAYSTACK',
-        amountKes: totalKes,
+        provider: cod ? 'COD' : mpesa ? 'DARAJA' : 'PAYSTACK',
+        phone: mpesa ? details.phone : null,
+        amountKes: mpesa ? amountToRequest(totalKes) : totalKes,
       });
       await tx.insert(orderEvents).values({ orderId: order.id, fromStatus: null, toStatus: status, note: 'Order placed' });
 
@@ -160,6 +165,10 @@ export async function loadOrder(id) {
     totalKes: o.totalKes,
     // Private to the owner, so no need to hide it; used by "Create an account with this email".
     guest: o.userId === null,
+    // M-Pesa: where the latest attempt stands, how many prompts are left, and until when.
+    payment: await paymentSummary(o.id),
+    promptsLeft: o.paymentMethod === 'MPESA' ? Math.max(0, MAX_STK_ATTEMPTS - o.stkAttempts) : 0,
+    payBy: o.expiresAt,
   };
 }
 
@@ -201,8 +210,12 @@ export async function expireOrders(now = new Date()) {
           from order_items i where i.order_id = ${o.id} and i.variant_id = v.id`);
       }
       await tx.update(orders).set({ status: 'EXPIRED', updatedAt: now }).where(eq(orders.id, o.id));
+      // Close attempts that never reached a provider. An M-Pesa prompt that WAS sent stays
+      // PENDING: only Safaricom knows whether the shopper paid at the last second, and the
+      // payments job will ask. If they did, the money is recorded and a refund marked due.
       await tx.update(payments).set({ status: 'FAILED', failureReason: 'Payment window expired', updatedAt: now })
-        .where(and(eq(payments.orderId, o.id), eq(payments.status, 'PENDING')));
+        .where(and(eq(payments.orderId, o.id), eq(payments.status, 'PENDING'),
+                   or(isNull(payments.providerRef), ne(payments.provider, 'DARAJA'))));
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'EXPIRED', note: 'Not paid in time; stock returned' });
     }
     return due.length;

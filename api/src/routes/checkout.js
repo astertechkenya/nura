@@ -14,6 +14,10 @@ import { limit } from '../middleware/rateLimit.js';
 import { httpError } from '../middleware/errors.js';
 import { cartIdFor } from '../services/cart.js';
 import { AVAILABLE_METHODS, loadOrder, placeOrder } from '../services/orders.js';
+import { PUSHES_PER_PHONE_PER_HOUR, pushPayment, recentPushes } from '../services/payments.js';
+import { db } from '../db/client.js';
+import { payments } from '../db/schema.js';
+import { and, eq } from 'drizzle-orm';
 
 export const checkoutRouter = Router();
 checkoutRouter.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -53,7 +57,10 @@ checkoutRouter.post(
   async (req, res) => {
     const details = req.valid.body;
     if (!AVAILABLE_METHODS[details.paymentMethod]) {
-      throw httpError(409, 'That payment method is coming soon. Choose cash on delivery for now.');
+      throw httpError(409, 'That payment method is coming soon. Choose another one for now.');
+    }
+    if (details.paymentMethod === 'MPESA' && await recentPushes(details.phone) >= PUSHES_PER_PHONE_PER_HOUR) {
+      throw httpError(429, 'Too many M-Pesa prompts to this number. Please wait an hour, or choose another way to pay.');
     }
     const cartId = await cartIdFor(req, res);
     const userId = req.session?.userId ?? null;
@@ -64,6 +71,13 @@ checkoutRouter.post(
       const ids = (req.session.guestOrderIds ?? []).filter((id) => id !== orderId);
       req.session.guestOrderIds = [...ids, orderId].slice(-20);
       await new Promise((ok, fail) => req.session.save((e) => (e ? fail(e) : ok())));
+    }
+    if (details.paymentMethod === 'MPESA') {
+      // The order (and its stock) is saved first; only then do we ask Safaricom. If the push
+      // fails, nothing is lost: the payment is marked FAILED and the shopper can resend.
+      const [p] = await db.select({ id: payments.id }).from(payments)
+        .where(and(eq(payments.orderId, orderId), eq(payments.status, 'PENDING')));
+      if (p) await pushPayment(p.id);
     }
     res.status(201).json({ order: await loadOrder(orderId) });
   },

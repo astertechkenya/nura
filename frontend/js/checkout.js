@@ -89,17 +89,30 @@
         ? 'Not available in ' + county + ' yet: ' + options.cod.counties.join(', ') + ' only.'
         : 'Pay in cash when your order arrives. ' + options.cod.counties.join(', ') + ' only.';
     if (!codOk) cod.checked = false;
-    else if (!form.querySelector('input[name="paymentMethod"]:checked')) cod.checked = true;  // the only option: pick it
+
+    // M-Pesa (Phase 5): on as soon as the server says it's configured, in every county.
+    var mpesa = form.querySelector('input[value="MPESA"]');
+    mpesa.disabled = !options.methods.MPESA;
+    mpesa.closest('.co-method').classList.toggle('is-off', mpesa.disabled);
+    var tag = mpesa.closest('.co-method').querySelector('.co-method__tag');
+    if (tag) tag.hidden = !mpesa.disabled;
+
+    // If exactly one way to pay is open, choose it; with two, the shopper picks.
+    var open = [cod, mpesa].filter(function (r) { return !r.disabled; });
+    if (!form.querySelector('input[name="paymentMethod"]:checked') && open.length === 1) open[0].checked = true;
 
     markSelected();
-    var anyAvailable = codOk || options.methods.MPESA || options.methods.CARD;
+    var anyAvailable = open.length > 0 || options.methods.CARD;
     var noPay = byId('coNoPay');
     noPay.hidden = anyAvailable;
     noPay.textContent = anyAvailable ? '' : 'Delivery to ' + county + ' opens when M-Pesa and card payments arrive, very soon. For now we can only take cash on delivery in '
       + options.cod.counties.join(', ') + '.';
     var btn = byId('coSubmit');
     btn.disabled = !anyAvailable || sending || cart.items.some(function (i) { return i.problem; });
-    btn.textContent = sending ? 'Placing order…' : 'Place order · ' + NURA.fmtKsh(cart.totalKes);
+    var chosen = form.querySelector('input[name="paymentMethod"]:checked');
+    btn.textContent = sending ? 'Placing order…'
+      : chosen && chosen.value === 'MPESA' ? 'Pay ' + NURA.fmtKsh(cart.totalKes) + ' with M-Pesa'
+      : 'Place order · ' + NURA.fmtKsh(cart.totalKes);
   }
 
   function markSelected() {
@@ -188,7 +201,7 @@
     if (e.target.classList.contains('error')) fieldError(e.target.id, false);
   });
   form.addEventListener('change', function (e) {
-    if (e.target.name === 'paymentMethod') { byId('coMethodErr').classList.remove('show'); markSelected(); }
+    if (e.target.name === 'paymentMethod') { byId('coMethodErr').classList.remove('show'); updatePayment(); }
   });
 
   // Phones: fold the summary away so the form comes first. Desktop keeps it open.

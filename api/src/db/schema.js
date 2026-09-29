@@ -207,6 +207,10 @@ export const payments = pgTable('payments', {
   // arriving twice can never create a second payment.
   providerRef: text('provider_ref').unique(),
   receipt: text('receipt'),                        // M-Pesa receipt number, e.g. QK12ABC3XY
+  phone: text('phone'),                            // M-Pesa: the number the prompt went to
+  resultCode: text('result_code'),                 // M-Pesa: Safaricom's ResultCode (1032 = cancelled...)
+  // What we asked the provider for. Equal to the order total, except in the Daraja sandbox,
+  // where a token amount is requested (see DARAJA_SANDBOX_AMOUNT_KES).
   amountKes: integer('amount_kes').notNull(),
   status: paymentStatusEnum('status').notNull().default('PENDING'),
   failureReason: text('failure_reason'),

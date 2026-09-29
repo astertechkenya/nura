@@ -5,6 +5,8 @@
 // because the first request after waking runs them straight away.
 import { logger } from '../logger.js';
 import { expireOrders } from '../services/orders.js';
+import { reconcilePayments } from '../services/payments.js';
+import { config } from '../config.js';
 
 const EVERY_MINUTE = 60 * 1000;
 let timer = null;
@@ -14,6 +16,12 @@ async function tick() {
   if (running) return;          // a slow run is never overlapped by the next one
   running = true;
   try {
+    // First settle M-Pesa prompts whose result never arrived, THEN expire what's still unpaid:
+    // an order must not expire while Safaricom is holding a "paid" for it.
+    if (config.mpesaEnabled) {
+      const settled = await reconcilePayments();
+      if (settled) logger.info({ settled }, 'settled M-Pesa payments by query');
+    }
     const n = await expireOrders();
     if (n) logger.info({ expired: n }, 'expired unpaid orders and returned their stock');
   } catch (err) {

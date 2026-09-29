@@ -48,6 +48,25 @@ const schema = z.object({
   COD_MAX_KES: z.coerce.number().int().positive().optional(),
   // How long an unpaid M-Pesa/card order holds its stock before expiring (Phase 5).
   PAYMENT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+
+  // M-Pesa through Safaricom's Daraja API (Phase 5). M-Pesa appears at checkout only when
+  // all five DARAJA_* values and MPESA_CALLBACK_SECRET are set.
+  DARAJA_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
+  DARAJA_CONSUMER_KEY: z.string().min(1).optional(),
+  DARAJA_CONSUMER_SECRET: z.string().min(1).optional(),
+  DARAJA_SHORTCODE: z.string().regex(/^\d{5,7}$/, 'must be a paybill or till number').optional(),
+  DARAJA_PASSKEY: z.string().min(1).optional(),
+  // Where Safaricom sends payment results: the API's own public address (Render), NOT the
+  // storefront. Safaricom calls it directly, server to server.
+  PUBLIC_API_URL: z.url().optional(),
+  // Part of the callback address, so only Safaricom (who we gave it to) knows where to post.
+  MPESA_CALLBACK_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
+  // Tests point this at a fake Daraja. Leave unset: the right Safaricom address is chosen
+  // from DARAJA_ENV.
+  DARAJA_BASE_URL: z.url().optional(),
+  // SAFETY: in the sandbox, ask for this many shillings instead of the real order total, so a
+  // test prompt can never take a real amount from a real line. Ignored in production.
+  DARAJA_SANDBOX_AMOUNT_KES: z.coerce.number().int().positive().default(1),
 });
 
 function load(env) {
@@ -60,7 +79,9 @@ function load(env) {
     throw new Error(`Invalid environment configuration:\n${problems}\nSee api/.env.example.`);
   }
   const c = parsed.data;
-  return Object.freeze({ ...c, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
+  const mpesaEnabled = Boolean(c.DARAJA_CONSUMER_KEY && c.DARAJA_CONSUMER_SECRET && c.DARAJA_SHORTCODE
+    && c.DARAJA_PASSKEY && c.PUBLIC_API_URL && c.MPESA_CALLBACK_SECRET);
+  return Object.freeze({ ...c, mpesaEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
 }
 
 export const config = load(process.env);

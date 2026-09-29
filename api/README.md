@@ -78,6 +78,10 @@ Signing in (register, login or reset) moves this browser's guest cart into the a
 | POST | `/api/checkout` | `{ checkoutKey, email, phone, name, addressLine1, area, county, notes?, paymentMethod }` → an order from this browser's cart. Stock is taken in the same transaction; the cart is emptied. Sending the same `checkoutKey` twice returns the same order. 10 per hour per shopper |
 | GET | `/api/orders` | Signed-in: order history |
 | GET | `/api/orders/:id` | One order, to its owner only (the account, or the guest browser that placed it); 404 for anyone else |
+| POST | `/api/orders/:id/pay` | `{ phone? }` → M-Pesa: send another prompt (3 per order, 5 per hour per number). Owner only |
+| POST | `/api/payments/mpesa/callback/:secret` | Safaricom's STK result. Server to server; wrong secret = 404 |
+
+**How an M-Pesa payment is settled.** Daraja callbacks aren't signed, so a callback never marks anything paid by itself. It makes the API ask Safaricom (`stkQuery`, our credentials, over HTTPS), and only that answer settles the payment. Prompts that get no callback are asked about by the job after a minute. In the sandbox every prompt asks for `DARAJA_SANDBOX_AMOUNT_KES` (1), never the real total.
 
 Unpaid M-Pesa/card orders expire after `PAYMENT_WINDOW_MINUTES` and give their stock back (`src/jobs/`, every minute). COD orders never expire.
 

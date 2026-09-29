@@ -18,6 +18,7 @@ import { cartRouter } from './routes/cart.js';
 import { wishlistRouter } from './routes/wishlist.js';
 import { checkoutRouter } from './routes/checkout.js';
 import { ordersRouter } from './routes/orders.js';
+import { paymentsRouter } from './routes/payments.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { sameOrigin } from './middleware/sameOrigin.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -50,7 +51,8 @@ export function createApp() {
     serializers: {
       // viaNetlify: true when the request came through our signed Netlify proxy. If storefront
       // requests ever log false in production, the NETLIFY_PROXY_SECRET values don't match.
-      req: (req) => ({ id: req.id, method: req.method, url: req.url,
+      // The M-Pesa callback address contains a secret: never write it to a log.
+      req: (req) => ({ id: req.id, method: req.method, url: req.url.replace(/(\/callback\/)[^/?]+/, '$1[redacted]'),
                        viaNetlify: Boolean(verifyNetlifySignature(req.headers['x-nf-sign'])) }),
       res: (res) => ({ statusCode: res.statusCode }),
     },
@@ -74,6 +76,7 @@ export function createApp() {
   app.use('/api/wishlist', sessionMiddleware, wishlistRouter); // signed-in only
   app.use('/api/checkout', sessionMiddleware, checkoutRouter);
   app.use('/api/orders', sessionMiddleware, ordersRouter);
+  app.use('/api/payments', paymentsRouter);                     // provider callbacks: no session
 
   app.use(notFound);
   app.use(errorHandler);

@@ -13,7 +13,7 @@ a{color:inherit;}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 
 /* Header: logo, "Secure checkout", back to the shop. Nothing else to wander off to. */
-.co-head{background:var(--black);color:var(--white);background-image:var(--ruled-purple);}
+.co-head{background:var(--black);color:var(--white);}
 .co-head__inner{max-width:1180px;margin:0 auto;padding:18px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .co-head .auth-modal__logo{color:var(--white);margin:0;text-decoration:none;font-size:26px;}
 .co-head__secure{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.75);}
@@ -103,7 +103,7 @@ a{color:inherit;}
 
 /* Order confirmed */
 .oc{max-width:760px;margin:0 auto;padding:32px 16px 64px;display:grid;gap:18px;}
-.oc-hero{background:var(--black);background-image:var(--ruled-purple);color:var(--white);padding:32px 24px;}
+.oc-hero{background:var(--black);color:var(--white);padding:32px 24px;}
 .oc-hero__kicker{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--purple);}
 .oc-hero h1:focus{outline:none;}   /* focused by script for screen readers, not by the user */
 .oc-hero h1{font-family:var(--display);font-weight:400;font-size:44px;letter-spacing:2px;line-height:1;margin-top:10px;}
@@ -122,3 +122,14 @@ a{color:inherit;}
 .oc-invite{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;background:#f4effc;border-left:3px solid var(--purple);}
 .oc-invite p{font-size:13px;line-height:1.6;max-width:420px;}
 .oc-invite .auth-submit{padding:14px 20px;text-decoration:none;display:inline-block;}
+
+/* M-Pesa (Phase 5): waiting for the PIN, and resending. */
+.pay-wait{display:grid;grid-template-columns:40px 1fr;gap:16px;align-items:start;font-size:13px;line-height:1.7;}
+.pay-big{font-family:var(--display);font-size:26px;letter-spacing:2px;line-height:1.1;margin-bottom:6px;}
+.pay-wait .co-hint{margin-top:8px;}
+.pay-spinner{width:32px;height:32px;border-radius:50%;border:3px solid var(--light);border-top-color:var(--co-accent);animation:pay-spin 1s linear infinite;margin-top:4px;}
+@keyframes pay-spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion: reduce){.pay-spinner{animation:none;border-top-color:var(--light);border-right-color:var(--co-accent);}}
+.pay-retry{display:grid;gap:14px;margin-top:16px;max-width:360px;}
+.pay-retry .co-alert{margin-bottom:0;}
+.co-method__name small{font-weight:400;color:var(--co-muted);}
