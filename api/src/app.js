@@ -58,7 +58,11 @@ export function createApp() {
     },
   }));
 
-  app.use(express.json({ limit: '100kb' })); // rejects oversized bodies before any route sees them
+  app.use(express.json({
+    limit: '100kb',                            // rejects oversized bodies before any route sees them
+    // Keep the exact bytes for the Paystack webhook: its signature is computed over them.
+    verify: (req, res, buf) => { if (req.url.startsWith('/api/payments/')) req.rawBody = buf; },
+  }));
 
   // Health check for Render and uptime monitors. It asks the database a trivial question, so
   // "healthy" means the API can actually serve data, not just that the process is running.

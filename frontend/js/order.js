@@ -10,7 +10,12 @@
   'use strict';
   var NURA = window.NURA, esc = NURA.esc;
   var main = document.getElementById('ocMain');
-  var id = decodeURIComponent(location.hash.slice(1));
+  // The order id arrives after # (from checkout), or as ?order= when Paystack sends the shopper
+  // back (it adds ?reference=… too). Either way, tidy the address to the # form straight away.
+  var params = new URLSearchParams(location.search);
+  var id = params.get('order') || decodeURIComponent(location.hash.slice(1));
+  var backFromPaystack = params.has('reference') || params.has('trxref');
+  if (params.get('order')) history.replaceState(null, '', location.pathname + '#' + id);
   var POLL_MS = 3000, GIVE_UP_MS = 10 * 60 * 1000;
   var pollTimer = null, pollStarted = 0, lastState = '';
 
@@ -67,8 +72,10 @@
       + '<li><span><strong>We pack and dispatch</strong>Your pieces are checked, packed and handed to a rider.</span></li>'
       + (cod ? '<li><span><strong>Pay when it arrives</strong>Have ' + NURA.fmtKsh(o.totalKes) + ' ready for the rider.</span></li>'
              : '<li><span><strong>Delivered</strong>Your rider brings it to your door. Nothing more to pay.</span></li>');
+    var receipt = o.payment && o.payment.receipt;
     var paidWith = cod ? 'Cash on delivery'
-      : 'M-Pesa' + (o.payment && o.payment.receipt ? '<br><span class="co-hint">Receipt ' + esc(o.payment.receipt) + '</span>' : '');
+      : o.paymentMethod === 'CARD' ? (receipt ? esc(receipt) : 'Card')
+      : 'M-Pesa' + (receipt ? '<br><span class="co-hint">Receipt ' + esc(receipt) + '</span>' : '');
     main.innerHTML =
         hero('Order ' + esc(o.number), 'Thank you, ' + esc(first),
           // No confirmation email yet: emails arrive in Phase 7, so the page must not promise one.
@@ -93,8 +100,50 @@
     document.title = 'Order ' + o.number + ' confirmed — NURA';
   }
 
+  /* ── Card: off to Paystack, back from Paystack, declined ──────────────────────── */
+  function goPay(o, btn) {
+    btn.disabled = true; btn.textContent = 'Opening secure payment…';
+    NURA.api('/orders/' + encodeURIComponent(o.id) + '/pay', { method: 'POST', body: {} }).then(function (d) {
+      if (d.redirectUrl) { location.href = d.redirectUrl; return; }
+      show(d.order);                                  // it turned out to be paid already
+    }, function (err) {
+      btn.disabled = false; btn.textContent = 'Try again';
+      var a = document.getElementById('cardErr');
+      a.hidden = false; a.textContent = err.message;
+    });
+  }
+
+  function renderCard(o) {
+    var p = o.payment || {};
+    var checking = p.status === 'PENDING' && backFromPaystack;
+    var panel;
+    if (checking) {
+      panel = '<div class="pay-wait" role="status"><span class="pay-spinner" aria-hidden="true"></span>'
+        + '<div><p class="pay-big">Checking your payment</p><p>Confirming with Paystack. This takes a few seconds.</p></div></div>';
+    } else if (p.status === 'FLAGGED') {
+      panel = '<p class="co-notice">We received a payment we need to check by hand. We’ll call you on ' + esc(localPhone(o.contact.phone)) + ' shortly.</p>';
+    } else {
+      var failed = p.status === 'FAILED';
+      panel = (failed ? '<div class="co-alert" role="alert">' + esc(p.message || 'The card payment didn’t go through.') + '</div>'
+                      : '<p style="font-size:13px;line-height:1.7;">Your order is reserved. Pay on Paystack’s secure page with a card or Apple Pay. Your card details never touch NURA.</p>')
+        + '<p class="co-alert" id="cardErr" role="alert" hidden></p>'
+        + '<button class="auth-submit" type="button" id="cardPay" style="margin-top:16px;">' + (failed ? 'Try again' : 'Continue to secure payment') + '</button>'
+        + '<p class="co-hint" style="margin-top:10px;">Your items are held until ' + time(o.payBy) + '.</p>';
+    }
+    main.innerHTML =
+        hero('Order ' + esc(o.number), checking ? 'Almost there' : 'Payment not completed',
+          'Pay ' + NURA.fmtKsh(o.totalKes) + ' by card to confirm your order.')
+      + '<section class="oc-card" aria-labelledby="ocPayNow" aria-live="polite"><h2 id="ocPayNow">Card payment</h2>' + panel + '</section>'
+      + itemsCard(o, 'To pay now')
+      + '<div class="oc-cols">' + addressCard(o) + '</div>';
+    document.title = (checking ? 'Checking your payment' : 'Payment not completed') + ' — NURA';
+    var btn = document.getElementById('cardPay');
+    if (btn) btn.addEventListener('click', function () { goPay(o, btn); });
+  }
+
   /* ── M-Pesa: waiting, failed, retry ────────────────────────────────────────────── */
   function renderPayment(o) {
+    if (o.paymentMethod === 'CARD') return renderCard(o);
     var p = o.payment || {};
     var waiting = p.status === 'PENDING';
     var outOfTries = !waiting && o.promptsLeft === 0;
@@ -167,7 +216,7 @@
     var slow = p.status === 'PENDING' && Date.now() - pollStarted > 90 * 1000;
     // Redraw only when something changed. Redrawing every 3 s would make screen readers
     // repeat the whole message, and would wipe anything typed into the form.
-    var state = o.status + '/' + (p.status || '') + '/' + (p.resultCode || '') + '/' + o.promptsLeft + '/' + slow;
+    var state = o.status + '/' + (p.status || '') + '/' + (p.resultCode || '') + '/' + o.promptsLeft + '/' + slow + '/' + backFromPaystack;
     if (state === lastState) return;
     var headingChanged = state.split('/')[0] !== lastState.split('/')[0] || state.split('/')[1] !== lastState.split('/')[1];
     lastState = state;
@@ -182,18 +231,31 @@
     clearTimeout(pollTimer);
     pollTimer = setTimeout(function () {
       if (Date.now() - pollStarted > GIVE_UP_MS) return;
-      NURA.api('/orders/' + encodeURIComponent(id)).then(function (d) {
-        show(d.order);
-        if (d.order.status === 'PENDING_PAYMENT' && d.order.payment && d.order.payment.status === 'PENDING') poll();
+      load().then(function (d) {
+        var o = d.order, pending = o.status === 'PENDING_PAYMENT' && o.payment && o.payment.status === 'PENDING';
+        // Back from Paystack but still undecided after a minute: stop saying "checking" and
+        // offer the button again (the same Paystack page is reused, so nothing is charged twice).
+        if (pending && backFromPaystack && Date.now() - pollStarted > 60 * 1000) backFromPaystack = false;
+        show(o);
+        if (pending && (o.paymentMethod !== 'CARD' || backFromPaystack)) poll();
       }, function () { poll(); });              // a hiccup: try again next round
     }, POLL_MS);
   }
 
+  /** Back from Paystack: ask the server to check with Paystack now. Otherwise just read the order. */
+  function load() {
+    return backFromPaystack
+      ? NURA.api('/orders/' + encodeURIComponent(id) + '/check', { method: 'POST' })
+      : NURA.api('/orders/' + encodeURIComponent(id));
+  }
+
   if (!/^[0-9a-f-]{36}$/i.test(id)) { notFound(); return; }
   pollStarted = Date.now();
-  NURA.api('/orders/' + encodeURIComponent(id)).then(function (d) {
-    show(d.order);
-    if (d.order.status === 'PENDING_PAYMENT' && d.order.payment && d.order.payment.status === 'PENDING') poll();
+  load().then(function (d) {
+    var o = d.order;
+    show(o);
+    if (o.status === 'PENDING_PAYMENT' && o.payment && o.payment.status === 'PENDING'
+        && (o.paymentMethod !== 'CARD' || backFromPaystack)) poll();
   }, function (err) {
     if (err.status === 404 || err.status === 400) notFound();
     else main.innerHTML = '<section class="oc-card"><p role="alert">' + esc(err.message) + '</p></section>';

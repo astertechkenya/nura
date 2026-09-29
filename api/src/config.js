@@ -70,6 +70,12 @@ const schema = z.object({
   // SAFETY: in the sandbox, ask for this many shillings instead of the real order total, so a
   // test prompt can never take a real amount from a real line. Ignored in production.
   DARAJA_SANDBOX_AMOUNT_KES: z.coerce.number().int().positive().default(1),
+
+  // Cards and Apple Pay through Paystack (Phase 6). Only the SECRET key is needed: shoppers
+  // type card details on Paystack's own page, never on NURA. sk_test_… in test mode.
+  PAYSTACK_SECRET_KEY: z.string().regex(/^sk_(test|live)_[A-Za-z0-9]+$/, 'must be a Paystack secret key (sk_test_… or sk_live_…)').optional(),
+  // Tests point this at a fake Paystack. Leave unset.
+  PAYSTACK_BASE_URL: z.url().optional(),
 });
 
 function load(env) {
@@ -84,7 +90,8 @@ function load(env) {
   const c = parsed.data;
   const mpesaEnabled = Boolean(c.DARAJA_CONSUMER_KEY && c.DARAJA_CONSUMER_SECRET && c.DARAJA_SHORTCODE
     && c.DARAJA_PASSKEY && c.PUBLIC_API_URL && c.MPESA_CALLBACK_SECRET);
-  return Object.freeze({ ...c, mpesaEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
+  const cardEnabled = Boolean(c.PAYSTACK_SECRET_KEY);
+  return Object.freeze({ ...c, mpesaEnabled, cardEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
 }
 
 export const config = load(process.env);

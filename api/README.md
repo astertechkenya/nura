@@ -80,6 +80,10 @@ Signing in (register, login or reset) moves this browser's guest cart into the a
 | GET | `/api/orders/:id` | One order, to its owner only (the account, or the guest browser that placed it); 404 for anyone else |
 | POST | `/api/orders/:id/pay` | `{ phone? }` → M-Pesa: send another prompt (3 per order, 5 per hour per number). Owner only |
 | POST | `/api/payments/mpesa/callback/:secret` | Safaricom's STK result. Server to server; wrong secret = 404 |
+| POST | `/api/orders/:id/check` | Card: "I'm back from Paystack". Asks Paystack now and settles the payment. Owner only |
+| POST | `/api/payments/paystack/webhook` | Paystack's events, signed (HMAC-SHA512 of the raw body with our secret key); bad signature = 401 |
+
+**How a card payment works.** Checkout opens a payment on Paystack (`/transaction/initialize`, cards and Apple Pay only) and sends the shopper to Paystack's page, so card numbers never reach NURA. Paystack sends them back to `order-confirmed.html?order=…`, which calls `/check`; the signed webhook and the every-minute job are the backups. Every path settles through `/transaction/verify`, and the amount and currency must match.
 
 **How an M-Pesa payment is settled.** Daraja callbacks aren't signed, so a callback never marks anything paid by itself. It makes the API ask Safaricom (`stkQuery`, our credentials, over HTTPS), and only that answer settles the payment. Prompts that get no callback are asked about by the job after a minute. In the sandbox every prompt asks for `DARAJA_SANDBOX_AMOUNT_KES` (1), never the real total.
 

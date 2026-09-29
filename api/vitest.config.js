@@ -41,6 +41,9 @@ export default defineConfig({
       DARAJA_PASSKEY: 'test-passkey',
       PUBLIC_API_URL: 'https://api.example.test',
       MPESA_CALLBACK_SECRET: 'test-only-callback-secret-0123456789abcdef',
+      // Cards against a FAKE Paystack (test/fakePaystack.js). Never a real key.
+      PAYSTACK_BASE_URL: 'http://127.0.0.1:4597',
+      PAYSTACK_SECRET_KEY: 'sk_test_fakeKeyForTestsOnly0123456789',
     },
     globalSetup: ['./test/globalSetup.js'],
     fileParallelism: false,  // files share one database, so run them one at a time

@@ -57,7 +57,7 @@ describe('checkout options', () => {
     const res = await as(app).get('/api/checkout/options');
     expect(res.status).toBe(200);
     expect(res.body.counties).toHaveLength(47);
-    expect(res.body.methods).toEqual({ COD: true, MPESA: true, CARD: false });
+    expect(res.body.methods).toEqual({ COD: true, MPESA: true, CARD: true });
     expect(res.body.cod).toEqual({ counties: ['Nairobi'], maxKes: null });
     expect(res.body.shipping).toEqual({ feeKes: 300, freeFromKes: 5000 });
   });
@@ -155,13 +155,6 @@ describe('what the request may and may not say', () => {
     expect((await as(b).get('/api/cart')).body.cart.count).toBe(1);   // nothing happened
   });
 
-  it('cards are refused until Phase 6', async () => {
-    const b = browser();
-    await add(b, 'nura-021', 'ONE SIZE');
-    const res = await checkout(b, { paymentMethod: 'CARD' });
-    expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/coming soon/);
-  });
 });
 
 describe('cash on delivery rules', () => {

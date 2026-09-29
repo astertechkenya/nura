@@ -105,17 +105,19 @@ export async function newAttempt(orderId, phone) {
   });
 }
 
-async function markFailed(paymentId, resultCode, desc, raw) {
+/** `message` is what the shopper reads; for M-Pesa it comes from the ResultCode. */
+export async function markFailed(paymentId, resultCode, desc, raw, message = failureMessage(resultCode)) {
   await db.update(payments)
-    .set({ status: 'FAILED', resultCode, failureReason: failureMessage(resultCode), raw: raw ?? { resultDesc: desc }, updatedAt: new Date() })
+    .set({ status: 'FAILED', resultCode, failureReason: message, raw: raw ?? { resultDesc: desc }, updatedAt: new Date() })
     .where(and(eq(payments.id, paymentId), eq(payments.status, 'PENDING')));
 }
 
 /**
- * Safaricom confirmed the money moved. `fromCallback` (optional) carries the receipt and the
- * amount the callback reported. Paid, but for a different amount → FLAGGED for a human.
+ * The provider confirmed the money moved. `fromCallback` (optional) carries the receipt and
+ * the amount it reported. Paid, but for a different amount → FLAGGED for a human.
+ * Used for M-Pesa and cards alike; `method` only changes the wording of the history note.
  */
-async function markPaid(paymentId, fromCallback = {}) {
+export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') {
   await db.transaction(async (tx) => {
     const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for('update');
     if (!p || p.status !== 'PENDING') return;                     // already settled: do nothing
@@ -130,7 +132,7 @@ async function markPaid(paymentId, fromCallback = {}) {
       updatedAt: now,
     }).where(eq(payments.id, p.id));
     if (wrongAmount) {
-      logger.warn({ paymentId, got: fromCallback.amountKes, expected: p.amountKes }, 'M-Pesa amount mismatch: payment FLAGGED');
+      logger.warn({ paymentId, got: fromCallback.amountKes, expected: p.amountKes, method }, 'amount mismatch: payment FLAGGED');
       return;                                                      // the order stays unpaid until reviewed
     }
 
@@ -139,14 +141,14 @@ async function markPaid(paymentId, fromCallback = {}) {
       assertTransition(o.status, 'PAID', 'system');
       await tx.update(orders).set({ status: 'PAID', expiresAt: null, updatedAt: now }).where(eq(orders.id, o.id));
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'PAID',
-        note: `Paid by M-Pesa${fromCallback.receipt ? ` (${fromCallback.receipt})` : ''}` });
+        note: `Paid by ${method}${fromCallback.receipt ? ` (${fromCallback.receipt})` : ''}` });
     } else {
       // Money arrived after the order expired or was cancelled: its stock is gone, so the
       // shopper is owed a refund. Recorded for the admin (Phase 7) to act on.
       await tx.update(orders).set({ refundStatus: 'DUE', updatedAt: now }).where(eq(orders.id, o.id));
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status,
-        note: 'M-Pesa payment arrived after the order closed: refund due' });
-      logger.warn({ orderId: o.id, status: o.status }, 'late M-Pesa payment: refund due');
+        note: `${method} payment arrived after the order closed: refund due` });
+      logger.warn({ orderId: o.id, status: o.status, method }, 'late payment: refund due');
     }
   });
 }
@@ -215,6 +217,7 @@ export async function paymentSummary(orderId) {
   if (!p) return null;
   return {
     status: p.status,
+    provider: p.provider,
     sent: Boolean(p.providerRef),
     phone: p.phone,
     amountKes: p.amountKes,        // what the phone prompt asks for (a token amount in the sandbox)

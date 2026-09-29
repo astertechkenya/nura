@@ -6,6 +6,7 @@
 import { logger } from '../logger.js';
 import { expireOrders } from '../services/orders.js';
 import { reconcilePayments } from '../services/payments.js';
+import { reconcileCards } from '../services/cardPayments.js';
 import { config } from '../config.js';
 
 const EVERY_MINUTE = 60 * 1000;
@@ -21,6 +22,10 @@ async function tick() {
     if (config.mpesaEnabled) {
       const settled = await reconcilePayments();
       if (settled) logger.info({ settled }, 'settled M-Pesa payments by query');
+    }
+    if (config.cardEnabled) {
+      const settled = await reconcileCards();
+      if (settled) logger.info({ settled }, 'settled card payments by verify');
     }
     const n = await expireOrders();
     if (n) logger.info({ expired: n }, 'expired unpaid orders and returned their stock');

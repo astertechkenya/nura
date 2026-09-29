@@ -97,12 +97,19 @@
     var tag = mpesa.closest('.co-method').querySelector('.co-method__tag');
     if (tag) tag.hidden = !mpesa.disabled;
 
-    // If exactly one way to pay is open, choose it; with two, the shopper picks.
-    var open = [cod, mpesa].filter(function (r) { return !r.disabled; });
+    // Cards (Phase 6): on when the server says Paystack is configured, in every county.
+    var card = form.querySelector('input[value="CARD"]');
+    card.disabled = !options.methods.CARD;
+    card.closest('.co-method').classList.toggle('is-off', card.disabled);
+    var cardTag = card.closest('.co-method').querySelector('.co-method__tag');
+    if (cardTag) cardTag.hidden = !card.disabled;
+
+    // If exactly one way to pay is open, choose it; with more, the shopper picks.
+    var open = [cod, mpesa, card].filter(function (r) { return !r.disabled; });
     if (!form.querySelector('input[name="paymentMethod"]:checked') && open.length === 1) open[0].checked = true;
 
     markSelected();
-    var anyAvailable = open.length > 0 || options.methods.CARD;
+    var anyAvailable = open.length > 0;
     var noPay = byId('coNoPay');
     noPay.hidden = anyAvailable;
     noPay.textContent = anyAvailable ? '' : 'Delivery to ' + county + ' opens when M-Pesa and card payments arrive, very soon. For now we can only take cash on delivery in '
@@ -112,6 +119,7 @@
     var chosen = form.querySelector('input[name="paymentMethod"]:checked');
     btn.textContent = sending ? 'Placing order…'
       : chosen && chosen.value === 'MPESA' ? 'Pay ' + NURA.fmtKsh(cart.totalKes) + ' with M-Pesa'
+      : chosen && chosen.value === 'CARD' ? 'Pay ' + NURA.fmtKsh(cart.totalKes) + ' by card'
       : 'Place order · ' + NURA.fmtKsh(cart.totalKes);
   }
 
@@ -173,6 +181,8 @@
     sending = true; updatePayment();
     NURA.api('/checkout', { method: 'POST', body: body })
       .then(function (d) {
+        // Card: straight on to Paystack's secure page; it sends the shopper back to the order.
+        if (d.redirectUrl) { location.href = d.redirectUrl; return; }
         // The order id goes after # so it never reaches server logs or other sites.
         location.href = 'order-confirmed.html#' + encodeURIComponent(d.order.id);
       }, function (err) {

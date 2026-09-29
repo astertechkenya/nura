@@ -15,6 +15,7 @@ import { httpError } from '../middleware/errors.js';
 import { cartIdFor } from '../services/cart.js';
 import { AVAILABLE_METHODS, loadOrder, placeOrder } from '../services/orders.js';
 import { PUSHES_PER_PHONE_PER_HOUR, pushPayment, recentPushes } from '../services/payments.js';
+import { openCardPayment } from '../services/cardPayments.js';
 import { db } from '../db/client.js';
 import { payments } from '../db/schema.js';
 import { and, eq } from 'drizzle-orm';
@@ -72,13 +73,16 @@ checkoutRouter.post(
       req.session.guestOrderIds = [...ids, orderId].slice(-20);
       await new Promise((ok, fail) => req.session.save((e) => (e ? fail(e) : ok())));
     }
-    if (details.paymentMethod === 'MPESA') {
-      // The order (and its stock) is saved first; only then do we ask Safaricom. If the push
-      // fails, nothing is lost: the payment is marked FAILED and the shopper can resend.
+    // The order (and its stock) is saved first; only then do we ask Safaricom or Paystack. If
+    // they can't be reached, nothing is lost: the payment is FAILED and the shopper retries.
+    let redirectUrl = null;
+    if (details.paymentMethod !== 'COD') {
       const [p] = await db.select({ id: payments.id }).from(payments)
         .where(and(eq(payments.orderId, orderId), eq(payments.status, 'PENDING')));
-      if (p) await pushPayment(p.id);
+      if (p && details.paymentMethod === 'MPESA') await pushPayment(p.id);
+      if (p && details.paymentMethod === 'CARD') redirectUrl = await openCardPayment(p.id);
     }
-    res.status(201).json({ order: await loadOrder(orderId) });
+    // Card: the browser goes to Paystack's page next (redirectUrl), then comes back.
+    res.status(201).json({ order: await loadOrder(orderId), redirectUrl });
   },
 );

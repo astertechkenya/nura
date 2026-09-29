@@ -2,7 +2,9 @@
 //
 //   GET /api/orders       signed-in: order history, newest first
 //   GET /api/orders/:id   one order, to its owner only (the account, or the guest's browser)
-//   POST /api/orders/:id/pay  { phone? }  M-Pesa: send another prompt (max 3 per order)
+//   POST /api/orders/:id/pay  { phone? }  pay again: M-Pesa → another prompt (max 3),
+//                                          card → back to Paystack's page ({ redirectUrl })
+//   POST /api/orders/:id/check              card: "I'm back from Paystack", settle it now
 //
 // Anyone else gets 404, not 403: "forbidden" would confirm the order exists, and order IDs
 // are random UUIDs precisely so they can't be guessed or counted.
@@ -16,6 +18,7 @@ import { httpError } from '../middleware/errors.js';
 import { requireAuth } from './auth.js';
 import { canSeeOrder, loadOrder } from '../services/orders.js';
 import { newAttempt, pushPayment } from '../services/payments.js';
+import { cardAttempt, checkCardOrder } from '../services/cardPayments.js';
 import { normalisePhone } from '../lib/kenya.js';
 import { limit } from '../middleware/rateLimit.js';
 
@@ -60,8 +63,25 @@ ordersRouter.post(
   async (req, res) => {
     const { id } = req.valid.params;
     if (!(await canSeeOrder(req, id))) throw httpError(404, 'Order not found.');
+    const [o] = await db.select({ method: orders.paymentMethod }).from(orders).where(eq(orders.id, id));
+    if (o.method === 'CARD') {
+      const redirectUrl = await cardAttempt(id);                 // null = it turned out to be paid already
+      return res.json({ order: await loadOrder(id), redirectUrl });
+    }
     const paymentId = await newAttempt(id, req.valid.body.phone);
     await pushPayment(paymentId);
+    res.json({ order: await loadOrder(id) });
+  },
+);
+
+ordersRouter.post(
+  '/:id/check',
+  limit({ windowMs: 60 * 1000, max: 20, message: 'Please wait a moment.' }),
+  validate(z.strictObject({ id: z.uuid() }), 'params'),
+  async (req, res) => {
+    const { id } = req.valid.params;
+    if (!(await canSeeOrder(req, id))) throw httpError(404, 'Order not found.');
+    await checkCardOrder(id);
     res.json({ order: await loadOrder(id) });
   },
 );
