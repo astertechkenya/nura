@@ -266,8 +266,7 @@
   if (byId('cartClear')) byId('cartClear').addEventListener('click', function () {
     if (confirm('Clear your cart?')) write('DELETE', '/cart').then(close, function () {});
   });
-  // Checkout arrives in Phase 4; until then the button closes the drawer.
-  if (byId('cartCheckout')) byId('cartCheckout').addEventListener('click', close);
+  if (byId('cartCheckout')) byId('cartCheckout').addEventListener('click', function () { location.href = 'checkout.html'; });
   document.querySelectorAll('.nav__cart').forEach(function (btn) { btn.addEventListener('click', open); });
   NURA.onEscape(function () { closePicker(true); close(); });
 

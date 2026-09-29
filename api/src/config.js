@@ -4,6 +4,7 @@
 // server refuses to start and says exactly what is wrong. That is much better than
 // starting "fine" and failing mid-checkout because a key was never set.
 import { z } from 'zod';
+import { COUNTIES } from './lib/kenya.js';
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -36,6 +37,17 @@ const schema = z.object({
   // Checkout (Phase 4). Orders at or above the threshold ship free: the marquee's promise.
   FREE_SHIPPING_THRESHOLD_KES: z.coerce.number().int().positive().default(5000),
   SHIPPING_FEE_KES: z.coerce.number().int().nonnegative().default(300),
+
+  // Cash on delivery (Phase 4). Counties where riders collect cash, comma-separated, spelled
+  // as in lib/kenya.js. Elsewhere, shoppers pay by M-Pesa or card (Phases 5-6).
+  COD_COUNTIES: z.string().default('Nairobi')
+    .transform((s) => s.split(',').map((c) => c.trim()).filter(Boolean))
+    .refine((list) => list.every((c) => COUNTIES.includes(c)), 'each county must be spelled as in src/lib/kenya.js'),
+  // Largest order allowed on COD, in KES. Leave unset for no limit (the current decision).
+  // A refused parcel costs a delivery both ways, so a limit is the usual first defence.
+  COD_MAX_KES: z.coerce.number().int().positive().optional(),
+  // How long an unpaid M-Pesa/card order holds its stock before expiring (Phase 5).
+  PAYMENT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
 });
 
 function load(env) {

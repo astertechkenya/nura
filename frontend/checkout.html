@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — NURA</title>
+  <!-- Personal and per-shopper: keep it out of search results. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="fonts.css" />
+  <link rel="stylesheet" href="shared.css" />
+  <link rel="stylesheet" href="checkout.css" />
+</head>
+<body class="co-page">
+  <header class="co-head">
+    <div class="co-head__inner">
+      <a class="auth-modal__logo" href="index.html" aria-label="NURA home">NUR<span>A</span></a>
+      <p class="co-head__secure">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span>Secure checkout</span>
+      </p>
+      <a class="co-head__back" href="index.html">&larr; Shop</a>
+    </div>
+  </header>
+
+  <main class="co-main" id="coMain">
+    <h1 class="co-title">Checkout</h1>
+
+    <!-- Order summary. A <details> so phones can fold it away; always open on desktop. -->
+    <details class="co-summary" id="coSummary" open>
+      <summary><span class="co-summary__toggle">Order summary</span><span class="co-summary__total" id="coSummaryTotal"></span></summary>
+      <div class="co-summary__body">
+        <div id="coLines" aria-live="polite"><p class="co-hint" style="padding-top:14px;">Loading your cart…</p></div>
+        <div class="co-rows">
+          <div class="co-row"><span>Subtotal</span><span id="coSubtotal">&mdash;</span></div>
+          <div class="co-row"><span>Delivery</span><span id="coShipping">&mdash;</span></div>
+          <div class="co-row co-row--total"><span>Total</span><span id="coTotal">&mdash;</span></div>
+        </div>
+        <p class="cart-ship-note" id="coShipNote" hidden></p>
+      </div>
+    </details>
+
+    <form class="co-form" id="coForm" novalidate>
+      <div class="co-alert" id="coAlert" role="alert" hidden></div>
+
+      <fieldset class="co-step">
+        <legend class="co-step__title"><span class="co-step__num">01</span> Contact</legend>
+        <div class="co-grid co-grid--2">
+          <div class="auth-field">
+            <label class="auth-label" for="coEmail">Email</label>
+            <input class="auth-input" type="email" id="coEmail" name="email" autocomplete="email" inputmode="email" required aria-describedby="coEmailErr" />
+            <span class="auth-error" id="coEmailErr">Please enter a valid email address.</span>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="coPhone">Mobile number</label>
+            <input class="auth-input" type="tel" id="coPhone" name="phone" autocomplete="tel" inputmode="tel" placeholder="0712 345 678" required aria-describedby="coPhoneHint coPhoneErr" />
+            <span class="co-hint" id="coPhoneHint">We'll call this number to confirm your order.</span>
+            <span class="auth-error" id="coPhoneErr">Please enter a Kenyan mobile number, like 0712 345 678.</span>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="co-step">
+        <legend class="co-step__title"><span class="co-step__num">02</span> Delivery</legend>
+        <div class="co-grid">
+          <div class="auth-field">
+            <label class="auth-label" for="coName">Full name</label>
+            <input class="auth-input" type="text" id="coName" name="name" autocomplete="name" required maxlength="80" aria-describedby="coNameErr" />
+            <span class="auth-error" id="coNameErr">Please enter your name.</span>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="coLine1">Street, building and house number</label>
+            <input class="auth-input" type="text" id="coLine1" name="addressLine1" autocomplete="address-line1" placeholder="e.g. Apt 4B, Kilimani Heights, Argwings Kodhek Rd" required maxlength="120" aria-describedby="coLine1Err" />
+            <span class="auth-error" id="coLine1Err">Please enter a street or building.</span>
+          </div>
+          <div class="co-grid co-grid--2">
+            <div class="auth-field">
+              <label class="auth-label" for="coArea">Area or estate</label>
+              <input class="auth-input" type="text" id="coArea" name="area" autocomplete="address-level3" placeholder="e.g. Kilimani" required maxlength="80" aria-describedby="coAreaErr" />
+              <span class="auth-error" id="coAreaErr">Please enter an area or estate.</span>
+            </div>
+            <div class="auth-field">
+              <label class="auth-label" for="coCounty">County</label>
+              <select class="auth-input" id="coCounty" name="county" autocomplete="address-level1" required aria-describedby="coCountyErr">
+                <option value="">Choose a county</option>
+              </select>
+              <span class="auth-error" id="coCountyErr">Please choose a county.</span>
+            </div>
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="coNotes">Notes for the rider <span class="co-optional">(optional)</span></label>
+            <input class="auth-input" type="text" id="coNotes" name="notes" maxlength="300" placeholder="e.g. Blue gate, call on arrival" />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="co-step">
+        <legend class="co-step__title"><span class="co-step__num">03</span> Payment</legend>
+        <div class="co-methods" id="coMethods">
+          <label class="co-method" data-method="COD">
+            <input type="radio" name="paymentMethod" value="COD" />
+            <span><span class="co-method__name">Cash on delivery</span>
+              <span class="co-method__desc" id="coCodDesc">Pay in cash when your order arrives. Nairobi only.</span></span>
+            <span></span>
+          </label>
+          <label class="co-method is-off" data-method="MPESA">
+            <input type="radio" name="paymentMethod" value="MPESA" disabled />
+            <span><span class="co-method__name">M-Pesa</span>
+              <span class="co-method__desc">A payment prompt on your phone.</span></span>
+            <span class="co-method__tag">Coming soon</span>
+          </label>
+          <label class="co-method is-off" data-method="CARD">
+            <input type="radio" name="paymentMethod" value="CARD" disabled />
+            <span><span class="co-method__name">Card</span>
+              <span class="co-method__desc">Visa or Mastercard.</span></span>
+            <span class="co-method__tag">Coming soon</span>
+          </label>
+        </div>
+        <p class="co-notice" id="coNoPay" hidden style="margin-top:12px;"></p>
+        <span class="auth-error" id="coMethodErr" style="margin-top:8px;">Please choose how to pay.</span>
+      </fieldset>
+
+      <div>
+        <button class="auth-submit co-submit" type="submit" id="coSubmit" disabled>Place order</button>
+        <p class="co-reassure">We call to confirm every order before it's dispatched.</p>
+      </div>
+    </form>
+  </main>
+
+  <script src="js/ui.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/checkout.js" defer></script>
+</body>
+</html>

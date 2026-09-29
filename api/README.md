@@ -72,5 +72,14 @@ test/               Vitest + Supertest
 
 Signing in (register, login or reset) moves this browser's guest cart into the account: quantities are added, capped at stock and 10, and the guest cart is deleted.
 
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/checkout/options` | Counties, which payment methods work today, COD rules, delivery fee |
+| POST | `/api/checkout` | `{ checkoutKey, email, phone, name, addressLine1, area, county, notes?, paymentMethod }` → an order from this browser's cart. Stock is taken in the same transaction; the cart is emptied. Sending the same `checkoutKey` twice returns the same order. 10 per hour per shopper |
+| GET | `/api/orders` | Signed-in: order history |
+| GET | `/api/orders/:id` | One order, to its owner only (the account, or the guest browser that placed it); 404 for anyone else |
+
+Unpaid M-Pesa/card orders expire after `PAYMENT_WINDOW_MINUTES` and give their stock back (`src/jobs/`, every minute). COD orders never expire.
+
 Run the storefront locally with the API behind it, the way Netlify does it in production:
 `npm run dev` here, then `python server.py` from the repository root, then open http://localhost:8000.

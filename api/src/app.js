@@ -16,6 +16,8 @@ import { verifyNetlifySignature } from './lib/clientIp.js';
 import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
 import { wishlistRouter } from './routes/wishlist.js';
+import { checkoutRouter } from './routes/checkout.js';
+import { ordersRouter } from './routes/orders.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { sameOrigin } from './middleware/sameOrigin.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -70,6 +72,8 @@ export function createApp() {
   app.use('/api/auth', sessionMiddleware, authRouter);
   app.use('/api/cart', sessionMiddleware, cartRouter);        // guests (cookie) and users (session)
   app.use('/api/wishlist', sessionMiddleware, wishlistRouter); // signed-in only
+  app.use('/api/checkout', sessionMiddleware, checkoutRouter);
+  app.use('/api/orders', sessionMiddleware, ordersRouter);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -12,6 +12,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { brands, carts, cartItems, productVariants, products } from '../db/schema.js';
 import { config } from '../config.js';
+import { shippingFor } from './pricing.js';
 
 export const GUEST_COOKIE = 'nura.guest';
 export const MAX_QTY = 10;                       // per line: a shop, not a wholesaler
@@ -121,8 +122,7 @@ export async function loadCart(cartId) {
   });
 
   const subtotalKes = items.reduce((s, i) => s + i.lineTotalKes, 0);
-  const free = subtotalKes === 0 || subtotalKes >= config.FREE_SHIPPING_THRESHOLD_KES;
-  const shippingKes = free ? 0 : config.SHIPPING_FEE_KES;
+  const shippingKes = shippingFor(subtotalKes);
   return {
     items,
     count: items.reduce((s, i) => s + i.qty, 0),       // the badge number

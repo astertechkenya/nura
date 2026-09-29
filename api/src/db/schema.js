@@ -158,7 +158,8 @@ export const orders = pgTable('orders', {
   number: text('number').notNull().unique(),       // NURA-000123
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }), // null = guest checkout
   email: text('email').notNull(),
-  phone: text('phone').notNull(),
+  phone: text('phone').notNull(),                  // 2547XXXXXXXX: the format M-Pesa (Daraja) expects
+  customerName: text('customer_name').notNull(),   // who the rider asks for at the door
   status: orderStatusEnum('status').notNull(),
   paymentMethod: paymentMethodEnum('payment_method').notNull(),
   subtotalKes: integer('subtotal_kes').notNull(),
@@ -166,7 +167,12 @@ export const orders = pgTable('orders', {
   totalKes: integer('total_kes').notNull(),
   addressLine1: text('address_line1').notNull(),
   addressArea: text('address_area').notNull(),
-  addressCity: text('address_city').notNull(),
+  addressCity: text('address_city').notNull(),     // one of Kenya's 47 counties (see lib/kenya.js)
+  deliveryNotes: text('delivery_notes'),           // "Blue gate, call on arrival"
+  // One random key per checkout attempt, sent by the browser. If "Place order" is sent twice
+  // (a double tap, a retry after a timeout) the second request finds this order instead of
+  // creating another. UNIQUE, so even two requests at the same instant can't both insert.
+  checkoutKey: uuid('checkout_key').unique(),
   refundStatus: refundStatusEnum('refund_status').notNull().default('NONE'),
   stkAttempts: integer('stk_attempts').notNull().default(0), // M-Pesa prompts sent (max 3)
   expiresAt: timestamp('expires_at', { withTimezone: true }), // unpaid orders release stock after this

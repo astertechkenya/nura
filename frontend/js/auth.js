@@ -200,6 +200,18 @@
   if (byId('forgotForm')) byId('forgotForm').addEventListener('submit', handleForgot);
   NURA.onEscape(closeModal);
 
+  // Arriving from "Create account" on the order-confirmed page: open sign-up with the email
+  // from the order already filled in.
+  if (location.hash === '#create-account' && byId('authModal')) {
+    history.replaceState(null, '', location.pathname);
+    openModal('signup');
+    try {
+      var remembered = sessionStorage.getItem('nura_signup_email');
+      if (remembered && byId('signupEmail')) byId('signupEmail').value = remembered;
+      sessionStorage.removeItem('nura_signup_email');
+    } catch (e) { /* storage blocked: the shopper types it */ }
+  }
+
   // Who is signed in? Asked once per page load. Until it answers, the nav shows "signed out".
   syncNav();
   NURA.api('/auth/me').then(function (data) { setUser(data.user); }, function () { /* API asleep: stay signed-out looking */ });

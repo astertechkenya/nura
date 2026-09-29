@@ -4,15 +4,18 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { pool } from './db/client.js';
 import { sessionStore } from './middleware/session.js';
+import { startJobs, stopJobs } from './jobs/index.js';
 
 const server = createApp().listen(config.PORT, () => {
   logger.info(`NURA API listening on http://localhost:${config.PORT} (${config.NODE_ENV})`);
+  startJobs();
 });
 
 // Render sends SIGTERM before replacing the server on every deploy. Finishing in-flight
 // requests and closing database connections avoids cutting a checkout off halfway.
 function shutdown(signal) {
   logger.info(`${signal} received, shutting down`);
+  stopJobs();
   server.close(async () => {
     sessionStore.close();       // stops the expired-session clean-up timer
     await pool.end();

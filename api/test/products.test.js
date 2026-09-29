@@ -109,14 +109,14 @@ describe('database constraints', () => {
   it('a "was" price must be above the price', () =>
     rejects(sql`update products set compare_at_kes = 100 where sku = 'nura-003'`));
   it('an order total must equal subtotal + shipping', () =>
-    rejects(sql`insert into orders (number, email, phone, status, payment_method, subtotal_kes, shipping_kes, total_kes, address_line1, address_area, address_city)
-                values ('NURA-T1', 'a@b.co', '0712345678', 'AWAITING_COD', 'COD', 1000, 300, 999, 'x', 'y', 'Nairobi')`));
+    rejects(sql`insert into orders (number, email, phone, customer_name, status, payment_method, subtotal_kes, shipping_kes, total_kes, address_line1, address_area, address_city)
+                values ('NURA-T1', 'a@b.co', '0712345678', 'A B', 'AWAITING_COD', 'COD', 1000, 300, 999, 'x', 'y', 'Nairobi')`));
   it('emails are unique regardless of case', () =>
     rejects(sql`insert into users (email, password_hash, name) values ('DEMO@nura.test', 'x', 'Dup')`));
 
   it('an order can have only one PENDING payment at a time', async () => {
-    const [o] = (await db.execute(sql`insert into orders (number, email, phone, status, payment_method, subtotal_kes, shipping_kes, total_kes, address_line1, address_area, address_city)
-      values ('NURA-T2', 'a@b.co', '0712345678', 'PENDING_PAYMENT', 'MPESA', 1000, 300, 1300, 'x', 'y', 'Nairobi') returning id`)).rows;
+    const [o] = (await db.execute(sql`insert into orders (number, email, phone, customer_name, status, payment_method, subtotal_kes, shipping_kes, total_kes, address_line1, address_area, address_city)
+      values ('NURA-T2', 'a@b.co', '0712345678', 'A B', 'PENDING_PAYMENT', 'MPESA', 1000, 300, 1300, 'x', 'y', 'Nairobi') returning id`)).rows;
     await db.execute(sql`insert into payments (order_id, provider, amount_kes) values (${o.id}, 'DARAJA', 1300)`);
     await rejects(sql`insert into payments (order_id, provider, amount_kes) values (${o.id}, 'DARAJA', 1300)`);
     // After the first attempt fails, a retry may create a new PENDING payment.

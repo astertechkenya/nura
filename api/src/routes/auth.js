@@ -23,6 +23,7 @@ import { limit } from '../middleware/rateLimit.js';
 import { httpError } from '../middleware/errors.js';
 import { sendMail } from '../services/mail.js';
 import { mergeGuestCart } from '../services/cart.js';
+import { claimGuestOrders } from '../services/orders.js';
 
 export const authRouter = Router();
 
@@ -51,12 +52,15 @@ const destroySession = (req) => new Promise((ok, fail) => req.session.destroy((e
 
 /** Starts a fresh session for this user. A NEW session ID on every sign-in defeats "session
  *  fixation", where an attacker plants a known ID in your browser before you log in.
- *  Then anything this browser put in its cart as a guest moves into the account's cart. */
+ *  Then anything this browser put in its cart as a guest moves into the account's cart, and
+ *  orders it placed as a guest with this account's email join the account's history. */
 async function signIn(req, res, user) {
+  const guestOrderIds = req.session?.guestOrderIds;   // read before the old session is thrown away
   await regenerate(req);
   req.session.userId = user.id;
   await saveSession(req);
   await mergeGuestCart(req, res, user.id);
+  await claimGuestOrders(guestOrderIds, user.id, user.email);
 }
 
 async function findUserByEmail(addr) {

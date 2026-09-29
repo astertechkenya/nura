@@ -1,0 +1,124 @@
+/* NURA checkout.css: the checkout and order-confirmed pages (Phase 4).
+   Mobile first: one column, the order summary folds away at the top. From 900px the summary
+   becomes a sticky column on the right, the layout shoppers expect from a checkout. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+/* Text colours for this page that pass WCAG AA (4.5:1) on white. The site's --mid (#888) and
+   --purple-dim are ~3.5:1 and ~4:1: fine for large headings, too faint for small print. */
+:root{--co-muted:#666;--co-accent:#7038c9;}
+body{font-family:var(--sans);background:var(--bg);color:var(--black);min-height:100vh;}
+/* No custom cursor on these pages: a checkout should feel ordinary and predictable. */
+.co-page button,.co-page select,.co-page label{cursor:pointer;}
+.co-page button:disabled{cursor:not-allowed;}
+a{color:inherit;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+/* Header: logo, "Secure checkout", back to the shop. Nothing else to wander off to. */
+.co-head{background:var(--black);color:var(--white);background-image:var(--ruled-purple);}
+.co-head__inner{max-width:1180px;margin:0 auto;padding:18px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.co-head .auth-modal__logo{color:var(--white);margin:0;text-decoration:none;font-size:26px;}
+.co-head__secure{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.75);}
+.co-head__back{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--white);text-decoration:none;}
+.co-head__back:hover,.co-head__back:focus-visible{color:var(--purple);}
+@media (max-width:560px){.co-head__secure span{display:none;}}
+
+.co-main{max-width:1180px;margin:0 auto;padding:24px 16px 64px;display:grid;gap:24px;}
+.co-title{font-family:var(--display);font-weight:400;font-size:40px;letter-spacing:2px;line-height:1;}
+@media (min-width:900px){
+  .co-main{grid-template-columns:minmax(0,1fr) 380px;gap:48px;padding-top:40px;align-items:start;}
+  .co-title{grid-column:1/-1;font-size:52px;}
+  .co-summary{position:sticky;top:24px;grid-column:2;grid-row:2;}
+  .co-form{grid-column:1;grid-row:2;}
+}
+
+/* Form steps: 01 Contact, 02 Delivery, 03 Payment. */
+.co-form{display:flex;flex-direction:column;gap:18px;}
+.co-step{background:var(--white);padding:24px 20px;border:0;}
+@media (min-width:600px){.co-step{padding:28px 32px;}}
+/* A <legend> normally sits ON the fieldset's top edge. Floating it makes it an ordinary
+   heading inside the white card; the next element clears it. */
+.co-step__title{float:left;width:100%;display:flex;align-items:baseline;gap:12px;font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:2px;margin-bottom:18px;padding:0;}
+.co-step__num{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:2px;color:var(--co-accent);}
+.co-step__title + *{clear:both;}
+.co-grid{display:grid;gap:14px;}
+@media (min-width:600px){.co-grid--2{grid-template-columns:1fr 1fr;}}
+.co-page .auth-input,.co-page select.auth-input{width:100%;border-radius:0;appearance:none;-webkit-appearance:none;}
+.co-page select.auth-input{background-image:linear-gradient(45deg,transparent 50%,var(--black) 50%),linear-gradient(135deg,var(--black) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:40px;}
+.co-page .auth-input:focus-visible{outline:2px solid var(--purple);outline-offset:1px;}
+.co-hint{font-size:11px;color:var(--co-muted);line-height:1.5;}
+.co-optional{font-weight:400;letter-spacing:0;text-transform:none;color:var(--co-muted);}
+
+/* Payment options: big tap targets, the whole card is the label. */
+.co-methods{display:grid;gap:10px;}
+.co-method{position:relative;display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:start;padding:16px;border:1.5px solid var(--light);background:var(--white);transition:border-color .2s,background .2s;}
+.co-method input{margin-top:3px;width:18px;height:18px;accent-color:var(--co-accent);}
+/* .is-selected is set by checkout.js. (CSS :has(input:checked) would do it without script, but
+   older phones don't support :has, and Chrome didn't always repaint it when a disabled option
+   was unticked by script.) */
+.co-method.is-selected{border-color:var(--black);background:#faf8fe;}
+.co-method:focus-within{outline:2px solid var(--purple);outline-offset:2px;}
+.co-method.is-off{background:var(--bg-light);color:var(--co-muted);}
+.co-method__name{display:block;font-size:13px;font-weight:700;color:inherit;}
+.co-method__desc{display:block;margin-top:3px;font-size:12px;line-height:1.5;color:var(--co-muted);}
+.co-method__tag{align-self:center;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#595959;background:var(--light);padding:4px 8px;white-space:nowrap;}
+.co-notice{padding:12px 14px;font-size:12px;line-height:1.6;background:#f4effc;border-left:3px solid var(--purple);}
+
+.co-alert{padding:14px 16px;font-size:13px;line-height:1.6;color:var(--black);background:#fdecec;border-left:3px solid var(--red-sale);}
+.co-submit{width:100%;padding:18px;font-size:11px;}
+.co-submit:disabled{opacity:.45;}
+.co-reassure{margin-top:10px;text-align:center;font-size:11px;color:var(--co-muted);}
+
+/* Summary: collapsible on phones (a <details>), always open on desktop. */
+.co-summary{background:var(--white);}
+.co-summary summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.co-summary summary::-webkit-details-marker{display:none;}
+.co-summary summary:focus-visible{outline:2px solid var(--purple);outline-offset:-2px;}
+.co-summary__toggle::after{content:' ▾';}
+.co-summary[open] .co-summary__toggle::after{content:' ▴';}
+.co-summary__total{font-size:15px;color:var(--co-accent);letter-spacing:0;}
+.co-summary__body{padding:0 20px 20px;border-top:1px solid var(--light);}
+@media (min-width:900px){
+  .co-summary summary{pointer-events:none;cursor:default;}
+  .co-summary__toggle::after,.co-summary[open] .co-summary__toggle::after{content:'';}
+}
+.co-line{display:grid;grid-template-columns:56px 1fr auto;gap:12px;padding:14px 0;border-bottom:1px solid var(--light);}
+.co-line__img{position:relative;height:64px;background:var(--bg-light);overflow:hidden;}
+.co-line__img img{width:100%;height:100%;object-fit:cover;}
+.co-line__qty{position:absolute;top:3px;right:3px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--black);color:var(--white);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.co-line__brand{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--co-accent);}
+.co-line__name{font-size:13px;font-weight:500;margin-top:2px;line-height:1.3;}
+.co-line__meta{font-size:11px;color:var(--co-muted);margin-top:3px;}
+.co-line__problem{font-size:11px;font-weight:600;color:var(--red-sale);margin-top:4px;}
+.co-line__remove{margin-top:6px;background:none;border:0;padding:0;font-size:11px;color:var(--co-muted);text-decoration:underline;}
+.co-line__remove:hover,.co-line__remove:focus-visible{color:var(--black);}
+.co-line__price{font-size:13px;font-weight:700;white-space:nowrap;}
+.co-rows{padding-top:14px;display:grid;gap:8px;font-size:13px;color:#595959;}
+.co-row{display:flex;justify-content:space-between;}
+.co-row--total{padding-top:12px;margin-top:4px;border-top:1px solid var(--light);font-size:16px;font-weight:700;color:var(--black);}
+.co-summary .cart-ship-note{margin:16px 0 0;}
+
+.co-empty{background:var(--white);padding:40px 24px;text-align:center;}
+.co-empty p{margin-top:8px;font-size:13px;color:var(--co-muted);}
+.co-link{display:inline-block;margin-top:20px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--black);}
+.co-link:hover,.co-link:focus-visible{color:var(--co-accent);}
+
+/* Order confirmed */
+.oc{max-width:760px;margin:0 auto;padding:32px 16px 64px;display:grid;gap:18px;}
+.oc-hero{background:var(--black);background-image:var(--ruled-purple);color:var(--white);padding:32px 24px;}
+.oc-hero__kicker{font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--purple);}
+.oc-hero h1:focus{outline:none;}   /* focused by script for screen readers, not by the user */
+.oc-hero h1{font-family:var(--display);font-weight:400;font-size:44px;letter-spacing:2px;line-height:1;margin-top:10px;}
+.oc-hero p{margin-top:10px;font-size:14px;line-height:1.6;color:rgba(255,255,255,.8);}
+.oc-card{background:var(--white);padding:24px 20px;}
+@media (min-width:600px){.oc-card{padding:28px 32px;}.oc-hero{padding:40px 32px;}.oc-hero h1:focus{outline:none;}   /* focused by script for screen readers, not by the user */
+.oc-hero h1{font-size:56px;}}
+.oc-card h2{font-family:var(--display);font-weight:400;font-size:24px;letter-spacing:2px;margin-bottom:14px;}
+.oc-steps{list-style:none;counter-reset:s;display:grid;gap:14px;}
+.oc-steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:12px;font-size:13px;line-height:1.6;}
+.oc-steps li::before{content:counter(s,decimal-leading-zero);font-size:11px;font-weight:700;letter-spacing:1px;color:var(--co-accent);padding-top:2px;}
+.oc-steps strong{display:block;font-size:13px;}
+.oc-address{font-size:13px;line-height:1.7;font-style:normal;}
+.oc-cols{display:grid;gap:18px;}
+@media (min-width:600px){.oc-cols{grid-template-columns:1fr 1fr;}}
+.oc-invite{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;background:#f4effc;border-left:3px solid var(--purple);}
+.oc-invite p{font-size:13px;line-height:1.6;max-width:420px;}
+.oc-invite .auth-submit{padding:14px 20px;text-decoration:none;display:inline-block;}
