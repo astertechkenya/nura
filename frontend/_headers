@@ -12,3 +12,8 @@
 # Shared scripts change between deploys; make browsers check for a new version.
 /js/*
   Cache-Control: public, max-age=0, must-revalidate
+
+# The admin: never in search results, never cached (it shows private, changing data).
+/admin/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store

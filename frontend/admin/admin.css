@@ -1,0 +1,115 @@
+/* NURA admin: phone first. Everything an admin does in a day (confirm, ship, cash collected,
+   restock) must be comfortable with one thumb on a phone. */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--adm-muted:#666;--adm-line:#e4e4e2;--adm-accent:#7038c9;}
+body.adm{font-family:var(--sans);background:var(--bg);color:var(--black);min-height:100vh;}
+.adm button,.adm select,.adm label,.adm a{cursor:pointer;}
+.adm button:disabled,.adm input:disabled{cursor:not-allowed;}
+.adm a{color:inherit;}
+.adm :focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+.adm-bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--black);color:var(--white);}
+.adm-logo{font-family:var(--display);font-size:24px;letter-spacing:5px;text-decoration:none;color:var(--white)!important;}
+.adm-logo span{color:var(--purple);}
+.adm-logo small{font-family:var(--sans);font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.7);margin-left:6px;}
+.adm-role{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:var(--purple);color:var(--black);padding:4px 8px;}
+.adm-signout{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.4);color:var(--white);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;}
+.adm-role:not([hidden]) + .adm-signout{margin-left:0;}
+
+.adm-tabs{position:sticky;top:56px;z-index:4;display:flex;overflow-x:auto;background:var(--white);border-bottom:1px solid var(--adm-line);}
+.adm-tabs a{flex:1 0 auto;padding:14px 10px;text-align:center;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--adm-muted);border-bottom:3px solid transparent;}
+.adm-tabs a[aria-current="page"]{color:var(--black);border-bottom-color:var(--purple);}
+
+.adm-main{max-width:1000px;margin:0 auto;padding:20px 16px 80px;}
+.adm-main:focus{outline:none;}
+.adm-h1{font-family:var(--display);font-weight:400;font-size:34px;letter-spacing:2px;line-height:1;margin-bottom:16px;}
+.adm-h2{font-family:var(--display);font-weight:400;font-size:22px;letter-spacing:2px;margin:24px 0 10px;}
+.adm-muted{color:var(--adm-muted);font-size:13px;}
+.adm-card{background:var(--white);padding:18px 16px;margin-bottom:12px;}
+.adm-notice{padding:12px 14px;font-size:13px;line-height:1.6;background:#f4effc;border-left:3px solid var(--purple);margin-bottom:14px;}
+.adm-alert{padding:12px 14px;font-size:13px;line-height:1.6;background:#fdecec;border-left:3px solid var(--red-sale);margin-bottom:14px;}
+
+/* Sign in */
+.adm-login{max-width:380px;margin:40px auto;background:var(--white);padding:28px 22px;}
+.adm-login .auth-form{margin-top:18px;}
+.adm-login .auth-input{width:100%;}
+.adm-code{font-size:28px!important;letter-spacing:10px;text-align:center;}
+
+/* Dashboard tiles */
+.adm-tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media (min-width:700px){.adm-tiles{grid-template-columns:repeat(4,1fr);}}
+.adm-tile{display:block;background:var(--white);padding:16px;text-decoration:none;border-left:3px solid transparent;}
+.adm-tile strong{display:block;font-family:var(--display);font-size:38px;font-weight:400;line-height:1;}
+.adm-tile span{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--adm-muted);}
+.adm-tile.is-hot{border-left-color:var(--purple);}
+.adm-tile.is-bad{border-left-color:var(--red-sale);}
+
+/* Order list */
+.adm-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;}
+.adm-chip{flex:0 0 auto;border:1px solid var(--adm-line);background:var(--white);padding:9px 12px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--black);text-decoration:none;}
+.adm-chip[aria-current="true"]{background:var(--black);color:var(--white);border-color:var(--black);}
+.adm-search{display:flex;gap:8px;margin-bottom:14px;}
+.adm-search input{flex:1;min-width:0;}
+.adm-order{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:var(--white);padding:14px 16px;margin-bottom:8px;text-decoration:none;}
+.adm-order__no{font-weight:700;font-size:13px;letter-spacing:.5px;}
+.adm-order__who{font-size:13px;}
+.adm-order__meta{grid-column:1/-1;font-size:12px;color:var(--adm-muted);}
+.adm-order__total{font-weight:700;font-size:14px;text-align:right;}
+
+.adm-pill{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:4px 7px;background:var(--bg-light);color:var(--black);white-space:nowrap;}
+.adm-pill--AWAITING_COD,.adm-pill--PAID{background:#efe4ff;color:#4b2390;}
+.adm-pill--PROCESSING{background:#fff1d6;color:#6b4700;}
+.adm-pill--SHIPPED{background:#dff0ff;color:#0b4a7a;}
+.adm-pill--DELIVERED{background:#dcf5e3;color:#155c2d;}
+.adm-pill--CANCELLED,.adm-pill--EXPIRED{background:#eee;color:#555;}
+.adm-pill--refund{background:#fdecec;color:#9a1010;}
+
+/* Order detail */
+.adm-back{display:inline-block;margin-bottom:12px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--adm-muted);}
+.adm-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;line-height:1.5;}
+.adm-kv dt{color:var(--adm-muted);}
+.adm-call{display:inline-block;margin-top:10px;padding:10px 14px;background:var(--black);color:var(--white)!important;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;}
+.adm-item{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--adm-line);font-size:13px;}
+.adm-item img,.adm-item .adm-ph{width:48px;height:56px;object-fit:cover;background:var(--bg-light);}
+.adm-totals{display:grid;gap:4px;padding-top:10px;font-size:13px;}
+.adm-totals div{display:flex;justify-content:space-between;}
+.adm-totals .is-total{font-weight:700;font-size:15px;border-top:1px solid var(--adm-line);padding-top:8px;margin-top:4px;}
+.adm-timeline{list-style:none;display:grid;gap:10px;font-size:13px;}
+.adm-timeline li{display:grid;grid-template-columns:12px 1fr;gap:10px;}
+.adm-timeline li::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--purple);margin-top:6px;}
+.adm-timeline small{display:block;color:var(--adm-muted);}
+
+/* Sticky action area: the next step is always one thumb away on a phone. */
+.adm-actions{position:sticky;bottom:0;background:var(--white);border-top:1px solid var(--adm-line);padding:12px 16px;margin:16px -16px 0;display:grid;gap:8px;}
+@media (min-width:700px){.adm-actions{position:static;margin:16px 0 0;border:0;padding:0;background:none;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}}
+.adm-btn{border:0;padding:15px 16px;background:var(--black);color:var(--white);font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.adm-btn:hover{background:var(--adm-accent);}
+.adm-btn--danger{background:var(--white);color:var(--red-sale);border:1.5px solid var(--red-sale);}
+.adm-btn--danger.is-arming{background:var(--red-sale);color:var(--white);}
+.adm-btn--quiet{background:var(--white);color:var(--black);border:1.5px solid var(--black);}
+.adm-btn:disabled{opacity:.45;}
+.adm-note{width:100%;}
+
+/* Products */
+.adm-product{background:var(--white);padding:14px 16px;margin-bottom:10px;}
+.adm-product.is-hidden{opacity:.65;}
+.adm-product__head{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;margin-bottom:12px;}
+.adm-product__head img,.adm-product__head .adm-ph{width:48px;height:56px;object-fit:cover;background:var(--bg-light);}
+.adm-product__name{font-weight:700;font-size:13px;}
+.adm-prices{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;}
+.adm-field{display:grid;gap:4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--black);}
+.adm-field input{width:100%;padding:10px;border:1.5px solid var(--light);font-family:var(--sans);font-size:14px;}
+.adm-stock{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.adm-stock label{display:grid;gap:3px;font-size:10px;font-weight:700;text-align:center;width:64px;}
+.adm-stock input{width:64px;padding:8px 4px;text-align:center;border:1.5px solid var(--light);font-family:var(--sans);font-size:14px;}
+.adm-stock input.is-low{border-color:#e0a100;background:#fff8e5;}
+.adm-stock input.is-out{border-color:var(--red-sale);background:#fdecec;}
+.adm-toggle{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.adm-toggle input{width:18px;height:18px;accent-color:var(--adm-accent);}
+
+.adm-log{background:var(--white);padding:12px 16px;margin-bottom:6px;font-size:13px;line-height:1.5;}
+.adm-log small{display:block;color:var(--adm-muted);font-size:11px;}
+
+/* Hint under a field label (kept out of the label's caps styling). */
+.adm-hint{grid-column:1/-1;display:block;font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--adm-muted);margin-top:4px;}

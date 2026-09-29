@@ -15,7 +15,8 @@
     "db:seed": "node --env-file-if-exists=.env src/db/seed.js",
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "create-admin": "node --env-file-if-exists=.env src/scripts/createAdmin.js"
   },
   "dependencies": {
     "argon2": "0.45.1",

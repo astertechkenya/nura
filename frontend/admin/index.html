@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NURA Admin</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="preload" href="../fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="../fonts.css" />
+  <link rel="stylesheet" href="../shared.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="adm">
+  <header class="adm-bar">
+    <a class="adm-logo" href="#dashboard" aria-label="NURA admin home">NUR<span>A</span> <small>Admin</small></a>
+    <span class="adm-role" id="admRole" hidden></span>
+    <button class="adm-signout" id="admSignOut" type="button" hidden>Sign out</button>
+  </header>
+  <nav class="adm-tabs" id="admTabs" aria-label="Admin sections" hidden>
+    <a href="#dashboard" data-tab="dashboard">Today</a>
+    <a href="#orders" data-tab="orders">Orders</a>
+    <a href="#products" data-tab="products">Products</a>
+    <a href="#activity" data-tab="activity">Activity</a>
+  </nav>
+  <!-- Every screen is drawn here by admin.js from /api/admin/*. -->
+  <main class="adm-main" id="admMain" tabindex="-1" aria-live="polite">
+    <p class="adm-muted">Loading…</p>
+  </main>
+  <div class="nura-toast" id="nuraToast" role="status" aria-live="polite"></div>
+
+  <script src="../js/ui.js" defer></script>
+  <script src="../js/api.js" defer></script>
+  <script src="admin.js" defer></script>
+</body>
+</html>

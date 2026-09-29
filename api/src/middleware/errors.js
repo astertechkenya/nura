@@ -30,5 +30,6 @@ export function errorHandler(err, req, res, next) {
   // SQL, file paths or secrets, so the browser only gets a generic line plus the request ID
   // needed to find the full error in the logs.
   const message = err.expose && status < 500 ? err.message : 'Something went wrong';
-  res.status(status).json({ error: message, requestId: req.id });
+  // needsTotp tells the admin page to show the code box instead of an error.
+  res.status(status).json({ error: message, requestId: req.id, ...(err.needsTotp ? { needsTotp: true } : {}) });
 }

@@ -1,0 +1,233 @@
+// services/admin.js: what the admin screens read and the changes they make.
+//
+// Two rules hold for every change here:
+//   1. It happens inside a transaction together with its audit entry (audited()). A change
+//      without a record of who made it cannot exist.
+//   2. Orders only move the way services/orderStates.js allows. An admin can't "set" a status,
+//      only ask for a move that is allowed from where the order is now.
+import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { db } from '../db/client.js';
+import {
+  adminActions, orderEvents, orderItems, orders, payments, productVariants, products, users,
+} from '../db/schema.js';
+import { httpError } from '../middleware/errors.js';
+import { ADMIN_NEXT, assertTransition, sideEffects } from './orderStates.js';
+
+/* ── Audit ──────────────────────────────────────────────────────────────────────── */
+
+/** Records one admin change. Call it with the SAME transaction (tx) as the change itself. */
+export function audited(tx, admin, action, entity, entityId, before, after) {
+  return tx.insert(adminActions).values({ adminId: admin.id, action, entity, entityId: String(entityId), before, after });
+}
+
+/* ── Masking for the demo admin ─────────────────────────────────────────────────── */
+
+export const maskEmail = (e) => (e ? e.replace(/^(.)[^@]*(@.*)$/, '$1•••$2') : e);
+export const maskPhone = (p) => (p ? `${p.slice(0, 4)}••••${p.slice(-2)}` : p);
+export const maskName = (n) => (n ? n.split(/\s+/).map((w, i) => (i === 0 ? w : `${w[0]}.`)).join(' ') : n);
+
+/* ── What an admin may do next with an order ────────────────────────────────────── */
+
+/**
+ * The buttons for this order. Cash on delivery can't simply be marked "delivered": that goes
+ * through "Cash collected", which also records the money as received.
+ */
+export function actionsFor(o) {
+  const next = [...(ADMIN_NEXT[o.status] ?? [])].filter((to) => !(to === 'DELIVERED' && o.paymentMethod === 'COD'));
+  const list = next.map((to) => ({ action: 'transition', to }));
+  if (o.status === 'SHIPPED' && o.paymentMethod === 'COD') list.push({ action: 'cod-collected', to: 'DELIVERED' });
+  return list;
+}
+
+/* ── Reads ─────────────────────────────────────────────────────────────────────── */
+
+export async function summary() {
+  const byStatus = Object.fromEntries((await db.execute(sql`
+    select status, count(*)::int as n from orders group by status`)).rows.map((r) => [r.status, r.n]));
+  const [{ refunds }] = (await db.execute(sql`select count(*)::int as refunds from orders where refund_status = 'DUE'`)).rows;
+  const [{ flagged }] = (await db.execute(sql`select count(*)::int as flagged from payments where status = 'FLAGGED'`)).rows;
+  const lowStock = (await db.execute(sql`
+    select p.id, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
+    where p.is_active and v.stock <= 3 order by v.stock, p.name limit 20`)).rows;
+  // Takings: orders whose money is in (paid by M-Pesa/card, or COD delivered), last 7 days.
+  const [{ week }] = (await db.execute(sql`
+    select coalesce(sum(total_kes), 0)::int as week from orders
+    where status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
+      and (payment_method <> 'COD' or status = 'DELIVERED')
+      and created_at > now() - interval '7 days'`)).rows;
+  return {
+    toDo: (byStatus.AWAITING_COD ?? 0) + (byStatus.PAID ?? 0) + (byStatus.PROCESSING ?? 0),
+    byStatus, refundsDue: refunds, flaggedPayments: flagged, lowStock, takingsLast7DaysKes: week,
+  };
+}
+
+const TODO = ['AWAITING_COD', 'PAID', 'PROCESSING'];
+
+export async function listOrders({ status, q, limit = 50, offset = 0 }, masked) {
+  const where = [];
+  if (status === 'TODO') where.push(inArray(orders.status, TODO));
+  else if (status === 'REFUND_DUE') where.push(eq(orders.refundStatus, 'DUE'));
+  else if (status) where.push(eq(orders.status, status));
+  if (q) {
+    const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    where.push(or(ilike(orders.number, like), ilike(orders.customerName, like), ilike(orders.phone, like), ilike(orders.email, like)));
+  }
+  const rows = await db.select({
+    id: orders.id, number: orders.number, status: orders.status, paymentMethod: orders.paymentMethod,
+    customerName: orders.customerName, phone: orders.phone, county: orders.addressCity, area: orders.addressArea,
+    totalKes: orders.totalKes, refundStatus: orders.refundStatus, placedAt: orders.createdAt,
+    itemCount: sql`(select coalesce(sum(oi.qty), 0)::int from order_items oi where oi.order_id = "orders"."id")`,
+  }).from(orders).where(where.length ? and(...where) : undefined)
+    .orderBy(desc(orders.createdAt)).limit(limit).offset(offset);
+  return rows.map((r) => (masked ? { ...r, customerName: maskName(r.customerName), phone: maskPhone(r.phone) } : r));
+}
+
+export async function orderDetail(id, masked) {
+  const [o] = await db.select().from(orders).where(eq(orders.id, id));
+  if (!o) return null;
+  const items = await db.select({
+    sku: orderItems.sku, name: orderItems.name, size: orderItems.size, qty: orderItems.qty,
+    unitPriceKes: orderItems.unitPriceKes, imageUrl: products.imageUrl, cardBg: products.cardBg,
+  }).from(orderItems).leftJoin(products, eq(orderItems.productId, products.id))
+    .where(eq(orderItems.orderId, id)).orderBy(orderItems.name);
+  const pays = await db.select({
+    provider: payments.provider, status: payments.status, amountKes: payments.amountKes, receipt: payments.receipt,
+    resultCode: payments.resultCode, failureReason: payments.failureReason, phone: payments.phone, createdAt: payments.createdAt,
+  }).from(payments).where(eq(payments.orderId, id)).orderBy(payments.createdAt);
+  const events = await db.select({
+    from: orderEvents.fromStatus, to: orderEvents.toStatus, note: orderEvents.note, at: orderEvents.createdAt, by: users.name,
+  }).from(orderEvents).leftJoin(users, eq(orderEvents.actorId, users.id))
+    .where(eq(orderEvents.orderId, id)).orderBy(orderEvents.createdAt);
+  const m = (v, f) => (masked ? f(v) : v);
+  return {
+    id: o.id, number: o.number, status: o.status, paymentMethod: o.paymentMethod, refundStatus: o.refundStatus,
+    placedAt: o.createdAt, payBy: o.expiresAt, account: Boolean(o.userId),
+    customer: { name: m(o.customerName, maskName), email: m(o.email, maskEmail), phone: m(o.phone, maskPhone) },
+    delivery: {
+      addressLine1: masked ? '•••' : o.addressLine1, area: o.addressArea, county: o.addressCity,
+      notes: masked ? (o.deliveryNotes ? '•••' : null) : o.deliveryNotes,
+    },
+    items: items.map((i) => ({ ...i, lineTotalKes: i.unitPriceKes * i.qty })),
+    subtotalKes: o.subtotalKes, shippingKes: o.shippingKes, totalKes: o.totalKes,
+    payments: pays.map((p) => ({ ...p, phone: m(p.phone, maskPhone) })),
+    events,
+    actions: actionsFor(o),
+  };
+}
+
+/* ── Order changes ─────────────────────────────────────────────────────────────── */
+
+/** Moves an order one allowed step, with its side effects, event and audit entry, atomically. */
+export async function transitionOrder(admin, orderId, to, note) {
+  return db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
+    if (!o) throw httpError(404, 'Order not found.');
+    if (to === 'DELIVERED' && o.paymentMethod === 'COD') {
+      throw httpError(409, 'For cash on delivery, use “Cash collected”: it records the money too.');
+    }
+    assertTransition(o.status, to, 'admin');
+
+    const [paid] = await tx.select({ id: payments.id }).from(payments)
+      .where(and(eq(payments.orderId, o.id), eq(payments.status, 'PAID')));
+    const effects = sideEffects(to, { wasPaid: Boolean(paid) });
+    const now = new Date();
+    if (effects.releaseStock) {
+      // The goods never left: put every reserved unit back on the shelf.
+      await tx.execute(sql`
+        update product_variants v set stock = v.stock + i.qty
+        from order_items i where i.order_id = ${o.id} and i.variant_id = v.id`);
+      // A COD order's cash will never come; a payment that never reached a provider never will.
+      await tx.update(payments).set({ status: 'FAILED', failureReason: 'Order cancelled', updatedAt: now })
+        .where(and(eq(payments.orderId, o.id), eq(payments.status, 'PENDING'),
+                   or(eq(payments.provider, 'COD'), sql`${payments.providerRef} is null`)));
+    }
+    const patch = { status: to, updatedAt: now, ...(effects.refundDue ? { refundStatus: 'DUE' } : {}),
+                    ...(to === 'CANCELLED' ? { expiresAt: null } : {}) };
+    await tx.update(orders).set(patch).where(eq(orders.id, o.id));
+    await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: to, actorId: admin.id,
+      note: note || (effects.refundDue ? 'Cancelled after payment: refund due' : null) });
+    await audited(tx, admin, 'order.transition', 'order', o.id,
+      { status: o.status, refundStatus: o.refundStatus }, { status: to, refundStatus: patch.refundStatus ?? o.refundStatus });
+  });
+}
+
+/** COD: the rider handed over the cash. The order is delivered AND the payment is in, together. */
+export async function codCollected(admin, orderId, note) {
+  return db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
+    if (!o) throw httpError(404, 'Order not found.');
+    if (o.paymentMethod !== 'COD') throw httpError(409, 'This order isn’t cash on delivery.');
+    assertTransition(o.status, 'DELIVERED', 'admin');
+    const now = new Date();
+    const done = await tx.update(payments).set({ status: 'PAID', receipt: 'Cash', updatedAt: now })
+      .where(and(eq(payments.orderId, o.id), eq(payments.provider, 'COD'), eq(payments.status, 'PENDING')))
+      .returning({ id: payments.id });
+    if (!done.length) throw httpError(409, 'There is no open cash payment on this order.');
+    await tx.update(orders).set({ status: 'DELIVERED', updatedAt: now }).where(eq(orders.id, o.id));
+    await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'DELIVERED', actorId: admin.id,
+      note: note || `Cash collected: KSh ${o.totalKes.toLocaleString('en-KE')}` });
+    await audited(tx, admin, 'order.cod-collected', 'order', o.id, { status: o.status, payment: 'PENDING' }, { status: 'DELIVERED', payment: 'PAID' });
+  });
+}
+
+/** A refund was paid back to the customer (by hand, in M-Pesa or Paystack): close it. */
+export async function markRefunded(admin, orderId, note) {
+  return db.transaction(async (tx) => {
+    const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
+    if (!o) throw httpError(404, 'Order not found.');
+    if (o.refundStatus !== 'DUE') throw httpError(409, 'No refund is due on this order.');
+    await tx.update(orders).set({ refundStatus: 'DONE', updatedAt: new Date() }).where(eq(orders.id, o.id));
+    await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status, actorId: admin.id, note: note || 'Refund paid' });
+    await audited(tx, admin, 'order.refunded', 'order', o.id, { refundStatus: 'DUE' }, { refundStatus: 'DONE' });
+  });
+}
+
+/* ── Products ──────────────────────────────────────────────────────────────────── */
+
+export async function listProducts() {
+  const rows = await db.query.products.findMany({ with: { brand: true, variants: true }, orderBy: (p, { asc }) => [asc(p.sku)] });
+  const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'ONE SIZE'];
+  return rows.map((p) => ({
+    id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department,
+    priceKes: p.priceKes, compareAtKes: p.compareAtKes, isActive: p.isActive, imageUrl: p.imageUrl, cardBg: p.cardBg,
+    variants: [...p.variants].sort((a, b) => order.indexOf(a.size) - order.indexOf(b.size))
+      .map((v) => ({ id: v.id, size: v.size, stock: v.stock })),
+  }));
+}
+
+const pick = (row, keys) => Object.fromEntries(keys.map((k) => [k, row[k]]));
+
+export async function updateProduct(admin, id, changes) {
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(products).where(eq(products.id, id)).for('update');
+    if (!before) throw httpError(404, 'Product not found.');
+    const next = { ...pick(before, ['priceKes', 'compareAtKes', 'isActive']), ...changes };
+    if (next.compareAtKes !== null && next.compareAtKes <= next.priceKes) {
+      throw httpError(400, 'The “was” price must be higher than the price, or empty for no sale.');
+    }
+    await tx.update(products).set({ ...changes, updatedAt: new Date() }).where(eq(products.id, id));
+    await audited(tx, admin, 'product.update', 'product', id,
+      pick(before, Object.keys(changes)), changes);
+  });
+}
+
+export async function setStock(admin, variantId, stock) {
+  return db.transaction(async (tx) => {
+    const [v] = await tx.select({ id: productVariants.id, stock: productVariants.stock, size: productVariants.size, sku: products.sku })
+      .from(productVariants).innerJoin(products, eq(productVariants.productId, products.id))
+      .where(eq(productVariants.id, variantId)).for('update');
+    if (!v) throw httpError(404, 'Size not found.');
+    await tx.update(productVariants).set({ stock }).where(eq(productVariants.id, variantId));
+    await audited(tx, admin, 'stock.set', 'variant', variantId, { sku: v.sku, size: v.size, stock: v.stock }, { stock });
+  });
+}
+
+/* ── Activity ──────────────────────────────────────────────────────────────────── */
+
+export async function activity(limit = 100) {
+  return db.select({
+    id: adminActions.id, action: adminActions.action, entity: adminActions.entity, entityId: adminActions.entityId,
+    before: adminActions.before, after: adminActions.after, at: adminActions.createdAt, by: users.name,
+  }).from(adminActions).innerJoin(users, eq(adminActions.adminId, users.id))
+    .orderBy(desc(adminActions.createdAt)).limit(limit);
+}

@@ -19,6 +19,7 @@ import { wishlistRouter } from './routes/wishlist.js';
 import { checkoutRouter } from './routes/checkout.js';
 import { ordersRouter } from './routes/orders.js';
 import { paymentsRouter } from './routes/payments.js';
+import { adminRouter } from './routes/admin.js';
 import { sessionMiddleware } from './middleware/session.js';
 import { sameOrigin } from './middleware/sameOrigin.js';
 import { notFound, errorHandler } from './middleware/errors.js';
@@ -81,6 +82,7 @@ export function createApp() {
   app.use('/api/checkout', sessionMiddleware, checkoutRouter);
   app.use('/api/orders', sessionMiddleware, ordersRouter);
   app.use('/api/payments', paymentsRouter);                     // provider callbacks: no session
+  app.use('/api/admin', sessionMiddleware, adminRouter);        // gated: see middleware/adminGate.js
 
   app.use(notFound);
   app.use(errorHandler);
