@@ -60,7 +60,10 @@ const schema = z.object({
   // storefront. Safaricom calls it directly, server to server.
   PUBLIC_API_URL: z.url().optional(),
   // Part of the callback address, so only Safaricom (who we gave it to) knows where to post.
-  MPESA_CALLBACK_SECRET: z.string().min(32, 'must be at least 32 characters').optional(),
+  // Letters, digits, - and _ only: it becomes part of a web address, where / + = would break it.
+  MPESA_CALLBACK_SECRET: z.string().min(32, 'must be at least 32 characters')
+    .regex(/^[A-Za-z0-9_-]+$/, 'may only contain letters, digits, - and _ (generate it with the command in api/.env.example)')
+    .optional(),
   // Tests point this at a fake Daraja. Leave unset: the right Safaricom address is chosen
   // from DARAJA_ENV.
   DARAJA_BASE_URL: z.url().optional(),

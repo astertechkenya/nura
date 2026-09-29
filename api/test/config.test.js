@@ -19,6 +19,11 @@ describe('config', () => {
     expect(c).toMatchObject({ NODE_ENV: 'development', PORT: 3000, NEW_IN_DAYS: 30, isProd: false });
     expect(Object.isFrozen(c)).toBe(true);
   });
+  it('refuses an M-Pesa callback secret that would break a web address', () => {
+    const base = { DATABASE_URL: 'postgresql://u@h/db' };
+    expect(() => loadConfig({ ...base, MPESA_CALLBACK_SECRET: 'a/b+c='.padEnd(40, 'x') })).toThrow(/MPESA_CALLBACK_SECRET/);
+    expect(() => loadConfig({ ...base, MPESA_CALLBACK_SECRET: 'Ab0_-'.repeat(9) })).not.toThrow();
+  });
   it('turns numeric strings from the environment into numbers', () => {
     expect(loadConfig({ DATABASE_URL: 'postgresql://u@h/db', SESSION_SECRET: 's'.repeat(32), PORT: '8080' }).PORT).toBe(8080);
   });

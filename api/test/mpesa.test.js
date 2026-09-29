@@ -172,7 +172,9 @@ describe('the callback', () => {
   });
 });
 
-describe('resending', () => {
+// These tests place six orders each. Against a database in another country (Neon, Frankfurt)
+// that's ~7 s per order, so they get two minutes instead of the usual 30 s.
+describe('resending', { timeout: 120_000 }, () => {
   it('not while a prompt is still open, only 3 per order, only by the owner', async () => {
     const { b, order } = await mpesaOrder();
     const busy = await as(b).post(`/api/orders/${order.id}/pay`).send({});
