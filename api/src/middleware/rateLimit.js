@@ -8,13 +8,20 @@
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import { clientIp } from '../lib/clientIp.js';
 
-export function limit({ windowMs, max, message = 'Too many requests. Please try again later.' }) {
+/**
+ * `by` optionally narrows the key: e.g. (req) => req.body.email counts per IP *and* email,
+ * so one shopper mistyping their own password doesn't lock out a whole office sharing one IP.
+ */
+export function limit({ windowMs, max, by, message = 'Too many requests. Please try again later.' }) {
   return rateLimit({
     windowMs,
     limit: max,
     standardHeaders: 'draft-8',   // tells well-behaved clients how long to wait (RateLimit headers)
     legacyHeaders: false,
-    keyGenerator: (req) => ipKeyGenerator(clientIp(req)),
+    keyGenerator: (req) => {
+      const ip = ipKeyGenerator(clientIp(req));
+      return by ? `${ip}|${String(by(req) ?? '').toLowerCase().trim()}` : ip;
+    },
     handler: (req, res) => res.status(429).json({ error: message }),
     // We deliberately key on our own verified IP, not Express's req.ip.
     validate: { trustProxy: false, xForwardedForHeader: false },

@@ -20,6 +20,13 @@ const schema = z.object({
   // Keep 30 for a real shop; a portfolio demo that sits untouched for months may want 365.
   NEW_IN_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Signs the session cookie (Phase 2). If someone learned it they could forge sign-ins, so it
+  // is long, random, different per environment, and never committed. Changing it signs
+  // everybody out, which is exactly what you want if it ever leaks.
+  // Optional here because scripts like db:migrate and db:seed don't need it; the web server
+  // refuses to start without it (see middleware/session.js).
+  SESSION_SECRET: z.string().min(32, 'must be at least 32 characters (generate one, see api/.env.example)').optional(),
+
   // Shared secret between Netlify and this API (Phase 1). Netlify signs every request it
   // proxies with it (the x-nf-sign header). Only signed requests may tell us the shopper's
   // real IP; anyone can type an x-nf-client-connection-ip header, but nobody can forge the

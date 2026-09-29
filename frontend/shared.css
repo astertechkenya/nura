@@ -208,3 +208,16 @@ to{right:0}
 /* A card you arrived at from search: outlined in brand purple for a moment. */
 [data-sku]{transition:outline-color .6s ease;outline:2px solid transparent;outline-offset:6px;}
 [data-sku].is-linked{outline-color:var(--purple);}
+
+/* ── Accounts (Phase 2) ────────────────────────────────────────────────── */
+/* The HTML `hidden` attribute is only a weak browser default: any rule that sets `display`
+   (like .auth-field{display:flex}) silently overrides it. This makes `hidden` mean hidden. */
+[hidden]{display:none !important;}
+.auth-forgot{align-self:flex-end;background:none;border:none;padding:0;font-size:11px;color:var(--mid);text-decoration:underline;cursor:none;}
+.auth-forgot:hover,.auth-forgot:focus-visible{color:var(--purple);}
+.auth-hint{font-size:13px;line-height:1.6;color:var(--mid);margin:0;}
+.auth-hint strong{display:block;color:var(--black);font-weight:700;margin-bottom:2px;}
+.auth-hint--done{color:var(--black);background:#f4effc;border-left:3px solid var(--purple);padding:12px 14px;}
+.auth-submit:disabled{opacity:.6;cursor:wait;}
+/* Visible keyboard focus inside the sign-in modal. */
+.auth-tab:focus-visible,.auth-switch button:focus-visible,.auth-submit:focus-visible,.auth-modal__close:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}

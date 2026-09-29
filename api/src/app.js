@@ -13,6 +13,9 @@ import { db } from './db/client.js';
 import { productsRouter } from './routes/products.js';
 import { newsletterRouter } from './routes/newsletter.js';
 import { verifyNetlifySignature } from './lib/clientIp.js';
+import { authRouter } from './routes/auth.js';
+import { sessionMiddleware } from './middleware/session.js';
+import { sameOrigin } from './middleware/sameOrigin.js';
 import { notFound, errorHandler } from './middleware/errors.js';
 
 export function createApp() {
@@ -58,8 +61,11 @@ export function createApp() {
     res.json({ ok: true });
   });
 
-  app.use('/api/products', productsRouter);
+  app.use(sameOrigin);          // refuse writes triggered by other websites (CSRF)
+
+  app.use('/api/products', productsRouter);   // public and cacheable: no session needed
   app.use('/api/newsletter', newsletterRouter);
+  app.use('/api/auth', sessionMiddleware, authRouter);
 
   app.use(notFound);
   app.use(errorHandler);

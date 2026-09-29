@@ -571,15 +571,16 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     <form class="auth-form" id="loginForm" novalidate>
       <div class="auth-field">
         <label class="auth-label" for="loginEmail">Email</label>
-        <input class="auth-input" type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email"/>
+        <input class="auth-input" type="email" id="loginEmail" aria-describedby="loginEmailErr" placeholder="your@email.com" autocomplete="email"/>
         <span class="auth-error" id="loginEmailErr">Please enter a valid email.</span>
       </div>
       <div class="auth-field">
         <label class="auth-label" for="loginPassword">Password</label>
-        <input class="auth-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password"/>
+        <input class="auth-input" type="password" id="loginPassword" aria-describedby="loginPassErr" placeholder="Your password" autocomplete="current-password"/>
         <span class="auth-error" id="loginPassErr">Please enter your password.</span>
+        <button type="button" class="auth-forgot" data-action="auth-tab" data-tab="forgot">Forgot password?</button>
       </div>
-      <span class="auth-error" id="loginErr" style="text-align:center;"></span>
+      <span class="auth-error" id="loginErr" role="alert" style="text-align:center;"></span>
       <button class="auth-submit" type="submit">Sign in</button>
       <div class="auth-divider">or</div>
       <div class="auth-switch">No account? <button type="button" data-action="auth-tab" data-tab="signup">Create one</button></div>
@@ -587,24 +588,35 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     <form class="auth-form hidden" id="signupForm" novalidate>
       <div class="auth-field">
         <label class="auth-label" for="signupName">Full name</label>
-        <input class="auth-input" type="text" id="signupName" placeholder="Your name" autocomplete="name"/>
+        <input class="auth-input" type="text" id="signupName" aria-describedby="signupNameErr" placeholder="Your name" autocomplete="name"/>
         <span class="auth-error" id="signupNameErr">Please enter your name.</span>
       </div>
       <div class="auth-field">
         <label class="auth-label" for="signupEmail">Email</label>
-        <input class="auth-input" type="email" id="signupEmail" placeholder="your@email.com" autocomplete="email"/>
+        <input class="auth-input" type="email" id="signupEmail" aria-describedby="signupEmailErr" placeholder="your@email.com" autocomplete="email"/>
         <span class="auth-error" id="signupEmailErr">Please enter a valid email.</span>
       </div>
       <div class="auth-field">
         <label class="auth-label" for="signupPassword">Password</label>
-        <input class="auth-input" type="password" id="signupPassword" placeholder="Min. 6 characters" autocomplete="new-password"/>
-        <span class="auth-error" id="signupPassErr">Password must be at least 6 characters.</span>
+        <input class="auth-input" type="password" id="signupPassword" aria-describedby="signupPassErr" placeholder="At least 8 characters" autocomplete="new-password"/>
+        <span class="auth-error" id="signupPassErr">Password must be at least 8 characters.</span>
       </div>
-      <p class="auth-note" style="font-size:11px;line-height:1.5;color:#777;margin:0 0 4px;">Demo accounts are saved in this browser only. Use a password you don't use anywhere else.</p>
-      <span class="auth-error" id="signupErr" style="text-align:center;"></span>
+      <span class="auth-error" id="signupErr" role="alert" style="text-align:center;"></span>
       <button class="auth-submit" type="submit">Create account</button>
       <div class="auth-divider">or</div>
       <div class="auth-switch">Have an account? <button type="button" data-action="auth-tab" data-tab="login">Sign in</button></div>
+    </form>
+    <form class="auth-form hidden" id="forgotForm" novalidate aria-labelledby="forgotTitle">
+      <p class="auth-hint" id="forgotTitle"><strong>Forgot your password?</strong> Enter your email and we&rsquo;ll send you a link to choose a new one.</p>
+      <div class="auth-field">
+        <label class="auth-label" for="forgotEmail">Email</label>
+        <input class="auth-input" type="email" id="forgotEmail" placeholder="your@email.com" autocomplete="email" aria-describedby="forgotEmailErr"/>
+        <span class="auth-error" id="forgotEmailErr">Please enter a valid email.</span>
+      </div>
+      <span class="auth-error" id="forgotErr" role="alert" style="text-align:center;"></span>
+      <p class="auth-hint auth-hint--done" id="forgotDone" role="status" hidden></p>
+      <button class="auth-submit" type="submit">Send reset link</button>
+      <div class="auth-switch">Remembered it? <button type="button" data-action="auth-tab" data-tab="login">Back to sign in</button></div>
     </form>
     <div class="auth-form hidden" id="successState">
       <div class="auth-success">
