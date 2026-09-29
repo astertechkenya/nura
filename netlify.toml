@@ -4,7 +4,7 @@
 [build]
   publish = "frontend"      # only the storefront is published; api/ never is
 
-# The API appears under the storefront's own address: nuramob.netlify.app/api/...
+# The API appears under the storefront's own address: nurafashion.netlify.app/api/...
 # status 200 makes this a REWRITE (Netlify fetches from Render and hands the answer back),
 # not a redirect, so the browser only ever talks to one site. Cookies are first-party and
 # there is no CORS to configure.

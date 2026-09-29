@@ -22,6 +22,7 @@ import { validate } from '../middleware/validate.js';
 import { limit } from '../middleware/rateLimit.js';
 import { httpError } from '../middleware/errors.js';
 import { sendMail } from '../services/mail.js';
+import { mergeGuestCart } from '../services/cart.js';
 
 export const authRouter = Router();
 
@@ -49,12 +50,13 @@ const saveSession = (req) => new Promise((ok, fail) => req.session.save((e) => (
 const destroySession = (req) => new Promise((ok, fail) => req.session.destroy((e) => (e ? fail(e) : ok())));
 
 /** Starts a fresh session for this user. A NEW session ID on every sign-in defeats "session
- *  fixation", where an attacker plants a known ID in your browser before you log in. */
-async function signIn(req, user) {
+ *  fixation", where an attacker plants a known ID in your browser before you log in.
+ *  Then anything this browser put in its cart as a guest moves into the account's cart. */
+async function signIn(req, res, user) {
   await regenerate(req);
   req.session.userId = user.id;
   await saveSession(req);
-  // Phase 3: merge this browser's guest cart into the account here.
+  await mergeGuestCart(req, res, user.id);
 }
 
 async function findUserByEmail(addr) {
@@ -95,7 +97,7 @@ authRouter.post(
       .onConflictDoNothing()                      // two simultaneous sign-ups: only one row wins
       .returning();
     if (!user) throw httpError(409, 'An account with this email already exists. Sign in, or reset your password.');
-    await signIn(req, user);
+    await signIn(req, res, user);
     res.status(201).json({ user: publicUser(user) });
   },
 );
@@ -115,7 +117,7 @@ authRouter.post(
     const ok = await argon2.verify(user?.passwordHash ?? DUMMY_HASH, pw);
     // One message for both mistakes: never reveal whether the email has an account.
     if (!user || !ok) throw httpError(401, 'Incorrect email or password.');
-    await signIn(req, user);
+    await signIn(req, res, user);
     res.json({ user: publicUser(user) });
   },
 );
@@ -191,7 +193,7 @@ authRouter.post(
       return u;
     });
     if (!user) throw httpError(400, 'This reset link has expired or was already used. Request a new one.');
-    await signIn(req, user);
+    await signIn(req, res, user);
     res.json({ user: publicUser(user) });
   },
 );

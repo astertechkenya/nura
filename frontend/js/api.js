@@ -43,7 +43,10 @@
         }
         return res.json().catch(function () { return {}; }).then(function (data) {
           if (!res.ok) {
-            var err = new Error(data.error || 'Something went wrong. Please try again.');
+            // 502/503/504 come from the proxy, not from our API: the server is down or still waking.
+            var msg = RETRYABLE[res.status] ? 'Can’t reach NURA right now. Please try again in a minute.'
+                    : data.error || 'Something went wrong. Please try again.';
+            var err = new Error(msg);
             err.status = res.status;
             throw err;
           }

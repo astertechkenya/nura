@@ -211,7 +211,7 @@ body.cursor-hover
     </div>
     <div class="wishlist-drawer__body"><div id="wishlistItems"></div></div>
     <div class="wishlist-drawer__footer" id="wishlistFooter" style="display:none;">
-      <button class="wishlist-drawer__cta" data-action="wishlist-add-all">Add to cart &rarr;</button>
+      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Add all to cart &rarr;</button>
       <button class="wishlist-drawer__clear" data-action="clear-wishlist">Clear wishlist</button>
     </div>
   </div>
@@ -289,8 +289,9 @@ body.cursor-hover
       <div id="cartItems"></div>
     </div>
     <div class="cart-drawer__footer" id="cartFooter" style="display:none;">
+      <p class="cart-ship-note" id="cartShipNote"></p>
       <div class="cart-summary-row"><span>Subtotal</span><span id="cartSubtotal"></span></div>
-      <div class="cart-summary-row"><span>Shipping</span><span>Calculated at checkout</span></div>
+      <div class="cart-summary-row"><span>Delivery</span><span id="cartShipping"></span></div>
       <div class="cart-summary-row total"><span>Total</span><span id="cartTotal"></span></div>
       <button class="cart-checkout-btn" id="cartCheckout">Proceed to checkout &rarr;</button>
       <button class="cart-clear-btn" id="cartClear">Clear cart</button>
@@ -324,13 +325,6 @@ body.cursor-hover
           <button class="mob-signout" data-action="open-signout">Sign out</button>
         </div>
       </div>
-    </div>
-    <div class="cart-drawer__footer" id="cartFooter" style="display:none;">
-      <div class="cart-summary-row"><span>Subtotal</span><span id="cartSubtotal"></span></div>
-      <div class="cart-summary-row"><span>Shipping</span><span>Calculated at checkout</span></div>
-      <div class="cart-summary-row total"><span>Total</span><span id="cartTotal"></span></div>
-      <button class="cart-checkout-btn" id="cartCheckout">Proceed to checkout &rarr;</button>
-      <button class="cart-clear-btn" id="cartClear">Clear cart</button>
     </div>
   </div>
 
@@ -388,7 +382,7 @@ body.cursor-hover
             
             <button class="product__wish product-card__wish" data-wishlist-id="nura-001" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:200px;background:var(--muted);"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">Chanel</p>
@@ -405,7 +399,7 @@ body.cursor-hover
             <img src="images/linen_blazer.webp" alt="Linen Oversized Blazer" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="50% 45%" data-list-pos="50% 90%">
             <button class="product__wish product-card__wish" data-wishlist-id="nura-002" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:200px;background:#c8c8c6;"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">KikoRomeo</p>
@@ -422,7 +416,7 @@ body.cursor-hover
             <img src="images/printed_dress.webp" alt="Printed Wrap Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="50% 39%" data-list-pos="50% 60%">
             <button class="product__wish product-card__wish" data-wishlist-id="nura-003" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:200px;background:#ccc;"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">Zara</p>
@@ -439,7 +433,7 @@ body.cursor-hover
             <img src="images/handwoven_bucket_hat.webp" alt="Handwoven Bucket Hat" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="60% 20%" data-list-pos="center center">
             <button class="product__wish product-card__wish" data-wishlist-id="nura-004" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:180px;background:#bbb;"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">Ann McCreath</p>
@@ -456,7 +450,7 @@ body.cursor-hover
             <img src="images/Neverfull.webp" alt="Neverfull Tote Bag" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="50% 90%" data-list-pos="center center">
             <button class="product__wish product-card__wish" data-wishlist-id="nura-005" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:200px;background:#d0c8c0;"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">Louis Vuitton</p>
@@ -473,7 +467,7 @@ body.cursor-hover
             <img src="images/goldchain1.webp" alt="Gold Chain Earrings" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="50% 70%" data-list-pos="center center">
             <button class="product__wish product-card__wish" data-wishlist-id="nura-006" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
             <div style="width:110px;height:200px;background:#c0bab4;"></div>
-            <div class="product-card__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product-card__body">
             <p class="product-card__brand">Chanel</p>

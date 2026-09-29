@@ -40,7 +40,7 @@ src/
     migrate.js      Applies drizzle/*.sql
     seed.js         Loads seed-catalogue.json + seed-overrides.json
   routes/           One file per area of the API
-  services/         Business rules with no HTTP in them (order state machine, email)
+  services/         Business rules with no HTTP in them (cart and merge, order state machine, email)
   middleware/       Errors, validation, rate limits, sessions, cross-site (CSRF) check
   lib/              Small helpers (client IP behind the signed Netlify proxy)
 drizzle/            Generated SQL migrations (committed, never hand-edited)
@@ -61,6 +61,16 @@ test/               Vitest + Supertest
 | POST | `/api/auth/forgot` | `{ email }` → the same answer whether or not the account exists; in development the link prints in this terminal |
 | POST | `/api/auth/reset` | `{ token, password }` → new password, every other device signed out, this one signed in |
 | POST | `/api/newsletter` | `{ email }` → `{ ok: true }` (same answer for new and existing addresses; 5 per hour per shopper) |
+| GET | `/api/cart` | The cart with live prices, line totals, subtotal, delivery fee and "KSh N away from free delivery". Works for guests (httpOnly `nura.guest` cookie) and signed-in shoppers |
+| POST | `/api/cart/items` | `{ variantId, qty }` → adds a size (adds to an existing line). 409 above stock or above 10 |
+| PATCH | `/api/cart/items/:id` | `{ qty }` → sets a line's quantity (only lines in *your* cart) |
+| DELETE | `/api/cart/items/:id` | Removes a line |
+| DELETE | `/api/cart` | Empties the cart |
+| GET | `/api/wishlist` | Signed-in only: saved products, newest first |
+| POST | `/api/wishlist` | `{ skus: [...] }` → saves one or many (a guest's list moves in this way on sign-in) |
+| DELETE | `/api/wishlist/:sku` | Unsaves one; `DELETE /api/wishlist` clears |
+
+Signing in (register, login or reset) moves this browser's guest cart into the account: quantities are added, capped at stock and 10, and the guest cart is deleted.
 
 Run the storefront locally with the API behind it, the way Netlify does it in production:
 `npm run dev` here, then `python server.py` from the repository root, then open http://localhost:8000.

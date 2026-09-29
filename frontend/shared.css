@@ -221,3 +221,55 @@ to{right:0}
 .auth-submit:disabled{opacity:.6;cursor:wait;}
 /* Visible keyboard focus inside the sign-in modal. */
 .auth-tab:focus-visible,.auth-switch button:focus-visible,.auth-submit:focus-visible,.auth-modal__close:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+/* ── Cart, sizes and wishlist (Phase 3) ────────────────────────────────── */
+/* "Add to cart" is now a real <button>: Tab reaches it and Enter/Space press it. */
+button.product-card__overlay,button.product__overlay{border:0;width:100%;font-family:var(--sans);}
+.product-card:focus-within .product-card__overlay,.product:focus-within .product__overlay{transform:translateY(0);}
+.product-card__overlay:focus-visible,.product__overlay:focus-visible{outline:2px solid var(--purple);outline-offset:-4px;}
+.product-card__overlay.is-added,.product__overlay.is-added{background:var(--purple);}
+/* Phones and tablets can't hover, so the button would never appear there. Always show it. */
+/* (.product-card .x is more specific than the pages' own .x rule, so it wins wherever the pages load it.) */
+@media (hover:none){.product-card .product-card__overlay,.product .product__overlay{transform:translateY(0);padding:11px 8px;}}
+/* While sizes are showing, hide the button underneath them. */
+.is-picking .product-card__overlay,.is-picking .product__overlay{visibility:hidden;}
+
+/* Size picker: slides up over the bottom of the product image. */
+.size-picker{position:absolute;left:0;right:0;bottom:0;z-index:3;background:var(--white);padding:12px 12px 14px;box-shadow:0 -8px 24px rgba(0,0,0,.08);animation:size-up .2s ease;}
+@keyframes size-up{from{transform:translateY(10px);opacity:0;}}
+@media (prefers-reduced-motion: reduce){.size-picker{animation:none;}}
+.size-picker__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.size-picker__title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--black);}
+.size-picker__close{background:none;border:0;padding:2px 6px;font-size:20px;line-height:1;color:var(--mid);}
+.size-picker__close:hover,.size-picker__close:focus-visible{color:var(--black);}
+.size-picker__sizes{display:flex;flex-wrap:wrap;gap:6px;}
+.size-chip{min-width:42px;height:40px;padding:0 10px;border:1px solid var(--light);background:var(--white);font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--black);transition:border-color .15s,background .15s,color .15s;}
+.size-chip:hover{border-color:var(--black);}
+.size-chip:focus-visible,.size-picker__close:focus-visible{outline:2px solid var(--purple);outline-offset:1px;}
+.size-chip:disabled{background:var(--bg-light);color:#767676;text-decoration:line-through;border-color:var(--bg-light);}
+.size-chip.is-busy{background:var(--black);border-color:var(--black);color:var(--white);}
+.size-picker__note{margin-top:9px;font-size:11px;color:var(--mid);}
+/* In the wishlist the sizes open inside the row instead of over an image. */
+.size-picker--inline{position:static;grid-column:1/-1;padding:4px 0 0;box-shadow:none;animation:none;}
+
+/* Cart drawer: size, problems ("Sold out in this size"), delivery nudge, busy state. */
+.cart-item__size{font-size:11px;color:var(--mid);margin:-6px 0 10px;}
+.cart-item__problem{margin-top:8px;font-size:11px;font-weight:600;color:var(--red-sale);}
+.cart-item.has-problem .cart-item__img{opacity:.5;}
+.cart-qty-btn:disabled{color:var(--muted);background:none;cursor:not-allowed;}
+.cart-qty-btn:focus-visible,.cart-remove:focus-visible,.cart-checkout-btn:focus-visible,.cart-clear-btn:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+.cart-ship-note{margin:0 0 14px;padding:9px 12px;font-size:12px;color:var(--black);background:#f4effc;border-left:3px solid var(--purple);}
+.cart-drawer[aria-busy="true"] .cart-drawer__body{opacity:.55;transition:opacity .2s;pointer-events:none;}
+
+/* Wishlist rows: live price, sale price, per-row Add to cart. */
+.wishlist-item__was{margin-left:6px;font-weight:400;color:var(--mid);}
+.wishlist-item__out{margin-top:6px;font-size:11px;font-weight:600;color:var(--red-sale);}
+.wishlist-item__add{margin-top:8px;padding:0;background:none;border:0;border-bottom:1px solid var(--black);font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--black);}
+.wishlist-item__add:hover,.wishlist-item__add:focus-visible{color:var(--purple-dim);border-color:var(--purple-dim);}
+.wishlist-item__add:disabled{opacity:.5;}
+.wishlist-item__remove:focus-visible,.wishlist-drawer__cta:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+/* Toast: one short message at a time, announced to screen readers (role=status). */
+.nura-toast{position:fixed;bottom:32px;left:32px;max-width:calc(100vw - 32px);background:var(--black);color:var(--white);padding:14px 22px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;line-height:1.6;z-index:999;transform:translateY(20px);opacity:0;transition:transform .35s ease,opacity .35s ease;pointer-events:none;}
+.nura-toast.show{transform:translateY(0);opacity:1;}
+@media (max-width:600px){.nura-toast{left:16px;right:16px;bottom:16px;}}

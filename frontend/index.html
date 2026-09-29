@@ -432,8 +432,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       .newsletter__form { flex-direction: column; }
       .newsletter__btn { padding: 14px; }
     }
-.nura-toast{position:fixed;bottom:32px;right:32px;background:var(--black);color:var(--white);padding:14px 22px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;z-index:999;transform:translateY(20px);opacity:0;transition:transform .35s ease,opacity .35s ease;pointer-events:none;}
-.nura-toast.show{transform:translateY(0);opacity:1;}
 .search-overlay__label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:12px;}
 .search-overlay__hint{margin-top:16px;font-size:10px;color:#333;letter-spacing:1px;text-align:center;}
 .category__logo { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; margin: 0; }
@@ -556,7 +554,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     </div>
     <div class="wishlist-drawer__body"><div id="wishlistItems"></div></div>
     <div class="wishlist-drawer__footer" id="wishlistFooter" style="display:none;">
-      <button class="wishlist-drawer__cta" data-action="wishlist-add-all">Add to cart &rarr;</button>
+      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Add all to cart &rarr;</button>
       <button class="wishlist-drawer__clear" data-action="clear-wishlist">Clear wishlist</button>
     </div>
   </div>
@@ -638,8 +636,9 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       <div id="cartItems"></div>
     </div>
     <div class="cart-drawer__footer" id="cartFooter" style="display:none;">
+      <p class="cart-ship-note" id="cartShipNote"></p>
       <div class="cart-summary-row"><span>Subtotal</span><span id="cartSubtotal"></span></div>
-      <div class="cart-summary-row"><span>Shipping</span><span>Calculated at checkout</span></div>
+      <div class="cart-summary-row"><span>Delivery</span><span id="cartShipping"></span></div>
       <div class="cart-summary-row total"><span>Total</span><span id="cartTotal"></span></div>
       <button class="cart-checkout-btn" id="cartCheckout">Proceed to checkout &rarr;</button>
       <button class="cart-clear-btn" id="cartClear">Clear cart</button>
@@ -725,7 +724,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
             <img src="images/pearl.webp" alt="Pearl Chain Bracelet" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;">
             <div class="img-ph" style="width:120px;height:190px;"></div>
           
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Chanel</p>
@@ -744,7 +743,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
             <img src="images/linen_blazer.webp" alt="Linen Oversized Blazer" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 65%;">
             <div class="img-ph img-ph--dark" style="width:120px;height:190px;"></div>
           
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">KikoRomeo</p>
@@ -763,7 +762,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
             <img src="images/printed_dress.webp" alt="Printed Wrap Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;">
             <div class="img-ph" style="width:120px;height:190px;background:#ccc;"></div>
           
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Zara</p>
@@ -782,7 +781,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
             <img src="images/handwoven_bucket_hat.webp" alt="Handwoven Bucket Hat" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;">
             <div class="img-ph img-ph--dark" style="width:120px;height:170px;"></div>
           
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Ann McCreath</p>
@@ -809,7 +808,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/columndress.webp" alt="Tailored Column Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Ann McCreath</p>
@@ -824,7 +823,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/widelegcargo.webp" alt="Wide Leg Cargo Pants" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Zara</p>
@@ -839,7 +838,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/drapedgown.webp" alt="Draped Evening Gown" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Louis Vuitton</p>
@@ -854,7 +853,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/structuredblazer.webp" alt="Structured Blazer Set" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Ann McCreath</p>
@@ -880,7 +879,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/relaxedlinen.avif" alt="Relaxed Linen Shirt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">KikoRomeo</p>
@@ -895,7 +894,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/slimtaper.webp" alt="Slim Tapered Trousers" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Ann McCreath</p>
@@ -910,7 +909,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/techfleece.webp" alt="Tech Fleece Jacket" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Nike</p>
@@ -925,7 +924,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/breastedsuit.webp" alt="Double-Breasted Suit" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Ann McCreath</p>
@@ -952,7 +951,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/airmax.avif" alt="Air Max 270 Sneakers" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Nike</p>
@@ -968,7 +967,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/drifit.webp" alt="Dri-FIT Training Shorts" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Nike</p>
@@ -984,7 +983,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/satinskirt.webp" alt="Satin Midi Slip Skirt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">Zara</p>
@@ -1000,7 +999,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             <img src="images/leatherbelt.webp" alt="Woven Leather Belt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;">
-            <div class="product__overlay" data-action="add-to-cart">Add to cart</div>
+            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
           </div>
           <div class="product__body">
             <p class="product__brand">KikoRomeo</p>
