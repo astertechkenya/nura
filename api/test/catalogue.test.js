@@ -52,9 +52,12 @@ describe('GET /api/products filters', () => {
     expect(res.body.count).toBe(4);
   });
 
-  it('responses may be cached for a minute', async () => {
-    const res = await request(app).get('/api/products?limit=1');
-    expect(res.headers['cache-control']).toBe('public, max-age=60, stale-while-revalidate=60');
+  it('only the shopper\'s own browser may cache it, for 30 seconds; Netlify\'s CDN never', async () => {
+    for (const url of ['/api/products?limit=1', '/api/products/relaxed-linen-shirt']) {
+      const res = await request(app).get(url);
+      expect(res.headers['cache-control'], url).toBe('private, max-age=30');
+      expect(res.headers['netlify-cdn-cache-control'], url).toBe('no-store');
+    }
   });
 });
 

@@ -68,11 +68,17 @@ const listQuery = z.strictObject({                       // strict: unknown para
 // so escape them before wrapping the words in %...%.
 const likeEscape = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-// Browsers (and Netlify's CDN) may reuse a catalogue response for 60 seconds, then show it for
-// up to 60 more while a fresh copy loads in the background. So the page is at most ~2 minutes
-// behind the database: fine for browsing, and checkout (Phase 4) re-prices on the server anyway.
-function cacheForAMinute(res) {
-  res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=60');
+// Each shopper's browser may reuse a catalogue response for 30 seconds, so moving between
+// pages doesn't wait on Render. Shared caches may NOT keep it:
+//   - `private` is the standard way to say "only the end user's browser may store this".
+//   - Netlify-CDN-Cache-Control is read only by Netlify's CDN (and stripped before the browser
+//     sees it). Belt and braces: an earlier `public, stale-while-revalidate` let Netlify serve
+//     a copy 18 minutes out of date to every visitor after a quiet spell.
+// So a price change shows within 30 seconds, and at once on a hard refresh. Checkout re-prices
+// on the server regardless, so a stale card can never change what anyone pays.
+function cacheBriefly(res) {
+  res.set('Cache-Control', 'private, max-age=30');
+  res.set('Netlify-CDN-Cache-Control', 'no-store');
 }
 
 productsRouter.get('/', validate(listQuery, 'query'), async (req, res) => {
@@ -101,7 +107,7 @@ productsRouter.get('/', validate(listQuery, 'query'), async (req, res) => {
     limit: f.limit,
   });
 
-  cacheForAMinute(res);
+  cacheBriefly(res);
   res.json({ count: rows.length, products: rows.map((r) => toPublicProduct(r)) });
 });
 
@@ -113,6 +119,6 @@ productsRouter.get('/:slug', validate(slugParams, 'params'), async (req, res) =>
     with: { brand: true, variants: true },
   });
   if (!row) throw httpError(404, 'Product not found');
-  cacheForAMinute(res);
+  cacheBriefly(res);
   res.json({ product: toPublicProduct(row) });
 });
