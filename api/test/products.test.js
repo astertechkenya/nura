@@ -66,7 +66,8 @@ describe('GET /api/products', () => {
   });
 
   it('leaks no internal columns', () => {
-    for (const key of ['brandId', 'isActive', 'createdAt', 'updatedAt', 'arrivedAt']) {
+    // arrivedAt IS public (Phase 7.5): New In sorts by it, and an arrival date isn't a secret.
+    for (const key of ['brandId', 'isActive', 'createdAt', 'updatedAt']) {
       expect(bySku('nura-001'), key).not.toHaveProperty(key);
     }
   });

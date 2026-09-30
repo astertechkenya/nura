@@ -44,6 +44,7 @@ export function toPublicProduct(p, now = new Date()) {
     compareAtKes: p.compareAtKes,
     onSale: p.compareAtKes !== null,
     isNew: p.arrivedAt.getTime() >= newSince,
+    arrivedAt: p.arrivedAt.toISOString(),   // New In sorts newest first in the browser
     imageUrl: p.imageUrl,
     imageFocus: p.imageFocus,
     cardBg: p.cardBg,
