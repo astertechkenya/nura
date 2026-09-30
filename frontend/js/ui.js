@@ -137,11 +137,6 @@
     document.querySelectorAll('.reveal, .reveal-stagger').forEach(function (el) { el.classList.add('visible'); });
   }
 
-  /* Saved image focus points for grid view */
-  document.querySelectorAll('img[data-grid-pos]').forEach(function (img) {
-    img.style.objectPosition = img.dataset.gridPos || 'center top';
-  });
-
   /* Arriving from a search result (page.html#nura-001): bring that card into view and mark it
      briefly, so the shopper sees at once which product they clicked. */
   function showLinkedCard() {
@@ -154,7 +149,9 @@
     card.classList.add('is-linked');
     setTimeout(function () { card.classList.remove('is-linked'); }, 2400);
   }
+  // The cards are rendered from the API (grid.js), so look for the linked one once they exist.
   showLinkedCard();
+  document.addEventListener('nura:grid', showLinkedCard);
   window.addEventListener('hashchange', showLinkedCard);   // result on the page you're already on
 
   /* Sign-out confirmation */

@@ -1,14 +1,15 @@
-/* NURA filters.js: category-page controls (subcategory tiles, sort, grid/list view, load more).
-   Loaded on men, women, new-in and sale. The item count shows how many products are
-   actually on screen. (Until Phase 1 it showed invented numbers such as "180 items".) */
+/* NURA filters.js: category-page controls (subcategory tiles, sort, grid/list view).
+   Loaded on men, women, new-in and sale. The cards are rendered by grid.js from the API, so
+   everything here that counts or sorts cards runs when grid.js announces them (`nura:grid`).
+   The counts are always counted from the cards on screen, never typed into the HTML. */
 (function () {
   'use strict';
   var NURA = window.NURA;
   var grid = document.getElementById('productGrid');
   if (!grid) return;
 
-  var cards = function () { return Array.prototype.slice.call(grid.querySelectorAll('.product-card')); };
-  cards().forEach(function (c, i) { c.dataset.sortIndex = i; });
+  // Real cards only: skeletons and messages don't count.
+  var cards = function () { return Array.prototype.slice.call(grid.querySelectorAll('.product-card[data-sku]')); };
   var currentStyle = 'All';
 
   var plural = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
@@ -32,6 +33,11 @@
     document.querySelectorAll('[data-live-count]').forEach(function (el) {
       el.textContent = plural(all.length, 'piece', 'pieces');
     });
+    // Hero figures ("Pieces available", "Brands"): counted too. Until 7.5 they said 240+ and 18+.
+    var brands = {};
+    all.forEach(function (c) { var b = c.querySelector('.product-card__brand'); if (b) brands[b.textContent.trim()] = 1; });
+    var nums = { pieces: all.length, brands: Object.keys(brands).length };
+    document.querySelectorAll('[data-live-num]').forEach(function (el) { el.textContent = nums[el.dataset.liveNum]; });
     document.querySelectorAll('.subcat[data-style]').forEach(function (tile) {
       var style = tile.dataset.style;
       var n = style === 'All' ? all.length : all.filter(function (c) { return c.dataset.style === style; }).length;
@@ -39,8 +45,16 @@
       if (label) label.textContent = plural(n, 'piece', 'pieces');
     });
   }
-  countTotals();
-  applyStyleFilter();
+  var sortSelect = document.getElementById('sortSelect');
+
+  // The cards have arrived (or arrived again after "Try again"): remember their catalogue order,
+  // count them, and re-apply whatever the shopper already chose while they were loading.
+  document.addEventListener('nura:grid', function () {
+    cards().forEach(function (c, i) { c.dataset.sortIndex = i; });
+    countTotals();
+    if (sortSelect && sortSelect.value) sortBy(sortSelect.value);
+    applyStyleFilter();
+  });
 
   NURA.on('subcat', function (el) {
     currentStyle = el.dataset.style || 'All';
@@ -52,17 +66,21 @@
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
-  var sortSelect = document.getElementById('sortSelect');
-  if (sortSelect) sortSelect.addEventListener('change', function () {
-    var val = this.value;
+  function sortBy(val) {
     var priceOf = function (c) { return NURA.parseKsh((c.querySelector('.product-card__price') || {}).textContent); };
     var nameOf = function (c) { return ((c.querySelector('.product-card__name') || {}).textContent || '').trim(); };
+    var arrived = function (c) { return Date.parse(c.dataset.arrived) || 0; };
     cards().sort(function (a, b) {
+      // "Newest first" really is newest first: by arrival date, catalogue order for ties.
+      if (val === 'newest') return (arrived(b) - arrived(a)) || (+a.dataset.sortIndex) - (+b.dataset.sortIndex);
       if (val === 'price-asc') return priceOf(a) - priceOf(b);
       if (val === 'price-desc') return priceOf(b) - priceOf(a);
       if (val === 'az') return nameOf(a).localeCompare(nameOf(b));
       return (+a.dataset.sortIndex) - (+b.dataset.sortIndex);
     }).forEach(function (c) { grid.appendChild(c); });
+  }
+  if (sortSelect) sortSelect.addEventListener('change', function () {
+    sortBy(this.value);
     applyStyleFilter();
   });
 
@@ -77,12 +95,6 @@
         ? (img.dataset.listPos || 'center center')
         : (img.dataset.gridPos || 'center top');
     });
-  });
-
-  // Placeholder until the API can page results (Phase 1).
-  NURA.on('load-more', function (btn) {
-    btn.textContent = 'Loading...';
-    setTimeout(function () { btn.textContent = 'All items loaded'; btn.disabled = true; btn.style.opacity = '.4'; }, 1200);
   });
 
   var sidebar = document.getElementById('filtersSidebar');

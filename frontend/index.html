@@ -713,83 +713,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <h2 class="section-header__title" id="new-in-heading">New <span>In</span></h2>
         <a href="new-in.html" class="section-header__link">View all →</a>
       </div>
-      <div class="products reveal-stagger">
+      <div class="products reveal-stagger" data-list="new" data-limit="4" aria-busy="true" aria-label="Products">
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
 
-        <article class="product" data-sku="nura-001" data-bg="var(--muted)">
-          <div class="product__img">
-            <span class="product-card__badge product-card__badge--new">New</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-001" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/pearl.webp" alt="Pearl Chain Bracelet" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;">
-            <div class="img-ph" style="width:120px;height:190px;"></div>
-          
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Chanel</p>
-            <p class="product__name">Pearl Chain Bracelet</p>
-            <p><span class="product__price">KSh 8,500</span></p>
-            
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-002" data-bg="#c8c8c6">
-          <div class="product__img" style="background:var(--bg-mid);">
-            <span class="product-card__badge product-card__badge--new">New</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-002" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/linen_blazer.webp" alt="Linen Oversized Blazer" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 65%;">
-            <div class="img-ph img-ph--dark" style="width:120px;height:190px;"></div>
-          
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">KikoRomeo</p>
-            <p class="product__name">Linen Oversized Blazer</p>
-            <p><span class="product__price">KSh 14,200</span></p>
-            
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-003" data-bg="#ccc">
-          <div class="product__img">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-003" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/printed_dress.webp" alt="Printed Wrap Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;">
-            <div class="img-ph" style="width:120px;height:190px;background:#ccc;"></div>
-          
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Zara</p>
-            <p class="product__name">Printed Wrap Dress</p>
-            <p><span class="product__price">KSh 5,700</span><span class="product__price-old">KSh 9,500</span></p>
-            
-          </div>
-        </article>
-
-        <article class="product" data-sku="nura-004" data-bg="#bbb">
-          <div class="product__img" style="background:var(--bg-mid);">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-004" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/handwoven_bucket_hat.webp" alt="Handwoven Bucket Hat" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;">
-            <div class="img-ph img-ph--dark" style="width:120px;height:170px;"></div>
-          
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Ann McCreath</p>
-            <p class="product__name">Handwoven Bucket Hat</p>
-            <p><span class="product__price">KSh 2,080</span><span class="product__price-old" style="font-size:12px;color:var(--muted);text-decoration:line-through;margin-left:8px;">KSh 3,200</span></p>
-            
-          </div>
-        </article>
 
       </div>
     </section>
@@ -800,67 +731,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <h2 class="section-header__title" id="for-women-heading">FOR <span>WOMEN</span></h2>
         <a href="women.html" class="section-header__link">View all →</a>
       </div>
-      <div class="products reveal-stagger">
+      <div class="products reveal-stagger" data-list="women" data-limit="4" aria-busy="true" aria-label="Products">
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
 
-        <article class="product" data-sku="nura-007" data-bg="#c8c8c6">
-          <div class="product__img" style="background:#c8c8c6;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-007" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/columndress.webp" alt="Tailored Column Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Ann McCreath</p>
-            <p class="product__name">Tailored Column Dress</p>
-            <p><span class="product__price">KSh 22,500</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-008" data-bg="#bbbbbb">
-          <div class="product__img" style="background:#bbbbbb;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-008" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/widelegcargo.webp" alt="Wide Leg Cargo Pants" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Zara</p>
-            <p class="product__name">Wide Leg Cargo Pants</p>
-            <p><span class="product__price">KSh 9,800</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-009" data-bg="#c0bab4">
-          <div class="product__img" style="background:#c0bab4;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-009" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/drapedgown.webp" alt="Draped Evening Gown" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 15%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Louis Vuitton</p>
-            <p class="product__name">Draped Evening Gown</p>
-            <p><span class="product__price">KSh 38,000</span></p>
-          </div>
-        </article>
-
-        <article class="product" data-sku="nura-011" data-bg="#b8b4b0">
-          <div class="product__img" style="background:#b8b4b0;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-011" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/structuredblazer.webp" alt="Structured Blazer Set" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Ann McCreath</p>
-            <p class="product__name">Structured Blazer Set</p>
-            <p><span class="product__price">KSh 28,000</span></p>
-          </div>
-        </article>
 
       </div>
     </section>
@@ -871,67 +749,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <h2 class="section-header__title" id="for-men-heading">FOR <span>MEN</span></h2>
         <a href="men.html" class="section-header__link">View all →</a>
       </div>
-      <div class="products reveal-stagger">
+      <div class="products reveal-stagger" data-list="men" data-limit="4" aria-busy="true" aria-label="Products">
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
 
-        <article class="product" data-sku="nura-012" data-bg="#efefed">
-          <div class="product__img" style="background:#efefed;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-012" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/relaxedlinen.avif" alt="Relaxed Linen Shirt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">KikoRomeo</p>
-            <p class="product__name">Relaxed Linen Shirt</p>
-            <p><span class="product__price">KSh 8,200</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-013" data-bg="#c8c8c6">
-          <div class="product__img" style="background:#c8c8c6;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-013" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/slimtaper.webp" alt="Slim Tapered Trousers" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Ann McCreath</p>
-            <p class="product__name">Slim Tapered Trousers</p>
-            <p><span class="product__price">KSh 12,800</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-014" data-bg="#bbbbbb">
-          <div class="product__img" style="background:#bbbbbb;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-014" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/techfleece.webp" alt="Tech Fleece Jacket" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Nike</p>
-            <p class="product__name">Tech Fleece Jacket</p>
-            <p><span class="product__price">KSh 16,500</span></p>
-          </div>
-        </article>
-
-        <article class="product" data-sku="nura-017" data-bg="#b8b4b0">
-          <div class="product__img" style="background:#b8b4b0;">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-017" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/breastedsuit.webp" alt="Double-Breasted Suit" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Ann McCreath</p>
-            <p class="product__name">Double-Breasted Suit</p>
-            <p><span class="product__price">KSh 45,000</span></p>
-          </div>
-        </article>
 
       </div>
     </section>
@@ -942,71 +767,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <h2 class="section-header__title" id="for-sale-heading">ON <span style="color:var(--red-sale)">SALE</span></h2>
         <a href="sale.html" class="section-header__link">View all →</a>
       </div>
-      <div class="products reveal-stagger">
+      <div class="products reveal-stagger" data-list="sale" data-limit="4" aria-busy="true" aria-label="Products">
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+        <article class="product is-skeleton" aria-hidden="true"><div class="product__img"></div><div class="product__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
 
-        <article class="product" data-sku="nura-018" data-bg="#e8eaed">
-          <div class="product__img" style="background:#e8eaed;">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-018" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/airmax.avif" alt="Air Max 270 Sneakers" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Nike</p>
-            <p class="product__name">Air Max 270 Sneakers</p>
-            <p><span class="product__price">KSh 9,750</span><span class="product__price-old">KSh 13,000</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-019" data-bg="#dce4ec">
-          <div class="product__img" style="background:#dce4ec;">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-019" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/drifit.webp" alt="Dri-FIT Training Shorts" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Nike</p>
-            <p class="product__name">Dri-FIT Training Shorts</p>
-            <p><span class="product__price">KSh 3,200</span><span class="product__price-old">KSh 4,800</span></p>
-          </div>
-        </article>
 
-        <article class="product" data-sku="nura-020" data-bg="#d4ccd8">
-          <div class="product__img" style="background:#d4ccd8;">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-020" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/satinskirt.webp" alt="Satin Midi Slip Skirt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">Zara</p>
-            <p class="product__name">Satin Midi Slip Skirt</p>
-            <p><span class="product__price">KSh 3,600</span><span class="product__price-old">KSh 5,500</span></p>
-          </div>
-        </article>
-
-        <article class="product" data-sku="nura-021" data-bg="#c8b89a">
-          <div class="product__img" style="background:#c8b89a;">
-            <span class="product__badge product__badge--sale">Sale</span>
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-021" aria-label="Add to wishlist" data-action="wishlist">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-            <img src="images/leatherbelt.webp" alt="Woven Leather Belt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 40%;">
-            <button type="button" class="product__overlay" data-action="add-to-cart">Add to cart</button>
-          </div>
-          <div class="product__body">
-            <p class="product__brand">KikoRomeo</p>
-            <p class="product__name">Woven Leather Belt</p>
-            <p><span class="product__price">KSh 2,100</span><span class="product__price-old">KSh 3,200</span></p>
-          </div>
-        </article>
 
       </div>
     </section>
@@ -1091,7 +859,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   <script src="js/wishlist.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/search.js" defer></script>
-  <script src="js/catalogue.js" defer></script>
+  <script src="js/grid.js" defer></script>
   <script src="js/home.js" defer></script>
 </body>
 </html>

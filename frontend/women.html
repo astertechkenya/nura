@@ -247,9 +247,6 @@ body.cursor-hover
 .product-card__swatches{display:flex;gap:5px;margin-top:10px;}
 .swatch{width:14px;height:14px;border-radius:50%;border:1.5px solid transparent;cursor:none;transition:border-color var(--transition);}
 .swatch:hover,.swatch.active{border-color:var(--black);}
-.load-more{text-align:center;padding:40px 0;}
-.load-more__btn{background:transparent;border:1.5px solid var(--black);color:var(--black);padding:14px 40px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;transition:background var(--transition),color var(--transition);}
-.load-more__btn:hover{background:var(--black);color:var(--white);}
 @media(max-width:960px){.nav{padding:0 24px;}
       .nav__links{display:none;}
       .nav__toggle{display:flex;}
@@ -500,12 +497,12 @@ body.cursor-hover
         </p>
         <div class="hero-banner__stats">
           <div>
-            <div class="hero-stat__num">240<span>+</span></div>
+            <div class="hero-stat__num" data-live-num="pieces"></div>
             <div class="hero-stat__label">Pieces available</div>
           </div>
           <div>
-            <div class="hero-stat__num">18<span>+</span></div>
-            <div class="hero-stat__label">Kenyan brands</div>
+            <div class="hero-stat__num" data-live-num="brands"></div>
+            <div class="hero-stat__label">Brands</div>
           </div>
           <div>
             <div class="hero-stat__num">4</div>
@@ -526,35 +523,35 @@ body.cursor-hover
           <div class="subcat__img"><img src="images/all.webp" alt="Shop All" style="width:100%;height:100%;object-fit:cover;object-position:50% 30%;"></div>
           <div class="subcat__body">
             <div class="subcat__name">All</div>
-            <div class="subcat__count">6 pieces</div>
+            <div class="subcat__count"></div>
           </div>
         </div>
         <div class="subcat subcat--casual" role="link" tabindex="0" data-action="subcat" data-style="Casual" aria-label="Shop Casual">
           <div class="subcat__img"><img src="images/casual.avif" alt="Shop Casual" style="width:100%;height:100%;object-fit:cover;object-position:50% 15%;"></div>
           <div class="subcat__body">
             <div class="subcat__name">Casual</div>
-            <div class="subcat__count">2 pieces</div>
+            <div class="subcat__count"></div>
           </div>
         </div>
         <div class="subcat subcat--formal" role="link" tabindex="0" data-action="subcat" data-style="Formal" aria-label="Shop Formal">
           <div class="subcat__img"><img src="images/formal.webp" alt="Shop Formal" style="width:100%;height:100%;object-fit:cover;object-position:50% 15%;"></div>
           <div class="subcat__body">
             <div class="subcat__name">Formal</div>
-            <div class="subcat__count">2 pieces</div>
+            <div class="subcat__count"></div>
           </div>
         </div>
         <div class="subcat subcat--street" role="link" tabindex="0" data-action="subcat" data-style="Streetwear" aria-label="Shop Streetwear">
           <div class="subcat__img"><img src="images/streetwear.webp" alt="Shop Streetwear" style="width:100%;height:100%;object-fit:cover;object-position:50% 20%;"></div>
           <div class="subcat__body">
             <div class="subcat__name">Streetwear</div>
-            <div class="subcat__count">1 piece</div>
+            <div class="subcat__count"></div>
           </div>
         </div>
         <div class="subcat subcat--evening" role="link" tabindex="0" data-action="subcat" data-style="Evening" aria-label="Shop Evening">
           <div class="subcat__img"><img src="images/evening.webp" alt="Shop Evening" style="width:100%;height:100%;object-fit:cover;object-position:50% 10%;"></div>
           <div class="subcat__body">
             <div class="subcat__name">Evening</div>
-            <div class="subcat__count">1 piece</div>
+            <div class="subcat__count"></div>
           </div>
         </div>
       </div>
@@ -564,7 +561,7 @@ body.cursor-hover
     <!-- Sort bar -->
     <div class="sort-bar" id="grid">
       <div class="sort-bar__left">
-        <span class="sort-bar__count" id="itemCount">6 items</span>
+        <span class="sort-bar__count" id="itemCount"></span>
       </div>
       <div class="sort-bar__right">
         <span class="sort-bar__label">Sort by</span>
@@ -589,108 +586,19 @@ body.cursor-hover
 
       <!-- Product grid -->
       <div class="grid-area">
-        <div class="product-grid reveal-stagger" id="productGrid">
+        <div class="product-grid reveal-stagger" id="productGrid" data-list="women" aria-busy="true" aria-label="Products">
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
+          <article class="product-card is-skeleton" aria-hidden="true"><div class="product-card__img"></div><div class="product-card__body"><p class="sk-line"></p><p class="sk-line sk-line--short"></p></div></article>
 
-          <article class="product-card" data-style="Casual" data-sku="nura-002" data-bg="var(--muted)">
-            <div class="product-card__img">
-              <span class="product-card__badge product-card__badge--new">New</span>
-              <img src="images/linen_blazer.webp" alt="Linen Oversized Blazer" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-product-img="1" data-grid-pos="50% 45%" data-list-pos="50% 90%">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-002" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:var(--muted);"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">KikoRomeo</p>
-              <p class="product-card__name">Linen Oversized Blazer</p>
-              <p><span class="product-card__price">KSh 14,200</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#e8e0d0;" title="Cream"></div><div class="swatch" style="background:#1a1a1a;" title="Black"></div></div>
-            </div>
-          </article>
 
-          <article class="product-card" data-style="Formal" data-sku="nura-007" data-bg="#c8c8c6">
-            <div class="product-card__img" style="background:var(--bg-mid);">
-              <span class="product-card__badge product-card__badge--new">New</span>
-              <img src="images/columndress.webp" alt="Tailored Column Dress" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-grid-pos="50% 30%" data-list-pos="center center">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-007" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:#c8c8c6;"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">Ann McCreath</p>
-              <p class="product-card__name">Tailored Column Dress</p>
-              <p><span class="product-card__price">KSh 22,500</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#1a1a1a;" title="Black"></div><div class="swatch" style="background:#fff;border:1px solid var(--muted);" title="White"></div></div>
-            </div>
-          </article>
 
-          <article class="product-card" data-style="Streetwear" data-sku="nura-008" data-bg="#bbb">
-            <div class="product-card__img">
-              <span class="product-card__badge product-card__badge--new">New</span>
-              <img src="images/widelegcargo.webp" alt="Wide Leg Cargo Pants" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-grid-pos="50% 0%" data-list-pos="50% 30%">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-008" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:#bbb;"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">Zara</p>
-              <p class="product-card__name">Wide Leg Cargo Pants</p>
-              <p><span class="product-card__price">KSh 9,800</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#8b4513;" title="Rust"></div><div class="swatch" style="background:#2d5a27;" title="Green"></div><div class="swatch" style="background:#1a1a1a;" title="Black"></div></div>
-            </div>
-          </article>
 
-          <article class="product-card" data-style="Evening" data-sku="nura-009" data-bg="#c0bab4">
-            <div class="product-card__img" style="background:var(--bg-mid);">
-              <span class="product-card__badge product-card__badge--new">New</span>
-              <img src="images/drapedgown.webp" alt="Draped Evening Gown" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-grid-pos="50% 30%" data-list-pos="center center">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-009" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:#c0bab4;"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">Louis Vuitton</p>
-              <p class="product-card__name">Draped Evening Gown</p>
-              <p><span class="product-card__price">KSh 38,000</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#1a1a1a;" title="Black"></div><div class="swatch" style="background:#8b0000;" title="Deep Red"></div></div>
-            </div>
-          </article>
 
-          <article class="product-card" data-style="Casual" data-sku="nura-010" data-bg="#ccc">
-            <div class="product-card__img">
-              <span class="product-card__badge product-card__badge--sale">Sale</span>
-              <img src="images/cottonwrap.webp" alt="Cotton Wrap Skirt" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-grid-pos="50% 65%" data-list-pos="50% 100%">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-010" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:#ccc;"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">KikoRomeo</p>
-              <p class="product-card__name">Cotton Wrap Skirt</p>
-              <p><span class="product-card__price">KSh 5,400</span><span class="product-card__price-old">KSh 7,200</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#e8d0a0;" title="Sand"></div><div class="swatch" style="background:#8b4513;" title="Rust"></div></div>
-            </div>
-          </article>
 
-          <article class="product-card" data-style="Formal" data-sku="nura-011" data-bg="#b8b4b0">
-            <div class="product-card__img" style="background:var(--bg-mid);">
-              <span class="product-card__badge product-card__badge--new">New</span>
-              <img src="images/structuredblazer.webp" alt="Structured Blazer Set" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;" data-grid-pos="center top" data-list-pos="center center">
-            <button class="product__wish product-card__wish" data-wishlist-id="nura-011" aria-label="Add to wishlist" data-action="wishlist"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
-              <div style="width:120px;height:220px;background:#b8b4b0;"></div>
-              <button type="button" class="product-card__overlay" data-action="add-to-cart">Add to cart</button>
-            </div>
-            <div class="product-card__body">
-              <p class="product-card__brand">Ann McCreath</p>
-              <p class="product-card__name">Structured Blazer Set</p>
-              <p><span class="product-card__price">KSh 28,000</span></p>
-              <div class="product-card__swatches"><div class="swatch active" style="background:#1a1a1a;" title="Black"></div><div class="swatch" style="background:#8b8070;" title="Taupe"></div></div>
-            </div>
-          </article>
-
-        </div>
-
-        <div class="load-more reveal">
-          <button class="load-more__btn" data-action="load-more">Load more</button>
         </div>
       </div>
     </div>
@@ -736,7 +644,7 @@ body.cursor-hover
   <script src="js/wishlist.js" defer></script>
   <script src="js/auth.js" defer></script>
   <script src="js/search.js" defer></script>
-  <script src="js/catalogue.js" defer></script>
+  <script src="js/grid.js" defer></script>
   <script src="js/filters.js" defer></script>
 </body>
 </html>

@@ -192,19 +192,32 @@ to{right:0}
 .mobile-menu{display:none;}
 @media(max-width:960px){.mobile-menu{display:none;flex-direction:column;position:fixed;top:0;right:0;bottom:0;width:80vw;max-width:320px;background:var(--bg);z-index:200;padding:28px 28px 40px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.12);}.mobile-menu.open{display:flex;}}
 
-/* ── Live catalogue states (Phase 1, js/catalogue.js) ─────────────────── */
+/* ── Product cards (rendered by js/grid.js since Phase 7.5) ────────────── */
 /* Low stock: a quiet line under the price. */
 .nura-stock{margin:4px 0 0;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--purple);}
-/* Sold out / unavailable: dimmed image, the button stays visible and says why it can't be used. */
+/* Sold out: dimmed image, the button stays visible and says why it can't be used. */
 .is-sold-out img{opacity:.5;filter:grayscale(.4);}
 .is-sold-out [data-sold-out]{transform:translateY(0);background:#e6e6e6;color:#555;cursor:not-allowed;}
-/* While a sleeping server wakes up, prices gently pulse so the wait looks intentional. */
-.nura-syncing .product-card__price,.nura-syncing .product__price{animation:nura-pulse 1.4s ease-in-out infinite;}
-@keyframes nura-pulse{50%{opacity:.35;}}
-/* People who ask their system for less motion get a still, dimmed price instead of a pulse. */
+/* The product photo fills its box; object-position (the focus point) comes from the database. */
+.nura-card-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;}
+/* Text for screen readers only (e.g. "was" before a crossed-out price). */
+.visually-hidden{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;}
+
+/* Skeletons: grey stand-ins with the cards' real size, so nothing jumps when they arrive. */
+.is-skeleton{pointer-events:none;}
+.is-skeleton .product-card__img,.is-skeleton .product__img{background:#e2e2de;}
+.sk-line{height:9px;margin:0 0 9px;background:#e2e2de;width:70%;}
+.sk-line--short{width:40%;}
+.is-skeleton .product-card__img,.is-skeleton .product__img,.sk-line{animation:nura-pulse 1.4s ease-in-out infinite;}
+@keyframes nura-pulse{50%{opacity:.45;}}
 @media (prefers-reduced-motion: reduce){
-  .nura-syncing .product-card__price,.nura-syncing .product__price{animation:none;opacity:.6;}
+  .is-skeleton .product-card__img,.is-skeleton .product__img,.sk-line{animation:none;}
 }
+/* Empty list, or the API unreachable: a message across the whole grid. */
+.grid-message{grid-column:1/-1;background:var(--white);padding:56px 24px;text-align:center;font-size:13px;color:#555;line-height:1.6;}
+.grid-message__btn{margin-top:16px;background:var(--black);color:var(--white);border:0;padding:12px 28px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.grid-message__btn:hover,.grid-message__btn:focus-visible{background:var(--purple);}
+
 /* A card you arrived at from search: outlined in brand purple for a moment. */
 [data-sku]{transition:outline-color .6s ease;outline:2px solid transparent;outline-offset:6px;}
 [data-sku].is-linked{outline-color:var(--purple);}

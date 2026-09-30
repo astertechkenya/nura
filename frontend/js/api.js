@@ -77,4 +77,31 @@
     }
     return catalogue;
   };
+
+  /* Which products each list shows. The ONE place these rules live: grid.js uses them to fill
+     the pages, and search.js uses NURA.pageFor to link a result to a page that really holds it.
+     Change a rule here and both follow. Products arrive in catalogue order (by SKU). */
+  var byNewest = function (a, b) { return Date.parse(b.arrivedAt) - Date.parse(a.arrivedAt); };
+  NURA.lists = {
+    women: { test: function (p) { return p.department === 'WOMEN' || p.department === 'UNISEX'; } },
+    men:   { test: function (p) { return p.department === 'MEN' || p.department === 'UNISEX'; } },
+    'new': { test: function (p) { return p.isNew; }, sort: byNewest },
+    sale:  { test: function (p) { return p.onSale; } }
+  };
+  NURA.productsFor = function (all, listName) {
+    var rule = NURA.lists[listName];
+    if (!rule) return [];
+    var list = all.filter(rule.test);
+    return rule.sort ? list.sort(rule.sort) : list;
+  };
+
+  /** The page to open for a search result: New In if it's new, Sale if it's on sale, else its
+   *  department. The rules above guarantee that page contains the card; #sku scrolls to it. */
+  NURA.pageFor = function (p) {
+    var page = p.isNew ? 'new-in.html'
+      : p.onSale ? 'sale.html'
+      : p.department === 'MEN' ? 'men.html'
+      : 'women.html';                                   // WOMEN and UNISEX
+    return page + '#' + p.sku;
+  };
 })();

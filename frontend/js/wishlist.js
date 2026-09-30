@@ -42,6 +42,9 @@
       if (svg) { svg.style.fill = on ? 'var(--purple)' : 'none'; svg.style.stroke = on ? 'var(--purple)' : 'currentColor'; }
     });
   }
+  // Cards are rendered by grid.js after the page loads; light up their hearts when they arrive.
+  document.addEventListener('nura:grid', syncHearts);
+
   function show(list) {                     // list = product objects from the server or catalogue
     items = list;
     skus = list.map(function (p) { return p.sku; });
