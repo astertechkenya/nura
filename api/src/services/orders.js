@@ -137,6 +137,15 @@ export async function placeOrder({ cartId, userId, details }) {
   }
 }
 
+/** The money actually taken on an order (all PAID payments) and how it was paid. */
+export async function paidOn(orderId) {
+  const rows = await db.select({ amountKes: payments.amountKes, provider: payments.provider, phone: payments.phone })
+    .from(payments).where(and(eq(payments.orderId, orderId), eq(payments.status, 'PAID')))
+    .orderBy(sql`${payments.createdAt} desc`);
+  if (!rows.length) return null;
+  return { kes: rows.reduce((n, r) => n + r.amountKes, 0), provider: rows[0].provider, phone: rows[0].phone };
+}
+
 /** The order as its owner sees it: what was bought, where it goes, and what happens next. */
 export async function loadOrder(id) {
   const [o] = await db.select().from(orders).where(eq(orders.id, id));
@@ -166,6 +175,9 @@ export async function loadOrder(id) {
     totalKes: o.totalKes,
     // Private to the owner, so no need to hide it; used by "Create an account with this email".
     guest: o.userId === null,
+    // A refund owed or already sent (cancelled after paying, or paid after it closed).
+    refund: o.refundStatus === 'NONE' ? null
+      : { status: o.refundStatus, kes: (await paidOn(o.id))?.kes ?? 0 },
     // M-Pesa: where the latest attempt stands, how many prompts are left, and until when.
     payment: await paymentSummary(o.id),
     promptsLeft: o.paymentMethod === 'MPESA' ? Math.max(0, MAX_STK_ATTEMPTS - o.stkAttempts) : 0,

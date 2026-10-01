@@ -35,8 +35,9 @@ adminRouter.get('/me', (req, res) => {
 
 adminRouter.post(
   '/totp',
-  // 5 wrong codes per 15 minutes per connection+account: a 6-digit code can't be guessed by brute force.
-  limit({ windowMs: 15 * 60 * 1000, max: 5, by: (req) => req.session?.userId, message: 'Too many codes tried. Wait 15 minutes.' }),
+  // 5 WRONG codes per 15 minutes per ACCOUNT, from wherever they come. Per connection+account (as it
+  // was) let someone who has the password sign in once and spread guesses over many IP addresses.
+  limit({ windowMs: 15 * 60 * 1000, max: 5, by: (req) => req.session?.userId, ipToo: false, failuresOnly: true, message: 'Too many codes tried. Wait 15 minutes.' }),
   validate(z.strictObject({ code: z.string().regex(/^\d{6}$/, 'The code is 6 digits.') })),
   async (req, res) => {
     if (!req.admin.totpSecret || !verifyCode(req.admin.totpSecret, req.valid.body.code)) {

@@ -218,7 +218,7 @@
   if (window.matchMedia('(max-width: 899px)').matches) byId('coSummary').open = false;
 
   /* ── Start: options, cart and (if signed in) who you are, in parallel ────────────── */
-  NURA.api('/checkout/options').then(function (o) {
+  var optionsReady = NURA.api('/checkout/options').then(function (o) {
     options = o;
     var sel = byId('coCounty');
     if (!sel) return;
@@ -232,9 +232,38 @@
 
   loadCart().catch(function (err) { alertBox(err.message); });
 
+  // Signed in: email from the account; name, phone and address from the latest order (decided:
+  // no separate address book). Only empty fields are filled, never anything already typed.
+  function fillIfEmpty(id, value) {
+    var el = byId(id);
+    if (el && !el.value && value) { el.value = value; return true; }
+    return false;
+  }
+  var localPhone = function (p) {
+    var m = String(p || '').match(/^254(\d{3})(\d{3})(\d{3})$/);
+    return m ? '0' + m[1] + ' ' + m[2] + ' ' + m[3] : p;
+  };
   NURA.api('/auth/me').then(function (d) {
     if (!d.user) return;
-    if (!byId('coEmail').value) byId('coEmail').value = d.user.email;
-    if (!byId('coName').value) byId('coName').value = d.user.name;
+    fillIfEmpty('coEmail', d.user.email);
+    return NURA.api('/account').then(function (a) {
+      var last = a.lastDelivery;
+      fillIfEmpty('coName', last ? last.name : d.user.name);
+      if (!last) return;
+      var filled = [fillIfEmpty('coPhone', localPhone(last.phone)), fillIfEmpty('coLine1', last.addressLine1), fillIfEmpty('coArea', last.area)];
+      // The county list arrives separately; set it once it's there (and only if still unchosen).
+      optionsReady.then(function () {
+        var sel = byId('coCounty');
+        if (sel && !sel.value && Array.prototype.some.call(sel.options, function (o) { return o.value === last.county; })) {
+          sel.value = last.county;
+          updatePayment();                          // COD availability depends on the county
+        }
+      });
+      if (filled.indexOf(true) > -1) {
+        var note = byId('coPrefill');
+        note.textContent = 'We’ve filled in the delivery details from your last order. Change anything that’s different.';
+        note.hidden = false;
+      }
+    });
   }).catch(function () {});
 })();

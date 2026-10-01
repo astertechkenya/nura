@@ -150,6 +150,7 @@
 .auth-dropdown__name{padding:10px 16px 8px;font-size:11px;font-weight:700;color:var(--black);letter-spacing:1px;border-bottom:1px solid var(--light);text-transform:uppercase;}
 .auth-dropdown__item{display:block;width:100%;padding:10px 16px;font-size:12px;color:var(--mid);background:none;border:none;text-align:left;cursor:none;transition:color .25s,background .25s;}
 .auth-dropdown__item:hover{color:var(--black);background:var(--bg);}
+a.auth-dropdown__item{text-decoration:none;box-sizing:border-box;}
 .auth-dropdown__logout{color:var(--red-sale)!important;}
 @media(max-width:480px){.auth-modal{width:calc(100vw - 32px);padding:28px 24px;}}
 .search-overlay{position:fixed;inset:0;background:rgba(10,10,10,0.96);z-index:500;display:flex;flex-direction:column;align-items:center;padding-top:120px;opacity:0;pointer-events:none;transition:opacity .3s ease;}

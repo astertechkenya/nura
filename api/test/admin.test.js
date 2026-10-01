@@ -26,6 +26,8 @@ beforeAll(async () => {
     { email: 'boss@nura.test', name: 'Boss Admin', role: 'ADMIN', passwordHash: hash, totpSecret: SECRET },
     { email: 'looker@nura.test', name: 'Demo Looker', role: 'DEMO_ADMIN', passwordHash: hash },
     { email: 'shopper@nura.test', name: 'Just Shopping', role: 'CUSTOMER', passwordHash: hash },
+    // Its own account, so locking it out doesn't lock out the other tests' admin.
+    { email: 'guessed@nura.test', name: 'Guessed Admin', role: 'ADMIN', passwordHash: hash, totpSecret: SECRET },
   ]).onConflictDoNothing();
 });
 afterAll(async () => { await seed({ log: () => {} }); sessionStore.close(); await pool.end(); });
@@ -91,6 +93,29 @@ describe('who gets in', () => {
     expect((await as(b).post('/api/admin/totp').send({ code: codeAt(SECRET, Math.floor(Date.now() / 30000)) })).status).toBe(200);
     expect((await as(b).get('/api/admin/orders')).status).toBe(200);
     expect((await as(b).get('/api/admin/me')).body.needsTotp).toBe(false);
+  });
+
+  it('someone with the password can’t spread code guesses over many IP addresses, or sign in again for more', async () => {
+    // as() gives every request a different client IP: exactly what a botnet would do.
+    const b = await signIn('guessed@nura.test', { code: false });
+    const wrong = (agent) => as(agent).post('/api/admin/totp').send({ code: '000000' });
+    const codes = [];
+    for (let i = 0; i < 6; i++) codes.push((await wrong(b)).status);
+    expect(codes).toEqual([401, 401, 401, 401, 401, 429]);
+    const right = () => ({ code: codeAt(SECRET, Math.floor(Date.now() / 30000)) });
+    expect((await as(b).post('/api/admin/totp').send(right())).status).toBe(429);       // even the right code waits
+    const again = await signIn('guessed@nura.test', { code: false });                   // a fresh session doesn't reset it
+    expect((await as(again).post('/api/admin/totp').send(right())).status).toBe(429);
+  });
+
+  it('right codes never count against the limit: signing in on many devices is fine', async () => {
+    await db.execute(sql`insert into users (email, name, role, password_hash, totp_secret)
+      select 'busy@nura.test', 'Busy Admin', 'ADMIN', password_hash, ${SECRET} from users where email = 'boss@nura.test'
+      on conflict do nothing`);
+    for (let i = 0; i < 7; i++) {
+      const b = await signIn('busy@nura.test', { code: false });
+      expect((await as(b).post('/api/admin/totp').send({ code: codeAt(SECRET, Math.floor(Date.now() / 30000)) })).status, `sign-in ${i + 1}`).toBe(200);
+    }
   });
 
   it('demoting an admin takes effect on the very next request', async () => {

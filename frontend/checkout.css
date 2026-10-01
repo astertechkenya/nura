@@ -116,6 +116,10 @@ a{color:inherit;}
 .oc-steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:12px;font-size:13px;line-height:1.6;}
 .oc-steps li::before{content:counter(s,decimal-leading-zero);font-size:11px;font-weight:700;letter-spacing:1px;color:var(--co-accent);padding-top:2px;}
 .oc-steps strong{display:block;font-size:13px;}
+/* Progress: done steps get a tick, the current one is marked, later ones are quieter. */
+.oc-steps li.is-done::before{content:'✓';font-size:13px;color:var(--co-accent);}
+.oc-steps li.is-current strong{color:var(--co-accent);}
+.oc-steps li.is-next{color:var(--co-muted);}
 .oc-address{font-size:13px;line-height:1.7;font-style:normal;}
 .oc-cols{display:grid;gap:18px;}
 @media (min-width:600px){.oc-cols{grid-template-columns:1fr 1fr;}}
@@ -133,3 +137,27 @@ a{color:inherit;}
 .pay-retry{display:grid;gap:14px;margin-top:16px;max-width:360px;}
 .pay-retry .co-alert{margin-bottom:0;}
 .co-method__name small{font-weight:400;color:var(--co-muted);}
+
+/* "Filled in from your last order": a quiet note above the form, not an alert. */
+.co-prefill{margin:0 0 18px;padding:12px 14px;font-size:13px;line-height:1.5;background:#f4effc;border-left:3px solid var(--co-accent);color:#333;}
+
+/* ── Account page (account.html, Phase 7.6) ──────────────────────────────── */
+.ac-orders{list-style:none;display:grid;gap:2px;background:var(--light);}
+.ac-order{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 4px;background:var(--white);color:var(--black);text-decoration:none;font-size:13px;}
+.ac-order:hover,.ac-order:focus-visible{background:#faf8fd;}
+.ac-order__main{display:flex;flex-direction:column;gap:2px;}
+.ac-order__side{display:flex;flex-direction:column;align-items:flex-end;gap:4px;white-space:nowrap;}
+.ac-status{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;background:#efefed;color:#333;}
+.ac-status--DELIVERED{background:#e3f1e6;color:#1f5e2c;}
+.ac-status--SHIPPED,.ac-status--PROCESSING,.ac-status--PAID,.ac-status--AWAITING_COD{background:#f4effc;color:#5a2ca3;}
+.ac-status--CANCELLED,.ac-status--EXPIRED{background:#f3f3f3;color:#555;}
+.ac-form{display:grid;gap:14px;}
+.ac-msg{font-size:12px;color:var(--red-sale);margin:0;}
+/* Empty: takes no room, but stays in place so screen readers announce the first message. */
+.ac-msg:empty{margin-top:-14px;}
+.ac-msg.is-ok{color:#1f5e2c;}
+.ac-signout{margin-top:16px;background:none;border:1px solid rgba(255,255,255,.4);color:var(--white);padding:9px 16px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.ac-signout:hover,.ac-signout:focus-visible{border-color:var(--white);}
+.ac-danger{border-left:3px solid var(--red-sale);}
+.ac-danger__start{margin-top:14px;background:none;border:1px solid var(--red-sale);color:var(--red-sale);padding:12px 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
+.ac-danger__confirm{background:var(--red-sale);}

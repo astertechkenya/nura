@@ -18,6 +18,7 @@ import { cartRouter } from './routes/cart.js';
 import { wishlistRouter } from './routes/wishlist.js';
 import { checkoutRouter } from './routes/checkout.js';
 import { ordersRouter } from './routes/orders.js';
+import { accountRouter } from './routes/account.js';
 import { paymentsRouter } from './routes/payments.js';
 import { adminRouter } from './routes/admin.js';
 import { sessionMiddleware } from './middleware/session.js';
@@ -81,6 +82,7 @@ export function createApp() {
   app.use('/api/wishlist', sessionMiddleware, wishlistRouter); // signed-in only
   app.use('/api/checkout', sessionMiddleware, checkoutRouter);
   app.use('/api/orders', sessionMiddleware, ordersRouter);
+  app.use('/api/account', sessionMiddleware, accountRouter);   // signed-in only
   app.use('/api/payments', paymentsRouter);                     // provider callbacks: no session
   app.use('/api/admin', sessionMiddleware, adminRouter);        // gated: see middleware/adminGate.js
 

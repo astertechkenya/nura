@@ -90,6 +90,16 @@ Signing in (register, login or reset) moves this browser's guest cart into the a
 
 Unpaid M-Pesa/card orders expire after `PAYMENT_WINDOW_MINUTES` and give their stock back (`src/jobs/`, every minute). COD orders never expire.
 
+## The account page (`account.html`)
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/api/account` | Signed-in only: name, email, member since, and the delivery details from the latest order (decided: no separate address book, so no extra copy of anyone's address). Checkout pre-fills from it |
+| POST | `/api/account/password` | `{ currentPassword, newPassword }` → changed; this browser gets a new session, every other device is signed out, and an email says so |
+| POST | `/api/account/delete` | `{ password }` → the account, cart, wishlist, sessions and newsletter subscription are deleted; orders are kept (the shop's records) with `user_id` set to null. Admin accounts are refused (they sign the audit log) |
+
+Both POSTs allow 5 wrong passwords per 15 minutes **per account, from any IP** (`limit({ ipToo: false, failuresOnly: true })`), so a stolen session can't spread guesses over many addresses; right answers never count. The admin's 2FA code check uses the same rule.
+
 ## The admin (`/admin/`)
 
 Every `/api/admin/*` route re-reads the account's role from the database on each request, so a demoted admin loses access at once. Signed out → 401, shopper → 403. An `ADMIN` must enter a six-digit authenticator code after the password (required in production). The session times out after 8 hours idle. Every change is written to `admin_actions` in the same transaction, with the value before and after. A `DEMO_ADMIN` sees masked names, phones and emails and gets 403 on every change.

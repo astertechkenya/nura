@@ -82,8 +82,14 @@
     var forgot = byId('forgotForm');
     if (forgot) forgot.querySelectorAll('.auth-field, .auth-submit').forEach(function (el) { el.hidden = false; });
     clearErrors();
-    var first = byId(show) && byId(show).querySelector('input:not([name="bot-field"])');
-    if (first && byId('authModal').classList.contains('open')) setTimeout(function () { first.focus(); }, 50);
+    var form = byId(show);
+    var first = form && form.querySelector('input:not([name="bot-field"])');
+    // A moment later (once the form is visible), put the cursor in its first field, unless
+    // someone (a fast typist, autofill, a password manager) is already in the form. Moving
+    // focus then would send their next keystrokes into the wrong field.
+    if (first && byId('authModal').classList.contains('open')) setTimeout(function () {
+      if (!form.contains(document.activeElement)) first.focus();
+    }, 50);
   }
   function openModal(tab) {
     byId('authOverlay').classList.add('open');

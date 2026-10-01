@@ -78,29 +78,53 @@
       + '</address></section>';
   }
 
-  /* ── Placed: COD waiting for the rider, or paid by M-Pesa ─────────────────────── */
+  /* ── Placed, packing, on its way, delivered: one view that follows the real status ── */
+  // Which step the order has reached. Steps before it are done; it is the current one.
+  var REACHED = { AWAITING_COD: 0, PAID: 1, PROCESSING: 1, SHIPPED: 2, DELIVERED: 4 };
+
+  function stepsList(o) {
+    var cod = o.paymentMethod === 'COD';
+    var steps = [
+      cod ? ['We call to confirm', 'We’ll ring ' + esc(localPhone(o.contact.phone)) + ' to confirm your order and a delivery time.']
+          : ['Payment received', 'Thank you. Your payment is confirmed.'],
+      ['We pack it', 'Your pieces are checked, packed and handed to a rider.'],
+      ['On its way', cod ? 'Have ' + NURA.fmtKsh(o.totalKes) + ' ready for the rider.' : 'Your rider brings it to your door.'],
+      ['Delivered', cod ? 'You pay the rider in cash, and it’s yours.' : 'Nothing more to pay.'],
+    ];
+    var at = REACHED[o.status];
+    return '<ol class="oc-steps">' + steps.map(function (st, i) {
+      var state = i < at ? 'is-done' : i === at ? 'is-current' : 'is-next';
+      return '<li class="' + state + '"' + (state === 'is-current' ? ' aria-current="step"' : '') + '><span><strong>'
+        + st[0] + (state === 'is-done' ? '<span class="visually-hidden"> (done)</span>' : '') + '</strong>' + st[1] + '</span></li>';
+    }).join('') + '</ol>';
+  }
+
   function renderPlaced(o) {
     var cod = o.paymentMethod === 'COD';
-    var first = o.contact.name.split(/\s+/)[0];
-    var steps = '<li><span><strong>We call to confirm</strong>We’ll ring ' + esc(localPhone(o.contact.phone)) + ' to confirm your order and a delivery time.</span></li>'
-      + '<li><span><strong>We pack and dispatch</strong>Your pieces are checked, packed and handed to a rider.</span></li>'
-      + (cod ? '<li><span><strong>Pay when it arrives</strong>Have ' + NURA.fmtKsh(o.totalKes) + ' ready for the rider.</span></li>'
-             : '<li><span><strong>Delivered</strong>Your rider brings it to your door. Nothing more to pay.</span></li>');
+    var first = esc(o.contact.name.split(/\s+/)[0]);
+    var HERO = {
+      AWAITING_COD: ['Thank you, ' + first, 'Your order is in.'],
+      PAID: ['Thank you, ' + first, 'Payment received, and your order is in.'],
+      PROCESSING: ['Being packed', 'We’re getting your order ready.'],
+      SHIPPED: ['On its way', 'Your order is with our rider.' + (cod ? ' Have ' + NURA.fmtKsh(o.totalKes) + ' ready in cash.' : '')],
+      DELIVERED: ['Delivered', 'Thank you for shopping with NURA.'],
+    }[o.status] || ['Order ' + esc(o.number), ''];
+    var early = o.status === 'AWAITING_COD' || o.status === 'PAID';
     var receipt = o.payment && o.payment.receipt;
-    var paidWith = cod ? 'Cash on delivery'
+    var paidWith = cod ? 'Cash on delivery' + (o.status === 'DELIVERED' ? '<br><span class="co-hint">Paid to the rider</span>' : '')
       : o.paymentMethod === 'CARD' ? (receipt ? esc(receipt) : 'Card')
       : 'M-Pesa' + (receipt ? '<br><span class="co-hint">Receipt ' + esc(receipt) + '</span>' : '');
     main.innerHTML =
-        hero('Order ' + esc(o.number), 'Thank you, ' + esc(first),
-          // No confirmation email yet: emails arrive in Phase 7, so the page must not promise one.
-          (cod ? 'Your order is in.' : 'Payment received, and your order is in.') + ' Keep your order number, ' + esc(o.number) + ', in case you need to reach us.')
-      + '<section class="oc-card" aria-labelledby="ocNext"><h2 id="ocNext">What happens next</h2><ol class="oc-steps">' + steps + '</ol></section>'
-      + itemsCard(o, cod ? 'To pay on delivery' : 'Paid')
+        hero('Order ' + esc(o.number), HERO[0],
+          // No promise of an email: while there's no domain, most addresses' emails are held.
+          HERO[1] + (early ? ' Keep your order number, ' + esc(o.number) + ', in case you need to reach us.' : ''))
+      + '<section class="oc-card" aria-labelledby="ocNext"><h2 id="ocNext">' + (o.status === 'DELIVERED' ? 'How it went' : 'What happens next') + '</h2>' + stepsList(o) + '</section>'
+      + itemsCard(o, cod && o.status !== 'DELIVERED' ? 'To pay on delivery' : 'Paid')
       + '<div class="oc-cols">' + addressCard(o)
       +   '<section class="oc-card" aria-labelledby="ocPay"><h2 id="ocPay">Payment</h2><p class="oc-address">' + paidWith
       +   '<br><span class="co-hint">Placed ' + new Date(o.placedAt).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }) + '</span></p></section>'
       + '</div>'
-      + (o.guest
+      + (o.guest && early
           ? '<section class="oc-card oc-invite"><p><strong>Save your details for next time.</strong><br>Create an account with ' + esc(o.contact.email)
             + ' and this order will be waiting in it.</p><a class="auth-submit" href="index.html#create-account" id="ocSignup">Create account</a></section>'
           : '');
@@ -111,7 +135,24 @@
         try { sessionStorage.setItem('nura_signup_email', o.contact.email); } catch (e) {}
       });
     }
-    document.title = 'Order ' + o.number + ' confirmed — NURA';
+    document.title = 'Order ' + o.number + ' — NURA';
+  }
+
+  /** What happened to the money, for a cancelled or expired order. Never promises a refund that
+   *  isn't owed, never hides one that is. */
+  function refundText(o, fallback) {
+    if (o.refund && o.refund.status === 'DONE') return 'We’ve refunded ' + NURA.fmtKsh(o.refund.kes) + ' to you.';
+    if (o.refund) return 'You paid ' + NURA.fmtKsh(o.refund.kes) + '. A full refund is on its way; we’ll email you when it’s sent.';
+    return fallback;
+  }
+
+  function renderCancelled(o) {
+    main.innerHTML =
+        hero('Order ' + esc(o.number), 'Cancelled', 'This order has been cancelled.')
+      + '<section class="oc-card"><p class="oc-address">' + refundText(o, 'No payment was taken for it.') + '</p>'
+      + '<a class="co-link" href="index.html">Back to the shop &rarr;</a></section>'
+      + itemsCard(o, 'Total');
+    document.title = 'Order ' + o.number + ' cancelled — NURA';
   }
 
   /* ── Card: off to Paystack, back from Paystack, declined ──────────────────────── */
@@ -219,7 +260,7 @@
   function renderExpired(o) {
     main.innerHTML =
         hero('Order ' + esc(o.number), 'Not paid in time', 'This order wasn’t paid within the time limit, so its items were released for other shoppers.')
-      + '<section class="oc-card"><p class="co-hint" style="font-size:13px;">If money left your M-Pesa for this order, we’ll refund it. Keep your order number handy if you contact us.</p>'
+      + '<section class="oc-card"><p class="oc-address">' + refundText(o, 'If money left your account for this order, it will be refunded in full. Keep your order number handy if you contact us.') + '</p>'
       + '<a class="co-link" href="index.html">Back to the shop &rarr;</a></section>'
       + itemsCard(o, 'Total');
   }
@@ -230,12 +271,14 @@
     var slow = p.status === 'PENDING' && Date.now() - pollStarted > 90 * 1000;
     // Redraw only when something changed. Redrawing every 3 s would make screen readers
     // repeat the whole message, and would wipe anything typed into the form.
-    var state = o.status + '/' + (p.status || '') + '/' + (p.resultCode || '') + '/' + o.promptsLeft + '/' + slow + '/' + backFromPaystack;
+    var state = o.status + '/' + (p.status || '') + '/' + (p.resultCode || '') + '/' + o.promptsLeft + '/' + slow + '/' + backFromPaystack
+      + '/' + (o.refund ? o.refund.status : '');
     if (state === lastState) return;
     var headingChanged = state.split('/')[0] !== lastState.split('/')[0] || state.split('/')[1] !== lastState.split('/')[1];
     lastState = state;
     if (o.status === 'PENDING_PAYMENT') renderPayment(o);
     else if (o.status === 'EXPIRED') renderExpired(o);
+    else if (o.status === 'CANCELLED') renderCancelled(o);
     else renderPlaced(o);
     // Move focus only when the situation really changed, so a screen reader hears it once.
     if (headingChanged) document.getElementById('ocTitle').focus();

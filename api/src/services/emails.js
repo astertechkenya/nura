@@ -3,11 +3,11 @@
 // Each email has a plain-text part (read by some clients, and by spam filters that distrust
 // HTML-only mail) and a simple HTML part. The HTML uses inline styles and one centred column
 // because email clients ignore stylesheets and most modern CSS.
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { orderEmails, payments } from '../db/schema.js';
+import { orderEmails } from '../db/schema.js';
 import { config } from '../config.js';
-import { loadOrder } from './orders.js';
+import { loadOrder, paidOn } from './orders.js';
 import { orderUrl } from '../lib/orderLink.js';
 import { inBackground, sendMail } from './mail.js';
 
@@ -128,15 +128,6 @@ const ORDER_EMAILS = {
   },
 };
 
-/** The money actually taken on an order (all PAID payments) and how it was paid. */
-async function paidOn(orderId) {
-  const rows = await db.select({ amountKes: payments.amountKes, provider: payments.provider, phone: payments.phone })
-    .from(payments).where(and(eq(payments.orderId, orderId), eq(payments.status, 'PAID')))
-    .orderBy(desc(payments.createdAt));
-  if (!rows.length) return null;
-  return { kes: rows.reduce((n, r) => n + r.amountKes, 0), provider: rows[0].provider, phone: rows[0].phone };
-}
-
 export function orderMessage(kind, o) {
   const t = ORDER_EMAILS[kind](o);
   const link = orderUrl(o);
@@ -191,6 +182,33 @@ export function resetMessage(user, link) {
       heading: 'Reset your password',
       intro: `Hi ${esc(firstName(user.name))}, use the button below to choose a new password. It works for 30 minutes and only once.<br><br>If you didn’t ask for this, ignore this email; your password stays the same.`,
       button: { href: link, label: 'Choose a new password' },
+    }),
+  };
+}
+
+// Security notices: sent so that a change the owner didn't make doesn't go unnoticed.
+export function passwordChangedMessage(user) {
+  const reset = `${config.SITE_URL}/index.html#forgot`;
+  return {
+    to: user.email,
+    subject: 'Your NURA password was changed',
+    text: `Hi ${firstName(user.name)},\n\nThe password for your NURA account was just changed, and any other devices were signed out.\n\nIf this wasn't you, reset your password now: ${reset}\n`,
+    html: layout({
+      heading: 'Your password was changed',
+      intro: `Hi ${esc(firstName(user.name))}, the password for your NURA account was just changed, and any other devices were signed out.<br><br>If this wasn’t you, reset it now.`,
+      button: { href: reset, label: 'Reset my password' },
+    }),
+  };
+}
+
+export function accountDeletedMessage(user) {
+  return {
+    to: user.email,
+    subject: 'Your NURA account has been deleted',
+    text: `Hi ${firstName(user.name)},\n\nYour NURA account has been deleted, along with your saved cart, wishlist and newsletter subscription. Records of past orders are kept for our accounts and are no longer linked to an account.\n\nYou're welcome back any time: ${config.SITE_URL}\n`,
+    html: layout({
+      heading: 'Your account has been deleted',
+      intro: `Hi ${esc(firstName(user.name))}, your NURA account has been deleted, along with your saved cart, wishlist and newsletter subscription. Records of past orders are kept for our accounts and are no longer linked to an account.`,
     }),
   };
 }

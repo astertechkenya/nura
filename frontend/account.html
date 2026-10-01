@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your account — NURA</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="no-referrer" />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="fonts.css" />
+  <link rel="stylesheet" href="shared.css" />
+  <link rel="stylesheet" href="checkout.css" />
+</head>
+<body class="co-page">
+  <header class="co-head">
+    <div class="co-head__inner">
+      <a class="auth-modal__logo" href="index.html" aria-label="NURA home">NUR<span>A</span></a>
+      <a class="co-head__back" href="index.html">Continue shopping &rarr;</a>
+    </div>
+  </header>
+
+  <!-- Filled in by js/account.js from GET /api/account and GET /api/orders. Signed-in only. -->
+  <main class="oc" id="acMain" aria-live="polite">
+    <p class="co-hint" style="padding:40px 0;text-align:center;">Loading your account…</p>
+  </main>
+
+  <script src="js/ui.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/account.js" defer></script>
+</body>
+</html>
