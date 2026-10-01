@@ -3,7 +3,7 @@ import request from 'supertest';
 import { sql } from 'drizzle-orm';
 import { createApp } from '../src/app.js';
 import { db, pool } from '../src/db/client.js';
-import { outbox } from '../src/services/mail.js';
+import { mailSettled, outbox } from '../src/services/mail.js';
 import { sessionStore } from '../src/middleware/session.js';
 import { netlifyToken } from './helpers.js';
 
@@ -43,6 +43,10 @@ describe('register', () => {
     const [row] = (await db.execute(sql`select password_hash from users where email = 'mixed.case@example.com'`)).rows;
     expect(row.password_hash).toMatch(/^\$argon2id\$/);
     expect(row.password_hash).not.toContain(body.password);
+    // and a welcome email, to the address as normalised
+    const welcome = outbox.filter((m) => m.to === 'mixed.case@example.com' && m.subject === 'Welcome to NURA');
+    expect(welcome).toHaveLength(1);
+    expect(welcome[0].html).toContain('Welcome, Wanjiku');
   });
 
   it('refuses a second account for the same email, whatever the case', async () => {
@@ -124,9 +128,17 @@ describe('login and logout', () => {
 describe('password reset', () => {
   beforeEach(() => { outbox.length = 0; });
   const tokenFrom = (mail) => mail.text.match(/#token=([\w-]+)/)[1];
+  // The reset email is prepared in the background (so real and unknown emails answer in the
+  // same time); wait for it. Sign-ups also send a welcome email, so pick out the reset ones.
+  const forgot = async (addr) => {
+    const res = await as(app).post('/api/auth/forgot').send({ email: addr });
+    await mailSettled();
+    return res;
+  };
+  const resets = () => outbox.filter((m) => m.subject === 'Reset your NURA password');
 
   it('unknown email: same answer, no email sent', async () => {
-    const res = await as(app).post('/api/auth/forgot').send({ email: uniq() });
+    const res = await forgot(uniq());
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/If an account exists/);
     expect(outbox).toHaveLength(0);
@@ -134,11 +146,12 @@ describe('password reset', () => {
 
   it('known email: the link is emailed, and only its hash is stored', async () => {
     const { body } = await register(request.agent(app));
-    const res = await as(app).post('/api/auth/forgot').send({ email: body.email });
+    const res = await forgot(body.email);
     expect(res.body.message).toMatch(/If an account exists/);
-    expect(outbox).toHaveLength(1);
-    expect(outbox[0].text).toMatch(/reset\.html#token=/);   // in the fragment, never sent to servers
-    const token = tokenFrom(outbox[0]);
+    expect(resets()).toHaveLength(1);
+    expect(resets()[0].text).toMatch(/reset\.html#token=/);   // in the fragment, never sent to servers
+    expect(resets()[0].html).toMatch(/reset\.html#token=/);   // the button in the HTML part too
+    const token = tokenFrom(resets()[0]);
     const stored = (await db.execute(sql`select token_hash from password_reset_tokens`)).rows.map((r) => r.token_hash);
     expect(stored).not.toContain(token);
   });
@@ -146,8 +159,8 @@ describe('password reset', () => {
   it('resetting changes the password, signs out other devices, signs this one in', async () => {
     const phone = request.agent(app);
     const { body } = await register(phone);                        // signed in on a "phone"
-    await as(app).post('/api/auth/forgot').send({ email: body.email });
-    const token = tokenFrom(outbox[0]);
+    await forgot(body.email);
+    const token = tokenFrom(resets()[0]);
 
     const laptop = request.agent(app);
     const res = await as(laptop).post('/api/auth/reset').send({ token, password: 'a brand new passphrase' });
@@ -163,18 +176,18 @@ describe('password reset', () => {
 
   it('an expired link is refused', async () => {
     const { body } = await register(request.agent(app));
-    await as(app).post('/api/auth/forgot').send({ email: body.email });
+    await forgot(body.email);
     await db.execute(sql`update password_reset_tokens set expires_at = now() - interval '1 minute'`);
-    const res = await as(app).post('/api/auth/reset').send({ token: tokenFrom(outbox[0]), password: 'whatever long enough' });
+    const res = await as(app).post('/api/auth/reset').send({ token: tokenFrom(resets()[0]), password: 'whatever long enough' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/expired/);
   });
 
   it('asking again replaces the previous link', async () => {
     const { body } = await register(request.agent(app));
-    await as(app).post('/api/auth/forgot').send({ email: body.email });
-    await as(app).post('/api/auth/forgot').send({ email: body.email });
-    const [first, second] = outbox.map(tokenFrom);
+    await forgot(body.email);
+    await forgot(body.email);
+    const [first, second] = resets().map(tokenFrom);
     expect((await as(app).post('/api/auth/reset').send({ token: first, password: 'first link password' })).status).toBe(400);
     expect((await as(app).post('/api/auth/reset').send({ token: second, password: 'second link password' })).status).toBe(200);
   });

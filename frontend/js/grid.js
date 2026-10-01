@@ -19,6 +19,9 @@
 
   var grids = Array.prototype.slice.call(document.querySelectorAll('[data-list]'));
   if (!grids.length) return;
+  // grid.js is itself a deferred script, so this listener is always in place before the event.
+  var domReady = false;
+  document.addEventListener('DOMContentLoaded', function () { domReady = true; });
 
   var HEART = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
@@ -115,10 +118,12 @@
   function load() {
     grids.forEach(function (g) { g.setAttribute('aria-busy', 'true'); });
     NURA.products().then(function (data) {
-      // Render only once every deferred script has run, so filters.js, wishlist.js and ui.js
-      // are all listening for `nura:grid` (a fast or cached answer could otherwise beat them).
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { render(data); });
-      else render(data);
+      // Render only after DOMContentLoaded, which the browser fires once EVERY deferred script
+      // has run, so filters.js, wishlist.js and ui.js are all listening for `nura:grid`.
+      // (document.readyState can't tell us this: it is already 'interactive' while deferred
+      // scripts are still running. A cached catalogue can arrive between two of them.)
+      if (domReady) render(data);
+      else document.addEventListener('DOMContentLoaded', function () { render(data); });
     }, function () {
       grids.forEach(function (g) {
         message(g, 'We couldn’t load the products. Check your connection and try again.', true);

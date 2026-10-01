@@ -235,6 +235,17 @@ export const orderEvents = pgTable('order_events', {
   createdAt: createdAt(),
 }, (t) => [index('order_events_order_idx').on(t.orderId)]);
 
+// Which emails an order has had (Phase 7). The primary key is the whole point: whoever inserts
+// the row sends the email, so a double-clicked checkout, a retried job or two payment
+// callbacks racing each other can never send the same email twice. It also tells the admin
+// "did this customer get the shipped email?".
+export const orderEmails = pgTable('order_emails', {
+  orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull(),                    // received | confirmed | shipped
+  status: text('status').notNull().default('queued'), // queued | sent | held | failed
+  createdAt: createdAt(),
+}, (t) => [primaryKey({ columns: [t.orderId, t.kind] })]);
+
 /* ── Marketing and audit ─────────────────────────────────────────────────────── */
 
 export const newsletterSubscribers = pgTable('newsletter_subscribers', {

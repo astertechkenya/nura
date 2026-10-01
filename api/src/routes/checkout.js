@@ -16,6 +16,7 @@ import { cartIdFor } from '../services/cart.js';
 import { AVAILABLE_METHODS, loadOrder, placeOrder } from '../services/orders.js';
 import { PUSHES_PER_PHONE_PER_HOUR, pushPayment, recentPushes } from '../services/payments.js';
 import { openCardPayment } from '../services/cardPayments.js';
+import { queueOrderEmail } from '../services/emails.js';
 import { db } from '../db/client.js';
 import { payments } from '../db/schema.js';
 import { and, eq } from 'drizzle-orm';
@@ -76,6 +77,10 @@ checkoutRouter.post(
     // The order (and its stock) is saved first; only then do we ask Safaricom or Paystack. If
     // they can't be reached, nothing is lost: the payment is FAILED and the shopper retries.
     let redirectUrl = null;
+    // COD: the order is final now, so say so. (M-Pesa and card get "confirmed" when paid,
+    // never before: an unpaid order may still expire.) Sent at most once, even when the same
+    // checkout arrives twice, because order_emails lets one sender through per order.
+    if (details.paymentMethod === 'COD') queueOrderEmail(orderId, 'received');
     if (details.paymentMethod !== 'COD') {
       const [p] = await db.select({ id: payments.id }).from(payments)
         .where(and(eq(payments.orderId, orderId), eq(payments.status, 'PENDING')));

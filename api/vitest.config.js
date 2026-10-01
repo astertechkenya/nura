@@ -23,6 +23,10 @@ if (testUrl === process.env.DATABASE_URL) {
 // globalSetup runs in this process and loads config.js, so it needs these too.
 const TEST_SESSION_SECRET = 'test-only-session-secret-long-enough-4567';
 process.env.DATABASE_URL = testUrl;
+// Tests must never send real email, whatever api/.env says: without these, a Resend key in .env
+// makes the tests call Resend (and, if MAIL_ONLY_TO matched, deliver). Removed here, before the
+// test processes start, so they inherit nothing. (M-Pesa and Paystack get fakes below instead.)
+for (const key of ['RESEND_API_KEY', 'MAIL_ONLY_TO', 'MAIL_FROM', 'RESEND_BASE_URL']) delete process.env[key];
 process.env.SESSION_SECRET ??= TEST_SESSION_SECRET;
 
 export default defineConfig({
@@ -46,6 +50,7 @@ export default defineConfig({
       PAYSTACK_SECRET_KEY: 'sk_test_fakeKeyForTestsOnly0123456789',
     },
     globalSetup: ['./test/globalSetup.js'],
+    setupFiles: ['./test/setup.js'],        // waits for background emails before closing the pool
     fileParallelism: false,  // files share one database, so run them one at a time
     // Every test talks to a real database, often in another country (Neon, Frankfurt). The
     // password-reset tests make ~10 round trips plus deliberately slow password hashing, so

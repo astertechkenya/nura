@@ -76,10 +76,32 @@ const schema = z.object({
   PAYSTACK_SECRET_KEY: z.string().regex(/^sk_(test|live)_[A-Za-z0-9]+$/, 'must be a Paystack secret key (sk_test_… or sk_live_…)').optional(),
   // Tests point this at a fake Paystack. Leave unset.
   PAYSTACK_BASE_URL: z.url().optional(),
+
+  // Email through Resend (Phase 7). Without a key, emails are printed (development) or only
+  // logged (production), exactly as before.
+  RESEND_API_KEY: z.string().regex(/^re_[A-Za-z0-9_]{10,}$/, 'must be a Resend API key (re_…)').optional(),
+  // Who emails come from. onboarding@resend.dev works without a domain of your own, but Resend
+  // then only delivers to YOUR account's address: see MAIL_ONLY_TO. With a verified domain,
+  // use e.g. "NURA <orders@yourdomain.co.ke>".
+  MAIL_FROM: z.string().min(3).default('NURA <onboarding@resend.dev>'),
+  // Comma-separated addresses. When set, email goes ONLY to these; anyone else's is logged as
+  // held. Set it to your Resend account email while you have no domain (Resend would refuse
+  // the others anyway), and remove it once your domain is verified.
+  MAIL_ONLY_TO: z.string().optional()
+    .transform((s) => (s ? s.split(',').map((a) => a.trim().toLowerCase()).filter(Boolean) : null))
+    // Strict on purpose: "<you@x.com>" or "\"you@x.com\"" would match no real recipient, so every
+    // email would be silently held. Better to refuse to start and say why.
+    .refine((list) => !list || list.every((a) => /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/.test(a)),
+      'must be plain email addresses like you@example.com: no < >, quotes, spaces or comments on the line; separate several with commas'),
+  // Tests point this at a fake Resend. Leave unset.
+  RESEND_BASE_URL: z.url().default('https://api.resend.com'),
 });
 
 function load(env) {
-  const parsed = schema.safeParse(env);
+  // "KEY=" with nothing after it means "not set", as in .env.example. Without this, an empty
+  // RESEND_API_KEY= or COD_MAX_KES= line would stop the server from starting.
+  const given = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== ''));
+  const parsed = schema.safeParse(given);
   if (!parsed.success) {
     const problems = parsed.error.issues
       .map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`)
@@ -91,7 +113,8 @@ function load(env) {
   const mpesaEnabled = Boolean(c.DARAJA_CONSUMER_KEY && c.DARAJA_CONSUMER_SECRET && c.DARAJA_SHORTCODE
     && c.DARAJA_PASSKEY && c.PUBLIC_API_URL && c.MPESA_CALLBACK_SECRET);
   const cardEnabled = Boolean(c.PAYSTACK_SECRET_KEY);
-  return Object.freeze({ ...c, mpesaEnabled, cardEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
+  const mailEnabled = Boolean(c.RESEND_API_KEY);
+  return Object.freeze({ ...c, mpesaEnabled, cardEnabled, mailEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
 }
 
 export const config = load(process.env);

@@ -200,16 +200,20 @@
   if (byId('forgotForm')) byId('forgotForm').addEventListener('submit', handleForgot);
   NURA.onEscape(closeModal);
 
-  // Arriving from "Create account" on the order-confirmed page: open sign-up with the email
-  // from the order already filled in.
-  if (location.hash === '#create-account' && byId('authModal')) {
+  // Links that open the modal on arrival: #create-account (from the order page, with the order's
+  // email filled in), #sign-in and #forgot (from emails).
+  var HASH_TABS = { '#create-account': 'signup', '#sign-in': 'login', '#forgot': 'forgot' };
+  if (HASH_TABS[location.hash] && byId('authModal')) {
+    var tab = HASH_TABS[location.hash];
     history.replaceState(null, '', location.pathname);
-    openModal('signup');
-    try {
-      var remembered = sessionStorage.getItem('nura_signup_email');
-      if (remembered && byId('signupEmail')) byId('signupEmail').value = remembered;
-      sessionStorage.removeItem('nura_signup_email');
-    } catch (e) { /* storage blocked: the shopper types it */ }
+    openModal(tab);
+    if (tab === 'signup') {
+      try {
+        var remembered = sessionStorage.getItem('nura_signup_email');
+        if (remembered && byId('signupEmail')) byId('signupEmail').value = remembered;
+        sessionStorage.removeItem('nura_signup_email');
+      } catch (e) { /* storage blocked: the shopper types it */ }
+    }
   }
 
   // Who is signed in? Asked once per page load. Until it answers, the nav shows "signed out".

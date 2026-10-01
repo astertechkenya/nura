@@ -1,0 +1,135 @@
+// emails.js: what NURA's emails say, and when order emails go out.
+//
+// Each email has a plain-text part (read by some clients, and by spam filters that distrust
+// HTML-only mail) and a simple HTML part. The HTML uses inline styles and one centred column
+// because email clients ignore stylesheets and most modern CSS.
+import { eq, and } from 'drizzle-orm';
+import { db } from '../db/client.js';
+import { orderEmails } from '../db/schema.js';
+import { config } from '../config.js';
+import { loadOrder } from './orders.js';
+import { orderUrl } from '../lib/orderLink.js';
+import { inBackground, sendMail } from './mail.js';
+
+// Everything that goes into HTML passes through here: a product or customer name is data,
+// never markup. (A name like <img onerror=…> must arrive as text.)
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
+const firstName = (name) => String(name ?? '').trim().split(/\s+/)[0] || 'there';
+const localPhone = (p) => { const m = /^254(\d{3})(\d{3})(\d{3})$/.exec(String(p)); return m ? `0${m[1]} ${m[2]} ${m[3]}` : p; };
+
+const PURPLE = '#7038c9';
+function layout({ heading, intro, body = '', button }) {
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f4f2;">
+<div style="max-width:560px;margin:0 auto;padding:32px 20px;font-family:Helvetica,Arial,sans-serif;color:#111;">
+  <p style="margin:0 0 28px;font-size:22px;letter-spacing:6px;">NUR<span style="color:${PURPLE};">A</span></p>
+  <div style="background:#fff;padding:28px 24px;">
+    <h1 style="margin:0 0 14px;font-size:22px;font-weight:600;">${heading}</h1>
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.6;">${intro}</p>
+    ${body}
+    ${button ? `<p style="margin:24px 0 0;"><a href="${esc(button.href)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:13px 26px;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">${esc(button.label)}</a></p>` : ''}
+  </div>
+  <p style="margin:20px 0 0;font-size:12px;color:#666;line-height:1.6;">NURA · Nairobi, Kenya · <a href="${esc(config.SITE_URL)}" style="color:#666;">${esc(config.SITE_URL.replace(/^https?:\/\//, ''))}</a></p>
+</div></body></html>`;
+}
+
+/* ── Order emails ───────────────────────────────────────────────────────────── */
+
+function itemsHtml(o) {
+  const rows = o.items.map((i) => `<tr>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;">${esc(i.name)}<br><span style="color:#666;font-size:12px;">${esc(i.size)} · Qty ${Number(i.qty)}</span></td>
+      <td style="padding:8px 0;border-bottom:1px solid #eee;font-size:14px;text-align:right;white-space:nowrap;">${ksh(i.lineTotalKes)}</td></tr>`).join('');
+  const line = (label, value, bold) => `<tr><td style="padding:6px 0;font-size:14px;${bold ? 'font-weight:700;' : 'color:#444;'}">${label}</td><td style="padding:6px 0;font-size:14px;text-align:right;${bold ? 'font-weight:700;' : ''}">${value}</td></tr>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}
+    ${line('Subtotal', ksh(o.subtotalKes))}${line('Delivery', o.shippingKes ? ksh(o.shippingKes) : 'Free')}${line('Total', ksh(o.totalKes), true)}</table>
+    <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#444;"><strong style="color:#111;">Delivering to</strong><br>
+    ${esc(o.contact.name)}<br>${esc(o.delivery.addressLine1)}<br>${esc(o.delivery.area)}, ${esc(o.delivery.county)}</p>`;
+}
+const itemsText = (o) => `${o.items.map((i) => `- ${i.name} (${i.size}) x${i.qty}  ${ksh(i.lineTotalKes)}`).join('\n')}
+Subtotal ${ksh(o.subtotalKes)} · Delivery ${o.shippingKes ? ksh(o.shippingKes) : 'Free'} · Total ${ksh(o.totalKes)}
+
+Delivering to: ${o.contact.name}, ${o.delivery.addressLine1}, ${o.delivery.area}, ${o.delivery.county}`;
+
+const ORDER_EMAILS = {
+  // Cash on delivery: sent when the order is placed.
+  received: (o) => ({
+    subject: `Order ${o.number} received`,
+    heading: `Thanks, ${esc(firstName(o.contact.name))}. We have your order.`,
+    intro: `We’ll call you on <strong>${esc(localPhone(o.contact.phone))}</strong> to confirm delivery. Pay <strong>${ksh(o.totalKes)}</strong> in cash when it arrives.`,
+    introText: `We'll call you on ${localPhone(o.contact.phone)} to confirm delivery. Pay ${ksh(o.totalKes)} in cash when it arrives.`,
+  }),
+  // M-Pesa and card: sent when the payment is confirmed (never before: an unpaid order may expire).
+  confirmed: (o) => ({
+    subject: `Order ${o.number} confirmed`,
+    heading: `Payment received. Thank you, ${esc(firstName(o.contact.name))}.`,
+    intro: `We’ve received <strong>${ksh(o.totalKes)}</strong>${o.payment?.receipt ? ` (${esc(o.payment.receipt)})` : ''}. We’ll email you again when your order is on its way.`,
+    introText: `We've received ${ksh(o.totalKes)}${o.payment?.receipt ? ` (${o.payment.receipt})` : ''}. We'll email you again when your order is on its way.`,
+  }),
+  shipped: (o) => {
+    const cash = o.paymentMethod === 'COD' ? ` Please have <strong>${ksh(o.totalKes)}</strong> ready in cash.` : '';
+    return {
+      subject: `Order ${o.number} is on its way`,
+      heading: 'Your order is on its way',
+      intro: `It’s with our rider now, headed to ${esc(o.delivery.area)}.${cash}`,
+      introText: `It's with our rider now, headed to ${o.delivery.area}.${o.paymentMethod === 'COD' ? ` Please have ${ksh(o.totalKes)} ready in cash.` : ''}`,
+    };
+  },
+};
+
+export function orderMessage(kind, o) {
+  const t = ORDER_EMAILS[kind](o);
+  const link = orderUrl(o);
+  return {
+    to: o.contact.email,
+    subject: t.subject,
+    text: `${t.introText}\n\nOrder ${o.number}\n${itemsText(o)}\n\nView your order: ${link}\n`,
+    html: layout({ heading: t.heading, intro: t.intro, body: itemsHtml(o), button: { href: link, label: 'View your order' } }),
+  };
+}
+
+/**
+ * Sends one order email, at most once per order and kind, in the background. Call it AFTER
+ * the transaction that caused it has committed (never inside: a rolled-back order must not
+ * get an email). Returns at once.
+ */
+export function queueOrderEmail(orderId, kind) {
+  return inBackground(`order email ${kind}`, async () => {
+    // Claim first: the primary key (order_id, kind) lets exactly one caller through.
+    const claimed = await db.insert(orderEmails).values({ orderId, kind }).onConflictDoNothing().returning();
+    if (!claimed.length) return 'duplicate';
+    const o = await loadOrder(orderId);
+    const status = await sendMail(orderMessage(kind, o));
+    await db.update(orderEmails).set({ status })
+      .where(and(eq(orderEmails.orderId, orderId), eq(orderEmails.kind, kind)));
+    return status;
+  });
+}
+
+/* ── Account emails ─────────────────────────────────────────────────────────── */
+
+export function welcomeMessage(user) {
+  const shop = config.SITE_URL;
+  return {
+    to: user.email,
+    subject: 'Welcome to NURA',
+    text: `Hi ${firstName(user.name)},\n\nYour NURA account is ready. Your orders, cart and wishlist now follow you to any device you sign in on.\n\nShop the latest: ${shop}/new-in.html\n\nIf you didn't create this account, reset the password here: ${shop}/index.html#forgot\n`,
+    html: layout({
+      heading: `Welcome, ${esc(firstName(user.name))}`,
+      intro: 'Your NURA account is ready. Your orders, cart and wishlist now follow you to any device you sign in on.',
+      button: { href: `${shop}/new-in.html`, label: 'See what’s new' },
+    }),
+  };
+}
+
+export function resetMessage(user, link) {
+  return {
+    to: user.email,
+    subject: 'Reset your NURA password',
+    text: `Hi ${firstName(user.name)},\n\nUse this link to choose a new password. It works for 30 minutes and only once:\n${link}\n\nIf you didn't ask for this, ignore this email; your password stays the same.`,
+    html: layout({
+      heading: 'Reset your password',
+      intro: `Hi ${esc(firstName(user.name))}, use the button below to choose a new password. It works for 30 minutes and only once.<br><br>If you didn’t ask for this, ignore this email; your password stays the same.`,
+      button: { href: link, label: 'Choose a new password' },
+    }),
+  };
+}

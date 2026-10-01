@@ -21,7 +21,8 @@ import { config } from '../config.js';
 import { validate } from '../middleware/validate.js';
 import { limit } from '../middleware/rateLimit.js';
 import { httpError } from '../middleware/errors.js';
-import { sendMail } from '../services/mail.js';
+import { inBackground, sendMail } from '../services/mail.js';
+import { resetMessage, welcomeMessage } from '../services/emails.js';
 import { mergeGuestCart } from '../services/cart.js';
 import { claimGuestOrders } from '../services/orders.js';
 
@@ -102,6 +103,7 @@ authRouter.post(
       .returning();
     if (!user) throw httpError(409, 'An account with this email already exists. Sign in, or reset your password.');
     await signIn(req, res, user);
+    sendMail(welcomeMessage(user));                 // in the background: never delays the sign-up
     res.status(201).json({ user: publicUser(user) });
   },
 );
@@ -149,22 +151,22 @@ authRouter.post(
   async (req, res) => {
     const user = await findUserByEmail(req.valid.body.email);
     if (user) {
-      // 32 random bytes = 256 bits: unguessable. Only its hash is stored, so a copy of the
-      // database contains no working reset links.
-      const token = randomBytes(32).toString('base64url');
-      await db.transaction(async (tx) => {
-        await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id)); // one live link at a time
-        await tx.insert(passwordResetTokens).values({
-          userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MS),
+      // Everything after the lookup runs in the background, so this request does the SAME work
+      // whether or not the account exists. Writing the token or calling Resend here would make
+      // real accounts measurably slower to answer, and that difference would reveal who has one.
+      inBackground('password reset', async () => {
+        // 32 random bytes = 256 bits: unguessable. Only its hash is stored, so a copy of the
+        // database contains no working reset links.
+        const token = randomBytes(32).toString('base64url');
+        await db.transaction(async (tx) => {
+          await tx.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id)); // one live link at a time
+          await tx.insert(passwordResetTokens).values({
+            userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MS),
+          });
         });
-      });
-      // The token goes in the #fragment: browsers never send it to any server, so it can't
-      // leak through server logs or the Referer header.
-      const link = `${config.SITE_URL}/reset.html#token=${token}`;
-      await sendMail({
-        to: user.email,
-        subject: 'Reset your NURA password',
-        text: `Hi ${user.name.split(' ')[0]},\n\nUse this link to choose a new password. It works for 30 minutes and only once:\n${link}\n\nIf you didn't ask for this, ignore this email; your password stays the same.`,
+        // The token goes in the #fragment: browsers never send it to any server, so it can't
+        // leak through server logs or the Referer header.
+        return sendMail(resetMessage(user, `${config.SITE_URL}/reset.html#token=${token}`));
       });
     }
     res.json(FORGOT_REPLY);                         // identical whether or not the account exists

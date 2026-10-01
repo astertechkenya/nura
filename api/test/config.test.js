@@ -24,6 +24,20 @@ describe('config', () => {
     expect(() => loadConfig({ ...base, MPESA_CALLBACK_SECRET: 'a/b+c='.padEnd(40, 'x') })).toThrow(/MPESA_CALLBACK_SECRET/);
     expect(() => loadConfig({ ...base, MPESA_CALLBACK_SECRET: 'Ab0_-'.repeat(9) })).not.toThrow();
   });
+  it('MAIL_ONLY_TO: plain addresses (tidied); anything that could never match a recipient is refused', () => {
+    const base = { DATABASE_URL: 'postgresql://u@h/db' };
+    expect(loadConfig({ ...base, MAIL_ONLY_TO: ' Ethan@Gmail.com , b@nura.co.ke' }).MAIL_ONLY_TO).toEqual(['ethan@gmail.com', 'b@nura.co.ke']);
+    expect(loadConfig(base).MAIL_ONLY_TO).toBeNull();
+    for (const bad of ['<ethan@gmail.com>', '"ethan@gmail.com"', 'ethan@gmail.com # me', 'a@b.com; c@d.com', 'your email here']) {
+      expect(() => loadConfig({ ...base, MAIL_ONLY_TO: bad }), bad).toThrow(/MAIL_ONLY_TO: must be plain email addresses/);
+    }
+  });
+  it('an empty KEY= line means "not set" (as in .env.example), never a startup error', () => {
+    const c = loadConfig({ DATABASE_URL: 'postgresql://u@h/db', RESEND_API_KEY: '', PAYSTACK_SECRET_KEY: '',
+                           DARAJA_CONSUMER_KEY: '', COD_MAX_KES: '', MAIL_ONLY_TO: '' });
+    expect(c).toMatchObject({ mailEnabled: false, cardEnabled: false, mpesaEnabled: false, MAIL_ONLY_TO: null });
+    expect(c.COD_MAX_KES).toBeUndefined();
+  });
   it('turns numeric strings from the environment into numbers', () => {
     expect(loadConfig({ DATABASE_URL: 'postgresql://u@h/db', SESSION_SECRET: 's'.repeat(32), PORT: '8080' }).PORT).toBe(8080);
   });

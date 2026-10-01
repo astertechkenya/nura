@@ -12,10 +12,16 @@
   var main = document.getElementById('ocMain');
   // The order id arrives after # (from checkout), or as ?order= when Paystack sends the shopper
   // back (it adds ?reference=… too). Either way, tidy the address to the # form straight away.
+  // From an order email, a guest's link is #<id>.<token>: a signed pass for this order (see
+  // api/src/lib/orderLink.js). It's swapped for access once, then removed from the address bar,
+  // so it doesn't linger in history or get copied along with the address.
   var params = new URLSearchParams(location.search);
-  var id = params.get('order') || decodeURIComponent(location.hash.slice(1));
+  var raw = params.get('order') || decodeURIComponent(location.hash.slice(1));
+  var dot = raw.indexOf('.');
+  var id = dot > 0 ? raw.slice(0, dot) : raw;
+  var linkToken = dot > 0 ? raw.slice(dot + 1) : '';
   var backFromPaystack = params.has('reference') || params.has('trxref');
-  if (params.get('order')) history.replaceState(null, '', location.pathname + '#' + id);
+  if (params.get('order') || linkToken) history.replaceState(null, '', location.pathname + '#' + id);
   var POLL_MS = 3000, GIVE_UP_MS = 10 * 60 * 1000;
   var pollTimer = null, pollStarted = 0, lastState = '';
 
@@ -25,6 +31,14 @@
     return m ? '0' + m[1] + ' ' + m[2] + ' ' + m[3] : p;
   }
   var time = function (d) { return new Date(d).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' }); };
+
+  function linkExpired() {
+    main.innerHTML =
+        '<section class="oc-card"><h1 class="co-title" style="font-size:36px;">This link has expired</h1>'
+      + '<p class="co-hint" style="margin-top:10px;font-size:13px;">Order links in emails work for 30 days. '
+      + 'You can still open the order in the browser you ordered from.</p>'
+      + '<a class="co-link" href="index.html">Back to NURA &rarr;</a></section>';
+  }
 
   function notFound() {
     main.innerHTML =
@@ -251,7 +265,14 @@
 
   if (!/^[0-9a-f-]{36}$/i.test(id)) { notFound(); return; }
   pollStarted = Date.now();
-  load().then(function (d) {
+  // With an email link, first swap its token for access in this browser; then load as usual.
+  var opened = linkToken
+    ? NURA.api('/orders/' + encodeURIComponent(id) + '/open', { method: 'POST', body: { token: linkToken } })
+    : Promise.resolve();
+  opened.then(load, function (err) {
+    if (err.status === 404) { linkExpired(); return new Promise(function () {}); }   // stop here
+    throw err;
+  }).then(function (d) {
     var o = d.order;
     show(o);
     if (o.status === 'PENDING_PAYMENT' && o.payment && o.payment.status === 'PENDING'

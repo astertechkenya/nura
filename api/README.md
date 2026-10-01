@@ -109,5 +109,25 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | PATCH | `/api/admin/variants/:id` | `{ stock }` (0–9999) |
 | GET | `/api/admin/activity` | The audit log, newest first |
 
+## Email (`services/mail.js`, `services/emails.js`)
+
+| Email | Sent when | To |
+|---|---|---|
+| Order received | a cash-on-delivery order is placed | the order's email |
+| Order confirmed | an M-Pesa or card payment is confirmed (never before: unpaid orders may expire) | the order's email |
+| On its way | the admin marks the order Shipped | the order's email |
+| Welcome | an account is created | the account |
+| Reset your password | `/api/auth/forgot` for an existing account | the account |
+
+Rules every email follows: it is sent in the background, after the change that caused it has committed, so it never slows a request and a Resend outage never breaks a checkout. Order emails go out at most once per order and kind (the `order_emails` table's primary key lets one sender through, whatever races), and the admin order screen shows what each customer received.
+
+Guest order emails link to `order-confirmed.html#<id>.<token>`: an HMAC-signed pass, valid 30 days, that `POST /api/orders/:id/open` swaps for access in that browser (`lib/orderLink.js`). Account orders link without a token: you sign in to see them.
+
+| Method | Path | What it does |
+|---|---|---|
+| POST | `/api/orders/:id/open` | `{ token }` from an order email → this browser may see that guest order. 404 for anything else (20 per 15 min) |
+
+**Without a domain of your own** Resend only delivers to your own address. Set `RESEND_API_KEY`, keep the default `MAIL_FROM`, and set `MAIL_ONLY_TO` to your Resend sign-up email: you get every email, and everyone else's is logged as "held". With a verified domain, set `MAIL_FROM` to it and remove `MAIL_ONLY_TO`.
+
 Run the storefront locally with the API behind it, the way Netlify does it in production:
 `npm run dev` here, then `python server.py` from the repository root, then open http://localhost:8000.

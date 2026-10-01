@@ -190,6 +190,13 @@
       return '<li><span><strong>' + esc(STATUS[e.to] || e.to) + '</strong>' + (e.note ? ' · ' + esc(e.note) : '')
         + '<small>' + esc(when(e.at)) + (e.by ? ' · ' + esc(e.by) : '') + '</small></span></li>';
     }).join('');
+    var EMAIL = { received: 'Order received', confirmed: 'Payment confirmed', shipped: 'On its way' };
+    var EMAIL_STATUS = { sent: 'Sent', queued: 'Sending…', held: 'Held: address not in MAIL_ONLY_TO',
+                         failed: 'Failed (see the API’s log)', logged: 'Not sent: email isn’t set up' };
+    var emails = (o.emails || []).map(function (e) {
+      return '<li><span><strong>' + esc(EMAIL[e.kind] || e.kind) + '</strong> · ' + esc(EMAIL_STATUS[e.status] || e.status)
+        + '<small>' + esc(when(e.at)) + '</small></span></li>';
+    }).join('');
     var actions = me.masked ? [] : o.actions;
     var refund = o.refundStatus === 'DUE' && !me.masked;
 
@@ -209,6 +216,7 @@
       + '<div class="is-total"><span>Total</span><span>' + esc(ksh(o.totalKes)) + '</span></div></div></section>'
       + '<section class="adm-card"><h2 class="adm-h2" style="margin-top:0;">Payments</h2><ul class="adm-timeline">' + (pays || '<li><span class="adm-muted">None yet.</span></li>') + '</ul></section>'
       + '<section class="adm-card"><h2 class="adm-h2" style="margin-top:0;">History</h2><ol class="adm-timeline">' + events + '</ol></section>'
+      + '<section class="adm-card"><h2 class="adm-h2" style="margin-top:0;">Emails to the customer</h2><ul class="adm-timeline">' + (emails || '<li><span class="adm-muted">None yet.</span></li>') + '</ul></section>'
       + (actions.length || refund
         ? '<div class="adm-actions"><label class="sr-only" for="admNote">Note (optional)</label>'
           + '<input class="auth-input adm-note" id="admNote" maxlength="300" placeholder="Note for the history (optional)">'

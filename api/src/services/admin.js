@@ -7,8 +7,9 @@
 //      only ask for a move that is allowed from where the order is now.
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { queueOrderEmail } from './emails.js';
 import {
-  adminActions, orderEvents, orderItems, orders, payments, productVariants, products, users,
+  adminActions, orderEmails, orderEvents, orderItems, orders, payments, productVariants, products, users,
 } from '../db/schema.js';
 import { httpError } from '../middleware/errors.js';
 import { ADMIN_NEXT, assertTransition, sideEffects } from './orderStates.js';
@@ -98,6 +99,9 @@ export async function orderDetail(id, masked) {
     from: orderEvents.fromStatus, to: orderEvents.toStatus, note: orderEvents.note, at: orderEvents.createdAt, by: users.name,
   }).from(orderEvents).leftJoin(users, eq(orderEvents.actorId, users.id))
     .where(eq(orderEvents.orderId, id)).orderBy(orderEvents.createdAt);
+  // Which emails the customer got: "did they get the shipped email?" answered without guessing.
+  const emails = await db.select({ kind: orderEmails.kind, status: orderEmails.status, at: orderEmails.createdAt })
+    .from(orderEmails).where(eq(orderEmails.orderId, id)).orderBy(orderEmails.createdAt);
   const m = (v, f) => (masked ? f(v) : v);
   return {
     id: o.id, number: o.number, status: o.status, paymentMethod: o.paymentMethod, refundStatus: o.refundStatus,
@@ -111,6 +115,7 @@ export async function orderDetail(id, masked) {
     subtotalKes: o.subtotalKes, shippingKes: o.shippingKes, totalKes: o.totalKes,
     payments: pays.map((p) => ({ ...p, phone: m(p.phone, maskPhone) })),
     events,
+    emails,
     actions: actionsFor(o),
   };
 }
@@ -119,7 +124,7 @@ export async function orderDetail(id, masked) {
 
 /** Moves an order one allowed step, with its side effects, event and audit entry, atomically. */
 export async function transitionOrder(admin, orderId, to, note) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
     if (!o) throw httpError(404, 'Order not found.');
     if (to === 'DELIVERED' && o.paymentMethod === 'COD') {
@@ -149,6 +154,9 @@ export async function transitionOrder(admin, orderId, to, note) {
     await audited(tx, admin, 'order.transition', 'order', o.id,
       { status: o.status, refundStatus: o.refundStatus }, { status: to, refundStatus: patch.refundStatus ?? o.refundStatus });
   });
+  // After the commit: a rolled-back change must never email anyone.
+  if (to === 'SHIPPED') queueOrderEmail(orderId, 'shipped');
+  return result;
 }
 
 /** COD: the rider handed over the cash. The order is delivered AND the payment is in, together. */
