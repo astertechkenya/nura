@@ -3,9 +3,9 @@
 // Each email has a plain-text part (read by some clients, and by spam filters that distrust
 // HTML-only mail) and a simple HTML part. The HTML uses inline styles and one centred column
 // because email clients ignore stylesheets and most modern CSS.
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../db/client.js';
-import { orderEmails } from '../db/schema.js';
+import { orderEmails, payments } from '../db/schema.js';
 import { config } from '../config.js';
 import { loadOrder } from './orders.js';
 import { orderUrl } from '../lib/orderLink.js';
@@ -50,6 +50,11 @@ Subtotal ${ksh(o.subtotalKes)} · Delivery ${o.shippingKes ? ksh(o.shippingKes) 
 
 Delivering to: ${o.contact.name}, ${o.delivery.addressLine1}, ${o.delivery.area}, ${o.delivery.county}`;
 
+// Where a refund goes, in the customer's words. M-Pesa refunds go back to the paying number.
+const refundTo = (o) => (o.paid?.provider === 'DARAJA'
+  ? `to the M-Pesa number you paid from${o.paid.phone ? ` (ending ${String(o.paid.phone).slice(-3)})` : ''}`
+  : 'to the card you paid with');
+
 const ORDER_EMAILS = {
   // Cash on delivery: sent when the order is placed.
   received: (o) => ({
@@ -74,7 +79,63 @@ const ORDER_EMAILS = {
       introText: `It's with our rider now, headed to ${o.delivery.area}.${o.paymentMethod === 'COD' ? ` Please have ${ksh(o.totalKes)} ready in cash.` : ''}`,
     };
   },
+  delivered: (o) => {
+    const cash = o.paymentMethod === 'COD' ? ` We’ve received your cash payment of <strong>${ksh(o.totalKes)}</strong>.` : '';
+    return {
+      subject: `Order ${o.number} delivered`,
+      heading: `Delivered. Enjoy, ${esc(firstName(o.contact.name))}.`,
+      intro: `Your order has been delivered.${cash} Thank you for shopping with NURA.`,
+      introText: `Your order has been delivered.${o.paymentMethod === 'COD' ? ` We've received your cash payment of ${ksh(o.totalKes)}.` : ''} Thank you for shopping with NURA.`,
+    };
+  },
+  // Cancelled by the shop. If money was taken, say how much comes back and where; never
+  // promise a refund that isn't owed, never deny one that is.
+  cancelled: (o) => {
+    const refund = o.paid?.kes
+      ? [`You paid <strong>${ksh(o.paid.kes)}</strong>. We’ll refund it ${esc(refundTo(o))} and email you when it’s sent.`,
+         `You paid ${ksh(o.paid.kes)}. We'll refund it ${refundTo(o)} and email you when it's sent.`]
+      : ['No payment was taken for it.', 'No payment was taken for it.'];
+    return {
+      subject: `Order ${o.number} cancelled`,
+      heading: 'Your order has been cancelled',
+      intro: `We’ve cancelled order ${esc(o.number)}. ${refund[0]}`,
+      introText: `We've cancelled order ${o.number}. ${refund[1]}`,
+    };
+  },
+  // Unpaid M-Pesa/card order closed by the payment window. Careful wording: a payment can still
+  // land at the last second, in which case the refund_due email follows.
+  expired: (o) => ({
+    subject: `Order ${o.number} wasn’t completed`,
+    heading: 'Your order wasn’t completed',
+    intro: `We didn’t receive payment in time, so we released the items back to the shop. If money did leave your account, it will be refunded in full and we’ll email you.`,
+    introText: `We didn't receive payment in time, so we released the items back to the shop. If money did leave your account, it will be refunded in full and we'll email you.`,
+  }),
+  // A payment that arrived after the order closed (expired or cancelled).
+  refund_due: (o) => ({
+    subject: `About your payment for order ${o.number}`,
+    heading: 'Your payment arrived after the order closed',
+    intro: `We received <strong>${ksh(o.paid?.kes ?? 0)}</strong>, but by then the order had closed and the items were no longer held for you. We’ll refund it in full ${esc(refundTo(o))} and email you when it’s sent.`,
+    introText: `We received ${ksh(o.paid?.kes ?? 0)}, but by then the order had closed and the items were no longer held for you. We'll refund it in full ${refundTo(o)} and email you when it's sent.`,
+  }),
+  refunded: (o) => {
+    const card = o.paid?.provider === 'PAYSTACK' ? ' Card refunds can take a few working days to appear.' : '';
+    return {
+      subject: `Refund sent for order ${o.number}`,
+      heading: 'Your refund is on its way',
+      intro: `We’ve refunded <strong>${ksh(o.paid?.kes ?? 0)}</strong> ${esc(refundTo(o))}.${card}`,
+      introText: `We've refunded ${ksh(o.paid?.kes ?? 0)} ${refundTo(o)}.${card}`,
+    };
+  },
 };
+
+/** The money actually taken on an order (all PAID payments) and how it was paid. */
+async function paidOn(orderId) {
+  const rows = await db.select({ amountKes: payments.amountKes, provider: payments.provider, phone: payments.phone })
+    .from(payments).where(and(eq(payments.orderId, orderId), eq(payments.status, 'PAID')))
+    .orderBy(desc(payments.createdAt));
+  if (!rows.length) return null;
+  return { kes: rows.reduce((n, r) => n + r.amountKes, 0), provider: rows[0].provider, phone: rows[0].phone };
+}
 
 export function orderMessage(kind, o) {
   const t = ORDER_EMAILS[kind](o);
@@ -97,7 +158,7 @@ export function queueOrderEmail(orderId, kind) {
     // Claim first: the primary key (order_id, kind) lets exactly one caller through.
     const claimed = await db.insert(orderEmails).values({ orderId, kind }).onConflictDoNothing().returning();
     if (!claimed.length) return 'duplicate';
-    const o = await loadOrder(orderId);
+    const o = { ...(await loadOrder(orderId)), paid: await paidOn(orderId) };
     const status = await sendMail(orderMessage(kind, o));
     await db.update(orderEmails).set({ status })
       .where(and(eq(orderEmails.orderId, orderId), eq(orderEmails.kind, kind)));

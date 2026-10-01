@@ -11,8 +11,9 @@ import { sessionStore } from '../src/middleware/session.js';
 import { seed } from '../src/db/seed.js';
 import { deliver, hint, mailSettled, outbox } from '../src/services/mail.js';
 import { markPaid } from '../src/services/payments.js';
-import { transitionOrder } from '../src/services/admin.js';
-import { queueOrderEmail } from '../src/services/emails.js';
+import { codCollected, markRefunded, transitionOrder } from '../src/services/admin.js';
+import { expireOrders } from '../src/services/orders.js';
+import { orderMessage, queueOrderEmail } from '../src/services/emails.js';
 import { orderToken, orderTokenValid } from '../src/lib/orderLink.js';
 import { config } from '../src/config.js';
 import { netlifyToken } from './helpers.js';
@@ -134,6 +135,78 @@ describe('order emails', () => {
     const [m] = sent(`Order ${o.number}`);
     expect(m.html).not.toContain('<img src=x');
     expect(m.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  });
+});
+
+describe('after the order: delivered, cancelled, not completed, refunds', () => {
+  const payIdOf = async (orderId) => (await db.execute(sql`select id from payments where order_id = ${orderId}`)).rows[0].id;
+  const kinds = async (orderId) => (await emailsFor(orderId)).map((e) => e.kind).sort();
+
+  it('cash on delivery: "delivered" when the cash is collected, confirming the payment', async () => {
+    const { order: o } = await order();
+    await transitionOrder(admin, o.id, 'PROCESSING');
+    await transitionOrder(admin, o.id, 'SHIPPED');
+    await codCollected(admin, o.id);
+    await mailSettled();
+    const [m] = sent(`Order ${o.number} delivered`);
+    expect(m.text).toMatch(/received your cash payment of KSh 2,400/);
+    expect(await kinds(o.id)).toEqual(['delivered', 'received', 'shipped']);
+  });
+
+  it('card: "delivered" when marked delivered; no cash line', async () => {
+    const { order: o } = await order({ method: 'CARD', county: 'Kisumu' });
+    await markPaid(await payIdOf(o.id), {}, 'card');
+    for (const to of ['PROCESSING', 'SHIPPED', 'DELIVERED']) await transitionOrder(admin, o.id, to);
+    await mailSettled();
+    const [m] = sent(`Order ${o.number} delivered`);
+    expect(m.text).not.toMatch(/cash/);
+  });
+
+  it('cancelled before any payment: says no payment was taken (no refund promised)', async () => {
+    const { order: o } = await order();
+    await transitionOrder(admin, o.id, 'CANCELLED');
+    await mailSettled();
+    const [m] = sent(`Order ${o.number} cancelled`);
+    expect(m.text).toMatch(/No payment was taken/);
+    expect(m.text).not.toMatch(/refund/i);
+  });
+
+  it('cancelled after paying by card: the amount and where it goes; "refund sent" when marked refunded', async () => {
+    const { order: o } = await order({ method: 'CARD', county: 'Kisumu' });
+    await markPaid(await payIdOf(o.id), {}, 'card');
+    await transitionOrder(admin, o.id, 'CANCELLED');
+    await mailSettled();
+    expect(sent(`Order ${o.number} cancelled`)[0].text).toMatch(/You paid KSh 2,400\. We'll refund it to the card you paid with/);
+    await markRefunded(admin, o.id);
+    await mailSettled();
+    const [r] = sent(`Refund sent for order ${o.number}`);
+    expect(r.text).toMatch(/refunded KSh 2,400 to the card you paid with\. Card refunds can take a few working days/);
+  });
+
+  it('unpaid and expired: "not completed"; money arriving afterwards: "refund due", then "refund sent"', async () => {
+    const { order: o } = await order({ method: 'CARD', county: 'Kisumu' });
+    await expireOrders(new Date(Date.now() + 16 * 60 * 1000));
+    await mailSettled();
+    const [x] = sent(`Order ${o.number} wasn’t completed`);
+    expect(x.text).toMatch(/If money did leave your account, it will be refunded/);   // never "you weren't charged"
+
+    await markPaid(await payIdOf(o.id), {}, 'card');                                    // paid at the last second
+    await mailSettled();
+    expect(sent(`About your payment for order ${o.number}`)[0].text).toMatch(/We received KSh 2,400, but by then the order had closed/);
+    await markRefunded(admin, o.id);
+    await mailSettled();
+    expect(sent(`Refund sent for order ${o.number}`)).toHaveLength(1);
+    expect(await kinds(o.id)).toEqual(['expired', 'refund_due', 'refunded']);
+  });
+
+  it('M-Pesa refunds go back to the paying number, named by its last digits only', () => {
+    const o = { id: randomUUID(), number: 'NURA-000099', paymentMethod: 'MPESA', guest: false, totalKes: 2400,
+      contact: { name: 'Amina Hassan', email: 'a@example.com', phone: '254712345678' },
+      delivery: { addressLine1: 'x', area: 'Westlands', county: 'Nairobi' }, items: [], subtotalKes: 2100, shippingKes: 300,
+      paid: { kes: 1, provider: 'DARAJA', phone: '254712345678' } };
+    const m = orderMessage('refunded', o);
+    expect(m.text).toMatch(/refunded KSh 1 to the M-Pesa number you paid from \(ending 678\)\./);   // the sandbox's KSh 1, honestly
+    expect(m.text).not.toMatch(/712 345/);
   });
 });
 

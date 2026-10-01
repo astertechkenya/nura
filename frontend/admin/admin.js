@@ -190,7 +190,8 @@
       return '<li><span><strong>' + esc(STATUS[e.to] || e.to) + '</strong>' + (e.note ? ' · ' + esc(e.note) : '')
         + '<small>' + esc(when(e.at)) + (e.by ? ' · ' + esc(e.by) : '') + '</small></span></li>';
     }).join('');
-    var EMAIL = { received: 'Order received', confirmed: 'Payment confirmed', shipped: 'On its way' };
+    var EMAIL = { received: 'Order received', confirmed: 'Payment confirmed', shipped: 'On its way', delivered: 'Delivered',
+                  cancelled: 'Cancelled', expired: 'Not completed (expired)', refund_due: 'Refund due (late payment)', refunded: 'Refund sent' };
     var EMAIL_STATUS = { sent: 'Sent', queued: 'Sending…', held: 'Held: address not in MAIL_ONLY_TO',
                          failed: 'Failed (see the API’s log)', logged: 'Not sent: email isn’t set up' };
     var emails = (o.emails || []).map(function (e) {

@@ -241,7 +241,7 @@ export const orderEvents = pgTable('order_events', {
 // "did this customer get the shipped email?".
 export const orderEmails = pgTable('order_emails', {
   orderId: uuid('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
-  kind: text('kind').notNull(),                    // received | confirmed | shipped
+  kind: text('kind').notNull(),   // received | confirmed | shipped | delivered | cancelled | expired | refund_due | refunded
   status: text('status').notNull().default('queued'), // queued | sent | held | failed
   createdAt: createdAt(),
 }, (t) => [primaryKey({ columns: [t.orderId, t.kind] })]);

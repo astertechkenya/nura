@@ -116,6 +116,11 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | Order received | a cash-on-delivery order is placed | the order's email |
 | Order confirmed | an M-Pesa or card payment is confirmed (never before: unpaid orders may expire) | the order's email |
 | On its way | the admin marks the order Shipped | the order's email |
+| Delivered | the admin marks it Delivered, or records cash collected (COD) | the order's email |
+| Cancelled | the admin cancels it; says what was paid and where the refund goes, or that nothing was taken | the order's email |
+| Not completed | an unpaid M-Pesa/card order expires (never claims "you weren't charged": a payment can still land) | the order's email |
+| Refund due | a payment arrives after the order closed | the order's email |
+| Refund sent | the admin marks a due refund as paid | the order's email |
 | Welcome | an account is created | the account |
 | Reset your password | `/api/auth/forgot` for an existing account | the account |
 

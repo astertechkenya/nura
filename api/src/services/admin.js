@@ -155,13 +155,14 @@ export async function transitionOrder(admin, orderId, to, note) {
       { status: o.status, refundStatus: o.refundStatus }, { status: to, refundStatus: patch.refundStatus ?? o.refundStatus });
   });
   // After the commit: a rolled-back change must never email anyone.
-  if (to === 'SHIPPED') queueOrderEmail(orderId, 'shipped');
+  const email = { SHIPPED: 'shipped', DELIVERED: 'delivered', CANCELLED: 'cancelled' }[to];
+  if (email) queueOrderEmail(orderId, email);
   return result;
 }
 
 /** COD: the rider handed over the cash. The order is delivered AND the payment is in, together. */
 export async function codCollected(admin, orderId, note) {
-  return db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
     if (!o) throw httpError(404, 'Order not found.');
     if (o.paymentMethod !== 'COD') throw httpError(409, 'This order isn’t cash on delivery.');
@@ -176,11 +177,12 @@ export async function codCollected(admin, orderId, note) {
       note: note || `Cash collected: KSh ${o.totalKes.toLocaleString('en-KE')}` });
     await audited(tx, admin, 'order.cod-collected', 'order', o.id, { status: o.status, payment: 'PENDING' }, { status: 'DELIVERED', payment: 'PAID' });
   });
+  queueOrderEmail(orderId, 'delivered');                      // after the commit, as always
 }
 
 /** A refund was paid back to the customer (by hand, in M-Pesa or Paystack): close it. */
 export async function markRefunded(admin, orderId, note) {
-  return db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
     if (!o) throw httpError(404, 'Order not found.');
     if (o.refundStatus !== 'DUE') throw httpError(409, 'No refund is due on this order.');
@@ -188,6 +190,7 @@ export async function markRefunded(admin, orderId, note) {
     await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status, actorId: admin.id, note: note || 'Refund paid' });
     await audited(tx, admin, 'order.refunded', 'order', o.id, { refundStatus: 'DUE' }, { refundStatus: 'DONE' });
   });
+  queueOrderEmail(orderId, 'refunded');
 }
 
 /* ── Products ──────────────────────────────────────────────────────────────────── */

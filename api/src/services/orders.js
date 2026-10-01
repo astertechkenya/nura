@@ -8,6 +8,7 @@
 // checkout rolls back completely.
 import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
+import { queueOrderEmail } from './emails.js';
 import {
   brands, carts, cartItems, orderEvents, orderItems, orders, payments, productVariants, products,
 } from '../db/schema.js';
@@ -198,7 +199,7 @@ export async function claimGuestOrders(orderIds, userId, email) {
  * Returns how many orders expired.
  */
 export async function expireOrders(now = new Date()) {
-  return db.transaction(async (tx) => {
+  const expired = await db.transaction(async (tx) => {
     const due = await tx.select({ id: orders.id, status: orders.status }).from(orders)
       .where(and(eq(orders.status, 'PENDING_PAYMENT'), lt(orders.expiresAt, now)))
       .for('update', { skipLocked: true });
@@ -219,6 +220,8 @@ export async function expireOrders(now = new Date()) {
                    isNull(payments.providerRef)));
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'EXPIRED', note: 'Not paid in time; stock returned' });
     }
-    return due.length;
+    return due.map((o) => o.id);
   });
+  for (const id of expired) queueOrderEmail(id, 'expired');   // after the commit
+  return expired.length;
 }

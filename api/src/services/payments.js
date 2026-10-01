@@ -119,7 +119,7 @@ export async function markFailed(paymentId, resultCode, desc, raw, message = fai
  * Used for M-Pesa and cards alike; `method` only changes the wording of the history note.
  */
 export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') {
-  const paidOrderId = await db.transaction(async (tx) => {
+  const outcome = await db.transaction(async (tx) => {
     const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for('update');
     if (!p || p.status !== 'PENDING') return;                     // already settled: do nothing
     const wrongAmount = fromCallback.amountKes !== undefined && fromCallback.amountKes !== p.amountKes;
@@ -143,7 +143,7 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
       await tx.update(orders).set({ status: 'PAID', expiresAt: null, updatedAt: now }).where(eq(orders.id, o.id));
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'PAID',
         note: `Paid by ${method}${fromCallback.receipt ? ` (${fromCallback.receipt})` : ''}` });
-      return o.id;                                                 // this call made it PAID
+      return { paid: o.id };                                       // this call made it PAID
     } else {
       // Money arrived after the order expired or was cancelled: its stock is gone, so the
       // shopper is owed a refund. Recorded for the admin (Phase 7) to act on.
@@ -151,12 +151,14 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status,
         note: `${method} payment arrived after the order closed: refund due` });
       logger.warn({ orderId: o.id, status: o.status, method }, 'late payment: refund due');
+      return { late: o.id };
     }
     return null;
   });
-  // After the commit, and only from the one call that moved the order to PAID (the row lock
+  // After the commit, and only from the one call that settled this payment (the row lock
   // above makes sure there is exactly one, however many callbacks race).
-  if (paidOrderId) queueOrderEmail(paidOrderId, 'confirmed');
+  if (outcome?.paid) queueOrderEmail(outcome.paid, 'confirmed');
+  if (outcome?.late) queueOrderEmail(outcome.late, 'refund_due');
 }
 
 /** Ask Safaricom about one payment and record the answer. Returns the state it found. */
