@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newsletter — NURA</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- The link's #token must never leak to another site through the Referer header. -->
+  <meta name="referrer" content="no-referrer" />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="fonts.css" />
+  <link rel="stylesheet" href="shared.css" />
+  <link rel="stylesheet" href="checkout.css" />
+</head>
+<body class="co-page">
+  <header class="co-head">
+    <div class="co-head__inner">
+      <a class="auth-modal__logo" href="index.html" aria-label="NURA home">NUR<span>A</span></a>
+      <a class="co-head__back" href="index.html">Go to the shop &rarr;</a>
+    </div>
+  </header>
+
+  <!-- Filled in by js/newsletter.js from the link in a NURA email (#confirm.… or #unsub.…). -->
+  <main class="oc" id="nlMain" aria-live="polite">
+    <p class="co-hint" style="padding:40px 0;text-align:center;">Loading…</p>
+  </main>
+
+  <script src="js/ui.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/newsletter.js" defer></script>
+</body>
+</html>

@@ -5,6 +5,8 @@ import { createApp } from '../src/app.js';
 import { db, pool } from '../src/db/client.js';
 import { verifyNetlifySignature } from '../src/lib/clientIp.js';
 import { netlifyToken, TEST_SECRET } from './helpers.js';
+import { outbox } from '../src/services/mail.js';
+import { confirmToken, readConfirmToken, readUnsubscribeToken, unsubscribeToken } from '../src/lib/newsletterLink.js';
 
 const app = createApp();
 afterAll(() => pool.end());
@@ -95,5 +97,131 @@ describe('Netlify signature check', () => {
   it('trusts nothing when no secret is configured', () => {
     expect(verifyNetlifySignature(netlifyToken(), '')).toBeNull();
     expect(verifyNetlifySignature(netlifyToken(), null)).toBeNull();
+  });
+});
+
+/* ── Double opt-in ─────────────────────────────────────────────────────────────── */
+
+let n = 0;
+const fresh = () => `optin${Date.now()}${n++}@example.com`;
+const ipFor = () => `10.0.9.${(n % 250) + 1}`;            // a new shopper each time: no rate limit in the way
+const row = async (email) => (await db.execute(sql`select * from newsletter_subscribers where email = ${email}`)).rows[0];
+const mailsTo = (email) => outbox.filter((m) => m.to === email);
+const linkToken = (mail, kind) => new RegExp(`newsletter\\.html#${kind}\\.(\\S+)`).exec(mail.text)[1];
+const post = (path, body) => asShopper(ipFor())(request(app).post(`/api/newsletter${path}`).send(body));
+
+describe('signing up: pending, with one confirmation email', () => {
+  it('a new address is pending and gets an email with a confirm link (no address in the link)', async () => {
+    const email = fresh();
+    expect((await subscribe({ email }, ipFor())).body).toEqual({ ok: true });
+    const r = await row(email);
+    expect(r.status).toBe('pending');
+    const mails = mailsTo(email);
+    expect(mails).toHaveLength(1);
+    expect(mails[0].subject).toMatch(/Confirm/);
+    expect(mails[0].text).not.toContain(email.split('@')[0] + '@');     // body text only mentions "this address"
+    expect(readConfirmToken(linkToken(mails[0], 'confirm'))).toBe(r.id);
+  });
+
+  it('signing up again within the hour sends nothing more (nobody can flood an inbox)', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor()); await subscribe({ email }, ipFor()); await subscribe({ email }, ipFor());
+    expect(mailsTo(email)).toHaveLength(1);
+  });
+
+  it('after an hour, another sign-up sends a fresh email', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    await db.execute(sql`update newsletter_subscribers set confirm_sent_at = now() - interval '61 minutes' where email = ${email}`);
+    await subscribe({ email }, ipFor());
+    expect(mailsTo(email)).toHaveLength(2);
+  });
+
+  it('eight sign-ups at the same moment: one email', async () => {
+    const email = fresh();
+    await Promise.all([...Array(8).keys()].map(() => subscribe({ email }, ipFor())));
+    expect(mailsTo(email)).toHaveLength(1);
+  });
+
+  it('the honeypot still saves and sends nothing', async () => {
+    const email = fresh();
+    await subscribe({ email, botField: 'x' }, ipFor());
+    expect(await row(email)).toBeUndefined();
+    expect(mailsTo(email)).toHaveLength(0);
+  });
+});
+
+describe('confirming', () => {
+  it('the link confirms, records when, and pressing it twice is fine', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    const token = linkToken(mailsTo(email)[0], 'confirm');
+    expect((await post('/confirm', { token })).body).toEqual({ status: 'confirmed' });
+    const r = await row(email);
+    expect(r.status).toBe('confirmed');
+    expect(Date.now() - new Date(r.confirmed_at)).toBeLessThan(10_000);
+    expect((await post('/confirm', { token })).status).toBe(200);
+  });
+
+  it('a confirmed address signing up again: same answer, no email, still confirmed', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    await post('/confirm', { token: linkToken(mailsTo(email)[0], 'confirm') });
+    await db.execute(sql`update newsletter_subscribers set confirm_sent_at = now() - interval '2 hours' where email = ${email}`);
+    expect((await subscribe({ email }, ipFor())).body).toEqual({ ok: true });
+    expect(mailsTo(email)).toHaveLength(1);
+    expect((await row(email)).status).toBe('confirmed');
+  });
+
+  it('expired, tampered, or an unsubscribe link: refused, nothing confirmed', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    const { id } = await row(email);
+    const old = confirmToken(id, { now: Date.now() - 8 * 24 * 3600 * 1000 });
+    const good = confirmToken(id);
+    const other = '00000000-0000-4000-8000-000000000000';
+    for (const token of [old, good.slice(0, -2) + (good.endsWith('AA') ? 'BB' : 'AA'), good.replace(id, other), unsubscribeToken(id), '', 'x'.repeat(200)]) {
+      const res = await post('/confirm', { token });
+      expect(res.status, token).toBe(400);
+      expect(res.body.error).toMatch(/expired or isn’t valid/);
+    }
+    expect((await row(email)).status).toBe('pending');
+  });
+});
+
+describe('unsubscribing', () => {
+  it('works, is recorded, and an old confirm link can’t undo it', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    const confirm = linkToken(mailsTo(email)[0], 'confirm');
+    await post('/confirm', { token: confirm });
+    const { id } = await row(email);
+    expect((await post('/unsubscribe', { token: unsubscribeToken(id) })).body).toEqual({ status: 'unsubscribed' });
+    expect((await post('/unsubscribe', { token: unsubscribeToken(id) })).status).toBe(200);     // twice is fine
+    const r = await row(email);
+    expect(r.status).toBe('unsubscribed');
+    expect(r.unsubscribed_at).not.toBeNull();
+    expect((await post('/confirm', { token: confirm })).status).toBe(400);
+    expect((await row(email)).status).toBe('unsubscribed');
+  });
+
+  it('signing up again after unsubscribing needs a new confirmation', async () => {
+    const email = fresh();
+    await subscribe({ email }, ipFor());
+    const { id } = await row(email);
+    await post('/unsubscribe', { token: unsubscribeToken(id) });
+    await db.execute(sql`update newsletter_subscribers set confirm_sent_at = now() - interval '2 hours' where email = ${email}`);
+    await subscribe({ email }, ipFor());
+    expect((await row(email)).status).toBe('pending');
+    const mails = mailsTo(email);
+    expect(mails).toHaveLength(2);
+    expect((await post('/confirm', { token: linkToken(mails[1], 'confirm') })).body.status).toBe('confirmed');
+  });
+
+  it('a forged or confirm-shaped token is refused', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    expect(readUnsubscribeToken(unsubscribeToken(id, { secret: 'y'.repeat(40) }))).toBeNull();
+    expect((await post('/unsubscribe', { token: confirmToken(id) })).status).toBe(400);
+    expect((await post('/unsubscribe', { token: `${id}.${'A'.repeat(43)}` })).status).toBe(400);
   });
 });

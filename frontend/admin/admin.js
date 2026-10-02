@@ -500,6 +500,51 @@
   }
 
 
+  /* ── Customers and the newsletter ───────────────────────────────────────────────── */
+  var NEWS = { confirmed: 'Subscribed', pending: 'Not confirmed', unsubscribed: 'Unsubscribed', none: '' };
+
+  function customers(query) {
+    setTab('customers');
+    var q = query.q || '', page = Math.max(1, parseInt(query.page, 10) || 1);
+    var params = ['page=' + page].concat(q ? ['q=' + encodeURIComponent(q)] : []);
+    api('/customers?' + params.join('&')).then(function (d) {
+      var n = d.newsletter;
+      main.innerHTML = '<h1 class="adm-h1">Customers</h1>'
+        + '<section class="adm-card adm-news" aria-labelledby="admNewsH"><h2 class="adm-news__h" id="admNewsH">Newsletter</h2>'
+        +   '<p><strong>' + n.confirmed + '</strong> subscribed · ' + n.pending + ' waiting to confirm · ' + n.unsubscribed + ' unsubscribed</p>'
+        +   '<p class="adm-hint">Only people who clicked the link in the confirmation email are subscribed, and only they are in the download.</p>'
+        +   (me.masked ? '<p class="adm-notice">Demo: the subscriber list can’t be downloaded.</p>'
+              // A plain link: the browser downloads it with the admin's session cookie, as a file.
+              : '<a class="adm-btn adm-btn--small" href="/api/admin/newsletter.csv" download>Download subscribers (CSV)</a>')
+        + '</section>'
+        + '<form class="adm-search" id="admCSearch" role="search"><label class="sr-only" for="admCQ">Search customers</label>'
+        +   '<input class="auth-input" id="admCQ" type="search" placeholder="' + (me.masked ? 'Name' : 'Name or email') + '" value="' + esc(q) + '">'
+        +   '<button class="adm-btn" type="submit">Search</button></form>'
+        + '<p class="adm-muted" style="margin-bottom:10px;">' + d.total + ' account' + (d.total === 1 ? '' : 's') + (q ? ' found' : '')
+        +   '. Guests who checked out without an account are under Orders.</p>'
+        + (d.customers.length ? '<ul class="adm-customers">' + d.customers.map(function (c) {
+            var orders = c.orderCount + ' order' + (c.orderCount === 1 ? '' : 's');
+            return '<li class="adm-customer"><div><p class="adm-product__name">' + esc(c.name) + '</p>'
+              + '<p class="adm-muted">' + esc(c.email) + '</p></div>'
+              + (NEWS[c.newsletter] ? '<span class="adm-pill adm-pill--nl-' + esc(c.newsletter) + '">' + NEWS[c.newsletter] + '</span>' : '<span></span>')
+              + '<p class="adm-customer__meta">'
+              // Not for the demo: its emails are masked, so the order search would find nothing.
+              + (c.orderCount && !me.masked ? '<a href="#orders?status=&q=' + encodeURIComponent(c.email) + '">' + orders + '</a>' : orders)
+              + ' · ' + esc(ksh(c.spentKes)) + ' paid'
+              + (c.lastOrderAt ? ' · last ' + esc(ago(c.lastOrderAt)) : '')
+              + ' · joined ' + esc(new Date(c.memberSince).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })) + '</p></li>';
+          }).join('') + '</ul>' : '<p class="adm-muted">No customers here.</p>')
+        + (d.total > page * 50 || page > 1 ? '<nav class="adm-pager" aria-label="Pages">'
+            + (page > 1 ? '<a class="adm-chip" href="#customers?page=' + (page - 1) + (q ? '&q=' + encodeURIComponent(q) : '') + '">← Newer</a>' : '<span></span>')
+            + (d.total > page * 50 ? '<a class="adm-chip" href="#customers?page=' + (page + 1) + (q ? '&q=' + encodeURIComponent(q) : '') + '">Older →</a>' : '')
+            + '</nav>' : '');
+      document.getElementById('admCSearch').addEventListener('submit', function (e) {
+        e.preventDefault();
+        location.hash = '#customers?q=' + encodeURIComponent(document.getElementById('admCQ').value.trim());
+      });
+    }, failed);
+  }
+
   function activityScreen() {
     setTab('activity');
     api('/activity').then(function (d) {
@@ -529,6 +574,7 @@
     if (path === 'orders') return orders(query);
     if (path === 'products') return products();
     if (path === 'product/new') return newProduct();
+    if (path === 'customers') return customers(query);
     if (path === 'activity') return activityScreen();
     return dashboard();
   }

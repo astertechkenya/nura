@@ -248,10 +248,22 @@ export const orderEmails = pgTable('order_emails', {
 
 /* ── Marketing and audit ─────────────────────────────────────────────────────── */
 
+// Double opt-in (Phase 7): a sign-up is 'pending' until the person clicks the link in the
+// confirmation email; only 'confirmed' addresses are ever exported or mailed. The dates are the
+// record of consent (Kenya's Data Protection Act asks us to be able to show it was given).
 export const newsletterSubscribers = pgTable('newsletter_subscribers', {
   email: text('email').primaryKey(),
+  // Links in emails carry this id, never the address (see lib/newsletterLink.js).
+  id: uuid('id').notNull().defaultRandom().unique(),
+  status: text('status').notNull().default('pending'),       // pending | confirmed | unsubscribed
+  confirmSentAt: timestamp('confirm_sent_at', { withTimezone: true }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  unsubscribedAt: timestamp('unsubscribed_at', { withTimezone: true }),
   createdAt: createdAt(),
-});
+}, (t) => [
+  index('newsletter_status_idx').on(t.status),
+  check('newsletter_status_valid', sql`${t.status} in ('pending', 'confirmed', 'unsubscribed')`),
+]);
 
 // Written in the same transaction as every admin change (Phase 7), so a change without
 // an audit entry cannot exist.

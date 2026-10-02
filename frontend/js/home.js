@@ -1,4 +1,5 @@
-/* NURA home.js: homepage newsletter, saved by POST /api/newsletter.
+/* NURA home.js: homepage newsletter, saved by POST /api/newsletter (pending until the
+   emailed link is confirmed on newsletter.html).
    The toast only appears after the server has confirmed; before Phase 1 it appeared
    immediately and the email went nowhere. */
 (function () {
@@ -34,7 +35,7 @@
     NURA.api('/newsletter', { method: 'POST', body: { email: email, botField: trap ? trap.value : '' } })
       .then(function () {
         input.value = '';
-        showToast('Subscribed. Welcome to NURA.');
+        showToast('Almost there: check your inbox and confirm.');
       }, function (err) {
         showToast(err.message);             // messages from the API are written for shoppers
       })

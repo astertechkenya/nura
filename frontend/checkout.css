@@ -161,3 +161,5 @@ a{color:inherit;}
 .ac-danger{border-left:3px solid var(--red-sale);}
 .ac-danger__start{margin-top:14px;background:none;border:1px solid var(--red-sale);color:var(--red-sale);padding:12px 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
 .ac-danger__confirm{background:var(--red-sale);}
+/* Headings focused by script (so screen readers announce a new state) need no ring: the user didn't move focus there. */
+.co-title[tabindex="-1"]:focus{outline:none;}

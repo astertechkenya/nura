@@ -61,7 +61,9 @@ test/               Vitest + Supertest
 | GET | `/api/auth/me` | `{ user: { name, email } }` or `{ user: null }` |
 | POST | `/api/auth/forgot` | `{ email }` → the same answer whether or not the account exists; in development the link prints in this terminal |
 | POST | `/api/auth/reset` | `{ token, password }` → new password, every other device signed out, this one signed in |
-| POST | `/api/newsletter` | `{ email }` → `{ ok: true }` (same answer for new and existing addresses; 5 per hour per shopper) |
+| POST | `/api/newsletter` | `{ email }` → `{ ok: true }`, the same answer whatever the address's state (5 per hour per shopper). A new or unconfirmed address gets a confirmation email, at most one an hour |
+| POST | `/api/newsletter/confirm` | `{ token }` from the confirmation email (pressed on `newsletter.html`) → confirmed. Expires after 7 days; never undoes an unsubscribe |
+| POST | `/api/newsletter/unsubscribe` | `{ token }` from a newsletter's unsubscribe link → unsubscribed. Never expires |
 | GET | `/api/cart` | The cart with live prices, line totals, subtotal, delivery fee and "KSh N away from free delivery". Works for guests (httpOnly `nura.guest` cookie) and signed-in shoppers |
 | POST | `/api/cart/items` | `{ variantId, qty }` → adds a size (adds to an existing line). 409 above stock or above 10 |
 | PATCH | `/api/cart/items/:id` | `{ qty }` → sets a line's quantity (only lines in *your* cart) |
@@ -121,7 +123,13 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | POST | `/api/admin/uploads/sign` | A signed Cloudinary upload (NURA's folder, JPEG/PNG/WebP/AVIF). 30 an hour per account |
 | POST | `/api/admin/products` | A new product: `{ name, brand, department, style?, description?, priceKes, compareAtKes?, sizes: [{ size, stock }], image: { publicId }, imageFocus? }`. On the shop and first in New In at once; the code (`nura-NNN`) and address are made for you; a new brand is created |
 | PUT | `/api/admin/products/:id/image` | `{ publicId?, imageFocus? }`: a new photo and/or crop (`top`, `centre`, `bottom`) |
+| GET | `/api/admin/customers` | `q` (name or email; the demo admin: name only), `page`. Accounts with orders placed, money in, newsletter status, and the newsletter totals |
+| GET | `/api/admin/newsletter.csv` | Confirmed subscribers only. Audited; refused to the demo admin |
 | GET | `/api/admin/activity` | The audit log, newest first |
+
+### Newsletter (double opt-in, `routes/newsletter.js`, `lib/newsletterLink.js`)
+
+A sign-up is `pending` until its owner presses the button behind the link in the confirmation email; only `confirmed` addresses are exported. The dates (`confirmed_at`, `unsubscribed_at`) are the record of consent that Kenya's Data Protection Act expects. Links carry the subscriber's random id, signed with `SESSION_SECRET`, never the address. **Every newsletter you send must include that person's unsubscribe link** (`unsubscribeUrl(id)` in `lib/newsletterLink.js`).
 
 ### Product photos (Cloudinary, `services/cloudinary.js`)
 

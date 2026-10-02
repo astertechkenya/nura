@@ -145,3 +145,17 @@ a.adm-btn:focus-visible,.adm-file:focus-within{outline:2px solid var(--purple);o
 .adm-seg input{accent-color:var(--adm-accent);}
 @media (min-width:700px){.adm-photo-pick{grid-template-columns:150px 1fr;}.adm-preview{width:150px;}}
 .adm-sizes .adm-hint{margin-top:10px;}
+
+/* Customers and the newsletter (Phase 7) */
+.adm-news__h{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.adm-news p{font-size:13px;line-height:1.5;}
+.adm-news .adm-hint{margin:6px 0 12px;}
+.adm-customers{list-style:none;padding:0;margin:0;}
+.adm-customer{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:start;background:var(--white);padding:14px 16px;margin-bottom:8px;}
+.adm-customer .adm-muted{overflow-wrap:anywhere;}
+.adm-customer__meta{grid-column:1/-1;font-size:12px;color:var(--adm-muted);}
+.adm-customer__meta a{color:var(--black);font-weight:700;}
+.adm-pill--nl-confirmed{background:#dcf5e3;color:#155c2d;}
+.adm-pill--nl-pending{background:#fff1d6;color:#6b4700;}
+.adm-pill--nl-unsubscribed{background:#eee;color:#555;}
+.adm-pager{display:flex;justify-content:space-between;margin-top:12px;}

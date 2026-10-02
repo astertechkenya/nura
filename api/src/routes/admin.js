@@ -15,6 +15,8 @@
 //   POST  /api/admin/uploads/sign               a signed Cloudinary upload (see services/cloudinary.js)
 //   POST  /api/admin/products                   a new product (photo already uploaded: { image: { publicId } })
 //   PUT   /api/admin/products/:id/image         { publicId?, imageFocus? }  a new photo and/or crop
+//   GET   /api/admin/customers?q=&page=          shopper accounts, with orders, spend and newsletter status
+//   GET   /api/admin/newsletter.csv             confirmed subscribers as CSV (not for the demo admin)
 //   GET   /api/admin/activity                   the audit log: who changed what, before and after
 import { Router } from 'express';
 import { z } from 'zod';
@@ -25,7 +27,7 @@ import { adminGate, needsTotp } from '../middleware/adminGate.js';
 import { verifyCode } from '../lib/totp.js';
 import { ORDER_STATUSES } from '../services/orderStates.js';
 import {
-  activity, codCollected, createProduct, FOCUS, listBrands, listOrders, listProducts, markRefunded, orderDetail,
+  activity, codCollected, createProduct, FOCUS, listBrands, listCustomers, listOrders, newsletterCsv, listProducts, markRefunded, orderDetail,
   setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct,
 } from '../services/admin.js';
 import { signUpload } from '../services/cloudinary.js';
@@ -144,5 +146,23 @@ adminRouter.put('/products/:id/image', validate(idParams, 'params'),
     await setProductImage(req.admin, req.valid.params.id, req.valid.body);
     res.json({ products: await listProducts() });
   });
+
+const customerQuery = z.strictObject({
+  q: z.string().trim().min(1).max(60).optional(),
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+});
+adminRouter.get('/customers', validate(customerQuery, 'query'), async (req, res) => {
+  const { q, page } = req.valid.query;
+  res.json({ ...(await listCustomers({ q, limit: 50, offset: (page - 1) * 50 }, req.masked)), page });
+});
+
+adminRouter.get('/newsletter.csv', async (req, res) => {
+  // A GET, which the demo admin may otherwise use: but this is a list of real email addresses.
+  if (req.masked) throw httpError(403, 'The demo admin can’t download the subscriber list.');
+  const csv = await newsletterCsv(req.admin);
+  const day = new Date().toISOString().slice(0, 10);
+  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="nura-newsletter-${day}.csv"` });
+  res.send(csv);
+});
 
 adminRouter.get('/activity', async (req, res) => res.json({ activity: await activity() }));

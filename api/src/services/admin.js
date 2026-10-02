@@ -302,6 +302,58 @@ export async function setStock(admin, variantId, stock) {
   });
 }
 
+/* ── Customers and the newsletter ──────────────────────────────────────────────── */
+
+// Orders that count as placed (an unpaid M-Pesa/card attempt that expired doesn't), and money
+// actually in: the same rule as the dashboard's takings (COD counts once the cash is collected).
+const PLACED = sql`o.status not in ('PENDING_PAYMENT', 'EXPIRED')`;
+const MONEY_IN = sql`o.status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED') and (o.payment_method <> 'COD' or o.status = 'DELIVERED')`;
+
+/** Shopper accounts (guests have no account, so they're only in Orders), newest first. */
+export async function listCustomers({ q, limit = 50, offset = 0 }, masked) {
+  const like = q ? `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%` : null;
+  // The demo admin searches by name only: searching by email would let it test whether an
+  // address has an account, which the masking is there to prevent.
+  const match = !like ? sql`true` : masked ? sql`u.name ilike ${like}` : sql`(u.name ilike ${like} or u.email ilike ${like})`;
+  const where = sql`u.role = 'CUSTOMER' and ${match}`;
+  const rows = (await db.execute(sql`
+    select u.id, u.name, u.email, u.created_at as "memberSince",
+      (select count(*)::int from orders o where o.user_id = u.id and ${PLACED}) as "orderCount",
+      (select coalesce(sum(o.total_kes), 0)::int from orders o where o.user_id = u.id and ${MONEY_IN}) as "spentKes",
+      (select max(o.created_at) from orders o where o.user_id = u.id and ${PLACED}) as "lastOrderAt",
+      coalesce(ns.status, 'none') as newsletter
+    from users u left join newsletter_subscribers ns on ns.email = lower(u.email)
+    where ${where} order by u.created_at desc limit ${limit} offset ${offset}`)).rows;
+  const [{ total }] = (await db.execute(sql`select count(*)::int as total from users u where ${where}`)).rows;
+  const counts = Object.fromEntries((await db.execute(sql`
+    select status, count(*)::int as n from newsletter_subscribers group by status`)).rows.map((r) => [r.status, r.n]));
+  return {
+    total,
+    newsletter: { confirmed: counts.confirmed ?? 0, pending: counts.pending ?? 0, unsubscribed: counts.unsubscribed ?? 0 },
+    customers: rows.map((r) => (masked ? { ...r, name: maskName(r.name), email: maskEmail(r.email) } : r)),
+  };
+}
+
+// CSV injection: a spreadsheet treats a cell starting with = + - @ (or tab/CR) as a formula, so a
+// crafted value could run one when the file is opened in Excel. Such cells get a leading
+// apostrophe, which spreadsheets show as plain text. Quotes are doubled, as CSV requires.
+export const csvCell = (v) => {
+  const s = v instanceof Date ? v.toISOString() : String(v ?? '');
+  return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+};
+
+/** Confirmed subscribers only, as CSV. Exporting personal data is audited like any change. */
+export async function newsletterCsv(admin) {
+  return db.transaction(async (tx) => {
+    const rows = (await tx.execute(sql`
+      select email, confirmed_at from newsletter_subscribers where status = 'confirmed' order by confirmed_at`)).rows;
+    await audited(tx, admin, 'newsletter.export', 'newsletter', 'confirmed', null, { rows: rows.length });
+    // \r\n line ends and a BOM: what Excel expects, so it opens cleanly on Windows.
+    return '﻿' + [['email', 'confirmed_at'], ...rows.map((r) => [r.email, new Date(r.confirmed_at)])]
+      .map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  });
+}
+
 /* ── Activity ──────────────────────────────────────────────────────────────────── */
 
 export async function activity(limit = 100) {

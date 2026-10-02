@@ -212,3 +212,19 @@ export function accountDeletedMessage(user) {
     }),
   };
 }
+
+/* ── Newsletter ──────────────────────────────────────────────────────────────── */
+
+// Double opt-in: nothing is ever sent to this address again unless this link is used.
+export function newsletterConfirmMessage(email, link) {
+  return {
+    to: email,
+    subject: 'Confirm your NURA newsletter subscription',
+    text: `Hi,\n\nSomeone (hopefully you) asked to get NURA's newsletter at this address: new drops and offers, no spam.\n\nConfirm here (the link works for 7 days):\n${link}\n\nIf it wasn't you, ignore this email. You won't hear from us again.\n`,
+    html: layout({
+      heading: 'One click to confirm',
+      intro: 'Someone (hopefully you) asked to get NURA’s newsletter at this address: new drops and offers, no spam. The button works for 7 days.<br><br>If it wasn’t you, ignore this email. You won’t hear from us again.',
+      button: { href: link, label: 'Yes, subscribe me' },
+    }),
+  };
+}
