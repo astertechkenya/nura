@@ -127,6 +127,10 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | GET | `/api/admin/newsletter.csv` | Confirmed subscribers only. Audited; refused to the demo admin |
 | GET | `/api/admin/activity` | The audit log, newest first |
 
+### Logs and the security policy (Phase 8)
+
+Logs hold no personal data or secrets (`lib/logSafe.js`, `logger.js`): request lines carry only method, path, status and an id, with query values kept only for harmless keys (`page`, `status`…); database errors keep their SQL and error code but lose their parameters and any value Postgres quotes back; fields named like secrets or contact details are redacted. The storefront's Content-Security-Policy (`frontend/_headers`) is **enforced**. Whatever it blocks is reported to `POST /api/csp-report` and logged as "CSP blocked something" with the rule, the blocked origin and path, and the page's path. After a deploy, a burst of those lines means the deploy broke something.
+
 ### Newsletter (double opt-in, `routes/newsletter.js`, `lib/newsletterLink.js`)
 
 A sign-up is `pending` until its owner presses the button behind the link in the confirmation email; only `confirmed` addresses are exported. The dates (`confirmed_at`, `unsubscribed_at`) are the record of consent that Kenya's Data Protection Act expects. Links carry the subscriber's random id, signed with `SESSION_SECRET`, never the address. **Every newsletter you send must include that person's unsubscribe link** (`unsubscribeUrl(id)` in `lib/newsletterLink.js`).

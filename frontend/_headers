@@ -1,8 +1,10 @@
-# NURA security headers (Netlify). Stage A ships the CSP as Report-Only:
-# violations appear in the browser console but nothing is blocked.
-# Phase 8 renames the header to Content-Security-Policy to enforce it.
+# NURA security headers (Netlify).
+# Content-Security-Policy is ENFORCED (Phase 8): the browser refuses any script, style, font,
+# image or connection the policy doesn't list, so injected code (XSS) can't load scripts from
+# elsewhere or send data out. Anything it blocks is reported to /api/csp-report (routes/csp.js)
+# and shows up in Render's logs as "CSP blocked something".
 /*
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self' https://api.cloudinary.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self' https://api.cloudinary.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; report-uri /api/csp-report
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

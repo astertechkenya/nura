@@ -8,11 +8,13 @@ import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { config } from './config.js';
-import { logger } from './logger.js';
+import { logger, LOG_OPTIONS } from './logger.js';
 import { db } from './db/client.js';
 import { productsRouter } from './routes/products.js';
 import { newsletterRouter } from './routes/newsletter.js';
 import { verifyNetlifySignature } from './lib/clientIp.js';
+import { reqSerializer } from './lib/logSafe.js';
+import { cspRouter } from './routes/csp.js';
 import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
 import { wishlistRouter } from './routes/wishlist.js';
@@ -51,12 +53,11 @@ export function createApp() {
     // shoppers' IP addresses and cookies: personal data we have no reason to keep
     // (Kenya's Data Protection Act asks for data minimisation).
     serializers: {
-      // viaNetlify: true when the request came through our signed Netlify proxy. If storefront
-      // requests ever log false in production, the NETLIFY_PROXY_SECRET values don't match.
-      // The M-Pesa callback address contains a secret: never write it to a log.
-      req: (req) => ({ id: req.id, method: req.method, url: req.url.replace(/(\/callback\/)[^/?]+/, '$1[redacted]'),
-                       viaNetlify: Boolean(verifyNetlifySignature(req.headers['x-nf-sign'])) }),
+      // Only what's needed to trace a request: no headers, no bodies, no personal query values.
+      req: reqSerializer(verifyNetlifySignature),
       res: (res) => ({ statusCode: res.statusCode }),
+      // pino-http brings its own error serializer; ours removes query parameters (logger.js).
+      err: LOG_OPTIONS.serializers.err,
     },
   }));
 
@@ -72,6 +73,11 @@ export function createApp() {
     await db.execute(sql`select 1`);
     res.json({ ok: true });
   });
+
+  // Browsers post Content-Security-Policy violation reports here (see routes/csp.js). Before
+  // sameOrigin: a report is not a state-changing request, and some browsers send it without
+  // the page's Origin.
+  app.use('/api/csp-report', cspRouter);
 
   app.use(sameOrigin);          // refuse writes triggered by other websites (CSRF)
 

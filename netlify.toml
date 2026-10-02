@@ -3,6 +3,11 @@
 
 [build]
   publish = "frontend"      # only the storefront is published; api/ never is
+  # Skip the build when a push changes neither the storefront nor this file (an API-only push:
+  # Render deploys those). Netlify's free plan pays for each production deploy in credits.
+  # How it works: Netlify runs this command first; exit code 0 means "nothing to do, skip".
+  # `git diff --quiet` exits 0 when the two commits have no differences in those paths.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/ netlify.toml"
 
 # The API appears under the storefront's own address: nurafashion.netlify.app/api/...
 # status 200 makes this a REWRITE (Netlify fetches from Render and hands the answer back),
