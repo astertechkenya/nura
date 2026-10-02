@@ -113,3 +113,35 @@ body.adm{font-family:var(--sans);background:var(--bg);color:var(--black);min-hei
 
 /* Hint under a field label (kept out of the label's caps styling). */
 .adm-hint{grid-column:1/-1;display:block;font-size:11px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--adm-muted);margin-top:4px;}
+
+/* Adding products and photos (Phase 7) */
+.adm-titlebar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;}
+.adm-titlebar .adm-h1{margin:0;}
+.adm-btn--small{padding:11px 12px;font-size:10px;letter-spacing:1.5px;text-decoration:none;display:inline-block;}
+a.adm-btn{color:var(--white);}
+a.adm-btn:focus-visible,.adm-file:focus-within{outline:2px solid var(--purple);outline-offset:2px;}
+/* The real file input is hidden visually but stays in the tab order, so the styled label is
+   keyboard- and screen-reader-usable (display:none would remove it from both). */
+.adm-file{position:relative;display:inline-block;cursor:pointer;}
+.adm-file__input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.adm-photo-row{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin-bottom:12px;}
+.adm-field--inline{grid-auto-flow:column;align-items:center;gap:8px;}
+.adm-field select,.adm-field textarea{width:100%;padding:10px;border:1.5px solid var(--light);background:var(--white);font-family:var(--sans);font-size:14px;letter-spacing:0;text-transform:none;font-weight:400;}
+.adm-field--inline select{width:auto;padding:8px;}
+.adm-form{display:grid;gap:14px;background:var(--white);padding:16px;}
+.adm-form .adm-hint{margin-top:-8px;}
+.adm-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.adm-photo-pick{display:grid;grid-template-columns:96px 1fr;gap:14px;align-items:start;}
+.adm-photo-pick .adm-hint{margin:8px 0 12px;}
+/* Same 3:4 shape as the shop's cards, so the crop choice previews truthfully. */
+.adm-preview{width:96px;aspect-ratio:3/4;background:var(--bg-light);display:grid;place-items:center;overflow:hidden;}
+.adm-preview span{font-size:10px;color:var(--adm-muted);text-align:center;padding:6px;}
+.adm-preview img{width:100%;height:100%;object-fit:cover;}
+.adm-sizes{border:0;padding:0;margin:0;}
+.adm-sizes legend{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;}
+.adm-seg{display:flex;flex-wrap:wrap;gap:6px;}
+.adm-seg label{display:flex;align-items:center;gap:6px;border:1.5px solid var(--light);padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;}
+.adm-seg label:has(input:checked){border-color:var(--black);}
+.adm-seg input{accent-color:var(--adm-accent);}
+@media (min-width:700px){.adm-photo-pick{grid-template-columns:150px 1fr;}.adm-preview{width:150px;}}
+.adm-sizes .adm-hint{margin-top:10px;}

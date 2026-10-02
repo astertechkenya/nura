@@ -22,7 +22,7 @@ npm run dev                   # http://localhost:3000/api/products
 | `npm start` | Start the API (what Render runs) |
 | `npm run db:generate` | After editing `src/db/schema.js`: write a new SQL migration into `drizzle/` |
 | `npm run db:migrate` | Apply migrations the database hasn't seen yet |
-| `npm run db:seed` | Load or refresh the catalogue (safe to run repeatedly) |
+| `npm run db:seed` | Load or refresh the catalogue. **Development only**: it resets the price, stock and photo of the 21 seeded products, so never run it against production once the shop is live |
 | `npm run db:studio` | Browse the database in your browser |
 | `npm test` | Run all tests |
 | `npm run create-admin -- --email you@x.com --name "You"` | Create or update an admin. Asks for the password (hidden, twice, 12+ characters) and prints a two-factor key once. `--role DEMO_ADMIN` makes a read-only admin; `--reset-2fa` issues a new key. Signs that account out everywhere |
@@ -117,7 +117,17 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | GET | `/api/admin/products` | Every product, hidden ones too, with stock per size |
 | PATCH | `/api/admin/products/:id` | `{ priceKes?, compareAtKes? (null = not on sale), isActive? }`. The was-price must be above the price |
 | PATCH | `/api/admin/variants/:id` | `{ stock }` (0–9999) |
+| GET | `/api/admin/brands` | Brand names, for the add form's suggestions |
+| POST | `/api/admin/uploads/sign` | A signed Cloudinary upload (NURA's folder, JPEG/PNG/WebP/AVIF). 30 an hour per account |
+| POST | `/api/admin/products` | A new product: `{ name, brand, department, style?, description?, priceKes, compareAtKes?, sizes: [{ size, stock }], image: { publicId }, imageFocus? }`. On the shop and first in New In at once; the code (`nura-NNN`) and address are made for you; a new brand is created |
+| PUT | `/api/admin/products/:id/image` | `{ publicId?, imageFocus? }`: a new photo and/or crop (`top`, `centre`, `bottom`) |
 | GET | `/api/admin/activity` | The audit log, newest first |
+
+### Product photos (Cloudinary, `services/cloudinary.js`)
+
+The browser uploads straight to Cloudinary with a signature the API makes, so the photo never passes through Render and the secret never leaves it. Saving sends only the photo's `public_id`: the API asks Cloudinary whether it really is in `nura/products`, in an allowed format and at most 5 MB (refused uploads are deleted), and builds the image address itself (`f_auto,q_auto`, at most 1200 px wide).
+
+Set up: a free Cloudinary account → Settings → API Keys. Put `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` in `.env` and on Render. Without them the shop works and the admin's photo controls answer "Photo uploads aren't set up yet". The site's security policy (`frontend/_headers`) allows `res.cloudinary.com` for images and `api.cloudinary.com` for uploads.
 
 ## Email (`services/mail.js`, `services/emails.js`)
 

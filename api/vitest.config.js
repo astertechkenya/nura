@@ -27,6 +27,8 @@ process.env.DATABASE_URL = testUrl;
 // makes the tests call Resend (and, if MAIL_ONLY_TO matched, deliver). Removed here, before the
 // test processes start, so they inherit nothing. (M-Pesa and Paystack get fakes below instead.)
 for (const key of ['RESEND_API_KEY', 'MAIL_ONLY_TO', 'MAIL_FROM', 'RESEND_BASE_URL']) delete process.env[key];
+// Same for real Cloudinary keys: tests use the fake ones set below.
+for (const key of ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'CLOUDINARY_API_BASE']) delete process.env[key];
 process.env.SESSION_SECRET ??= TEST_SESSION_SECRET;
 
 export default defineConfig({
@@ -48,6 +50,11 @@ export default defineConfig({
       // Cards against a FAKE Paystack (test/fakePaystack.js). Never a real key.
       PAYSTACK_BASE_URL: 'http://127.0.0.1:4597',
       PAYSTACK_SECRET_KEY: 'sk_test_fakeKeyForTestsOnly0123456789',
+      // Product photos against a FAKE Cloudinary (test/fakeCloudinary.js). Never real keys.
+      CLOUDINARY_CLOUD_NAME: 'nura-test',
+      CLOUDINARY_API_KEY: '123456789012345',
+      CLOUDINARY_API_SECRET: 'testOnlyCloudinarySecret0123',
+      CLOUDINARY_API_BASE: 'http://127.0.0.1:4595',
     },
     globalSetup: ['./test/globalSetup.js'],
     setupFiles: ['./test/setup.js'],        // waits for background emails before closing the pool

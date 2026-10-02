@@ -8,6 +8,7 @@
 // Safe to run again and again: every write is an upsert (insert, or update if it exists),
 // so a second run changes nothing unless you edited the source files. Stock is reset to the
 // values in seed-overrides.json each run, which is what you want for a demo database.
+import { slugify } from '../lib/slug.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import argon2 from 'argon2';
@@ -17,8 +18,7 @@ import { brands, products, productVariants, users } from './schema.js';
 
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 
-export const slugify = (s) =>
-  s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+export { slugify };   // moved to lib/slug.js (the admin uses it too); still exported from here
 
 /** 'KSh 14,200' → 14200. Kept for anyone importing old price strings. */
 export const parseKsh = (s) => {

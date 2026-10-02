@@ -95,6 +95,15 @@ const schema = z.object({
       'must be plain email addresses like you@example.com: no < >, quotes, spaces or comments on the line; separate several with commas'),
   // Tests point this at a fake Resend. Leave unset.
   RESEND_BASE_URL: z.url().default('https://api.resend.com'),
+
+  // Product photos via Cloudinary (Phase 7). From cloudinary.com → Settings → API Keys. The
+  // admin's "upload photo" appears when all three are set. The SECRET signs uploads and never
+  // leaves the server.
+  CLOUDINARY_CLOUD_NAME: z.string().regex(/^[a-z0-9_-]{1,64}$/i, 'must be your Cloudinary cloud name (letters, digits, - and _)').optional(),
+  CLOUDINARY_API_KEY: z.string().regex(/^\d{6,20}$/, 'must be your Cloudinary API key (digits only)').optional(),
+  CLOUDINARY_API_SECRET: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/, 'must be your Cloudinary API secret').optional(),
+  // Tests point this at a fake Cloudinary. Leave unset.
+  CLOUDINARY_API_BASE: z.url().default('https://api.cloudinary.com'),
 });
 
 function load(env) {
@@ -114,7 +123,8 @@ function load(env) {
     && c.DARAJA_PASSKEY && c.PUBLIC_API_URL && c.MPESA_CALLBACK_SECRET);
   const cardEnabled = Boolean(c.PAYSTACK_SECRET_KEY);
   const mailEnabled = Boolean(c.RESEND_API_KEY);
-  return Object.freeze({ ...c, mpesaEnabled, cardEnabled, mailEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
+  const uploadsEnabled = Boolean(c.CLOUDINARY_CLOUD_NAME && c.CLOUDINARY_API_KEY && c.CLOUDINARY_API_SECRET);
+  return Object.freeze({ ...c, mpesaEnabled, cardEnabled, mailEnabled, uploadsEnabled, isProd: c.NODE_ENV === 'production', isTest: c.NODE_ENV === 'test' });
 }
 
 export const config = load(process.env);

@@ -11,6 +11,10 @@
 //   GET   /api/admin/products                   every product, hidden ones too, with stock per size
 //   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, isActive? }
 //   PATCH /api/admin/variants/:id               { stock }
+//   GET   /api/admin/brands                     brand names, for the new-product form
+//   POST  /api/admin/uploads/sign               a signed Cloudinary upload (see services/cloudinary.js)
+//   POST  /api/admin/products                   a new product (photo already uploaded: { image: { publicId } })
+//   PUT   /api/admin/products/:id/image         { publicId?, imageFocus? }  a new photo and/or crop
 //   GET   /api/admin/activity                   the audit log: who changed what, before and after
 import { Router } from 'express';
 import { z } from 'zod';
@@ -21,9 +25,10 @@ import { adminGate, needsTotp } from '../middleware/adminGate.js';
 import { verifyCode } from '../lib/totp.js';
 import { ORDER_STATUSES } from '../services/orderStates.js';
 import {
-  activity, codCollected, listOrders, listProducts, markRefunded, orderDetail, setStock, summary,
-  transitionOrder, updateProduct,
+  activity, codCollected, createProduct, FOCUS, listBrands, listOrders, listProducts, markRefunded, orderDetail,
+  setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct,
 } from '../services/admin.js';
+import { signUpload } from '../services/cloudinary.js';
 
 export const adminRouter = Router();
 adminRouter.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -101,6 +106,43 @@ adminRouter.patch('/variants/:id', validate(idParams, 'params'),
   validate(z.strictObject({ stock: z.number().int().min(0).max(9999) })), async (req, res) => {
     await setStock(req.admin, req.valid.params.id, req.valid.body.stock);
     res.json({ ok: true });
+  });
+
+adminRouter.get('/brands', async (req, res) => res.json({ brands: (await listBrands()).map((b) => b.name) }));
+
+// Signing is a write in disguise (it lets the browser upload to our account), so like every
+// non-GET route it's refused for the demo admin by adminGate. 30 an hour is plenty for one shop.
+adminRouter.post('/uploads/sign', limit({ windowMs: 60 * 60 * 1000, max: 30, by: (req) => req.session?.userId, ipToo: false,
+  message: 'Too many uploads this hour.' }), (req, res) => res.json(signUpload()));
+
+const text = (min, max, what) => z.string().trim().min(min, `Please enter ${what}.`).max(max, `${what[0].toUpperCase()}${what.slice(1)} is too long.`);
+const photo = z.strictObject({ publicId: z.string().max(140) });
+const focus = z.enum(Object.keys(FOCUS));
+const newProduct = z.strictObject({
+  name: text(2, 80, 'a product name'),
+  brand: text(1, 40, 'a brand'),
+  department: z.enum(['WOMEN', 'MEN', 'UNISEX']),
+  style: z.enum(['Casual', 'Formal', 'Streetwear', 'Evening']).nullable().optional(),
+  description: z.string().trim().max(1000).optional(),
+  priceKes: kes,
+  compareAtKes: kes.nullable().optional(),
+  sizes: z.array(z.strictObject({ size: z.enum(SIZES), stock: z.number().int().min(0).max(9999) }))
+    .min(1, 'Add at least one size.').max(SIZES.length)
+    .refine((list) => new Set(list.map((s) => s.size)).size === list.length, 'Each size only once.'),
+  image: photo,
+  imageFocus: focus.optional(),
+});
+adminRouter.post('/products', validate(newProduct), async (req, res) => {
+  const created = await createProduct(req.admin, req.valid.body);
+  res.status(201).json({ product: created, products: await listProducts() });
+});
+
+adminRouter.put('/products/:id/image', validate(idParams, 'params'),
+  validate(z.strictObject({ publicId: z.string().max(140).optional(), imageFocus: focus.optional() })
+    .refine((b) => b.publicId || b.imageFocus, 'Nothing to change.')),
+  async (req, res) => {
+    await setProductImage(req.admin, req.valid.params.id, req.valid.body);
+    res.json({ products: await listProducts() });
   });
 
 adminRouter.get('/activity', async (req, res) => res.json({ activity: await activity() }));

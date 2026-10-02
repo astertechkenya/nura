@@ -2,7 +2,7 @@
 # violations appear in the browser console but nothing is blocked.
 # Phase 8 renames the header to Content-Security-Policy to enforce it.
 /*
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://res.cloudinary.com; connect-src 'self' https://api.cloudinary.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

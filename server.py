@@ -59,6 +59,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_PATCH(self):
         return self._proxy() if self.path.startswith("/api/") else self.send_error(405)
 
+    def do_PUT(self):   # the admin's "change photo" (PUT /api/admin/products/:id/image)
+        return self._proxy() if self.path.startswith("/api/") else self.send_error(405)
+
     def do_DELETE(self):
         return self._proxy() if self.path.startswith("/api/") else self.send_error(405)
 

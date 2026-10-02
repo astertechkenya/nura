@@ -19,6 +19,9 @@
     CANCELLED: 'Cancel order', 'cod-collected': 'Cash collected: delivered',
   };
   var METHOD = { COD: 'Cash on delivery', MPESA: 'M-Pesa', CARD: 'Card' };
+  // Photos are either the shop's own files (images/x.webp, relative to the shop, so ../ from
+  // /admin/) or Cloudinary addresses (https://…, used as they are).
+  var imgSrc = function (u) { return /^https:\/\//.test(u) ? u : '../' + u; };
 
   function toast(text) {
     var t = document.getElementById('nuraToast');
@@ -177,7 +180,7 @@
   function drawOrder(o) {
     var c = o.customer, dl = o.delivery;
     var items = o.items.map(function (i) {
-      return '<div class="adm-item">' + (i.imageUrl ? '<img src="../' + esc(i.imageUrl) + '" alt="">' : '<span class="adm-ph"></span>')
+      return '<div class="adm-item">' + (i.imageUrl ? '<img src="' + esc(imgSrc(i.imageUrl)) + '" alt="">' : '<span class="adm-ph"></span>')
         + '<span>' + esc(i.name) + '<br><span class="adm-muted">' + (i.size !== 'ONE SIZE' ? 'Size ' + esc(i.size) + ' · ' : '') + 'Qty ' + Number(i.qty) + '</span></span>'
         + '<strong>' + esc(ksh(i.lineTotalKes)) + '</strong></div>';
     }).join('');
@@ -258,14 +261,18 @@
 
   function drawProducts(list) {
     var off = me.masked ? ' disabled' : '';
-    main.innerHTML = '<h1 class="adm-h1">Products</h1>'
+    main.innerHTML = '<div class="adm-titlebar"><h1 class="adm-h1">Products</h1>'
+      + (me.masked ? '' : '<a class="adm-btn adm-btn--small" href="#product/new">+ Add a product</a>') + '</div>'
       + (me.masked ? '<p class="adm-notice">Demo: you can look, but prices and stock can’t be changed.</p>'
                    : '<p class="adm-muted" style="margin-bottom:14px;">Stock saves as soon as you leave the box. Prices save with the button.</p>')
       + list.map(function (p) {
         return '<article class="adm-product' + (p.isActive ? '' : ' is-hidden') + '" data-id="' + esc(p.id) + '">'
-          + '<div class="adm-product__head">' + (p.imageUrl ? '<img src="../' + esc(p.imageUrl) + '" alt="">' : '<span class="adm-ph"></span>')
+          + '<div class="adm-product__head">' + (p.imageUrl ? '<img src="' + esc(imgSrc(p.imageUrl)) + '" alt="">' : '<span class="adm-ph"></span>')
           + '<div><p class="adm-product__name">' + esc(p.name) + '</p><p class="adm-muted">' + esc(p.brand) + ' · ' + esc(p.sku) + '</p></div>'
           + '<label class="adm-toggle"><input type="checkbox" data-visible' + (p.isActive ? ' checked' : '') + off + '> Shown in shop</label></div>'
+          + (me.masked ? '' : '<div class="adm-photo-row"><label class="adm-btn adm-btn--quiet adm-btn--small adm-file">Change photo'
+            + '<input type="file" accept="' + PHOTO_TYPES.join(',') + '" data-photo class="adm-file__input" aria-label="Change photo of ' + esc(p.name) + '"></label>'
+            + '<label class="adm-field adm-field--inline">Crop' + focusSelect(p.imageFocus, 'data-focus aria-label="Crop of ' + esc(p.name) + ' on the card"') + '</label></div>')
           + '<form class="adm-prices" data-prices novalidate>'
           + '<label class="adm-field">Price (KSh)<input type="number" min="1" step="1" inputmode="numeric" name="price" value="' + Number(p.priceKes) + '"' + off + '></label>'
           + '<label class="adm-field">Was (KSh)<input type="number" min="1" step="1" inputmode="numeric" name="was" aria-describedby="wasHint-' + esc(p.id) + '" value="' + (p.compareAtKes || '') + '"' + off + '></label>'
@@ -298,6 +305,24 @@
         }, function (err) { box.checked = !box.checked; failed(err); });
       });
     });
+    main.querySelectorAll('[data-photo]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        var card = input.closest('[data-id]'), file = input.files[0];
+        if (!file) return;
+        toast('Uploading photo…');
+        uploadPhoto(file).then(function (publicId) {
+          return api('/products/' + card.dataset.id + '/image', { method: 'PUT', body: { publicId: publicId } });
+        }).then(function (d) { drawProducts(d.products); toast('Photo changed'); }, function (err) { input.value = ''; failed(err); });
+      });
+    });
+    main.querySelectorAll('[data-focus]').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        if (!sel.value) return;
+        var card = sel.closest('[data-id]');
+        api('/products/' + card.dataset.id + '/image', { method: 'PUT', body: { imageFocus: sel.value } })
+          .then(function () { toast('Crop saved'); }, failed);
+      });
+    });
     main.querySelectorAll('[data-variant]').forEach(function (input) {
       input.addEventListener('change', function () {
         var n = parseInt(input.value, 10);
@@ -310,6 +335,170 @@
       });
     });
   }
+
+  /* ── Photos: checked here first, signed by the API, sent straight to Cloudinary ──── */
+  // The browser checks type and size only to give a quick, friendly answer. The real checks
+  // happen on the server (Cloudinary is told the allowed formats in the signed upload, and the
+  // API re-checks format, size and folder before saving), so skipping these gains nothing.
+  var PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+  var PHOTO_MAX = 5 * 1024 * 1024;
+  var FOCUS = { '50% 15%': 'top', '50% 50%': 'centre', '50% 85%': 'bottom' };
+
+  // A crop selector. Older products may have a crop that isn't one of the three ("Custom"):
+  // shown as such, and left alone unless the admin picks another.
+  function focusSelect(current, attrs) {
+    var now = current ? FOCUS[current] : 'centre';
+    return '<select ' + attrs + '>' + (current && !now ? '<option value="" selected>Custom</option>' : '')
+      + [['top', 'Top'], ['centre', 'Centre'], ['bottom', 'Bottom']].map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === now ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('') + '</select>';
+  }
+
+  /** Resolves with the photo's Cloudinary public_id, or rejects with a message for the admin. */
+  function uploadPhoto(file) {
+    if (PHOTO_TYPES.indexOf(file.type) < 0) return Promise.reject(new Error('Photos must be JPEG, PNG, WebP or AVIF.'));
+    if (file.size > PHOTO_MAX) {
+      return Promise.reject(new Error('That photo is ' + (file.size / 1048576).toFixed(1) + ' MB. Photos must be 5 MB or smaller.'));
+    }
+    return api('/uploads/sign', { method: 'POST' }).then(function (sig) {
+      // Every signed field must be sent exactly as signed, or Cloudinary refuses the upload.
+      var form = new FormData();
+      Object.keys(sig.fields).forEach(function (k) { form.append(k, sig.fields[k]); });
+      form.append('file', file);
+      // Plain fetch, not NURA.api: this goes to Cloudinary, not our API (and must not carry our cookies).
+      return fetch(sig.uploadUrl, { method: 'POST', body: form, credentials: 'omit' }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          if (!res.ok || !d.public_id) {
+            throw new Error('The photo upload failed' + (d.error && d.error.message ? ': ' + d.error.message : '. Please try again.'));
+          }
+          return d.public_id;
+        });
+      }, function () { throw new Error('Couldn’t reach the photo service. Check your connection and try again.'); });
+    });
+  }
+
+  // Size presets. The API accepts exactly these names (SIZES in services/admin.js).
+  var SIZE_SETS = {
+    clothing: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    shoes: ['UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'],
+    one: ['ONE SIZE'],
+  };
+
+  function newProduct() {
+    setTab('products');
+    if (me.masked) { location.hash = '#products'; return; }   // the API refuses anyway; don't offer it
+    api('/brands').then(function (d) {
+      main.innerHTML = '<a class="adm-back" href="#products">← Products</a><h1 class="adm-h1" id="admNewTitle" tabindex="-1">Add a product</h1>'
+        + '<form class="adm-card adm-form" id="admNew" novalidate>'
+        + '<p class="adm-alert" id="admNewErr" role="alert" hidden></p>'
+        + '<div class="adm-photo-pick"><div class="adm-preview" id="admPreview"><span>No photo yet</span></div>'
+        +   '<div><label class="adm-btn adm-btn--quiet adm-file">Choose a photo'
+        +     '<input type="file" id="admPhoto" accept="' + PHOTO_TYPES.join(',') + '" class="adm-file__input" aria-describedby="admPhotoHint"></label>'
+        +   '<p class="adm-hint" id="admPhotoHint">JPEG, PNG, WebP or AVIF, up to 5 MB. A tall photo (about 3:4) suits the cards best.</p>'
+        +   '<label class="adm-field">Crop on the card' + focusSelect(null, 'name="focus" id="admFocus"') + '</label></div></div>'
+        + '<label class="adm-field">Product name<input name="name" id="admName" maxlength="80" required autocomplete="off"></label>'
+        + '<label class="adm-field">Brand<input name="brand" id="admBrand" maxlength="40" list="admBrands" required autocomplete="off" aria-describedby="admBrandHint"></label>'
+        + '<datalist id="admBrands">' + d.brands.map(function (b) { return '<option value="' + esc(b) + '">'; }).join('') + '</datalist>'
+        + '<p class="adm-hint" id="admBrandHint">Pick one from the list, or type a new brand.</p>'
+        + '<div class="adm-two"><label class="adm-field">Department<select name="department" id="admDept">'
+        +   '<option value="WOMEN">Women</option><option value="MEN">Men</option><option value="UNISEX">Unisex (shows on both)</option></select></label>'
+        + '<label class="adm-field">Style<select name="style" id="admStyle"><option value="">None</option>'
+        +   '<option>Casual</option><option>Formal</option><option>Streetwear</option><option>Evening</option></select></label></div>'
+        + '<div class="adm-two"><label class="adm-field">Price (KSh)<input name="price" id="admPrice" type="number" min="1" step="1" inputmode="numeric" required></label>'
+        + '<label class="adm-field">Was (KSh)<input name="was" id="admWas" type="number" min="1" step="1" inputmode="numeric" aria-describedby="admWasHint"></label></div>'
+        + '<p class="adm-hint" id="admWasHint">Leave “Was” empty unless it’s on sale. With a “was” price it shows on the Sale page.</p>'
+        + '<fieldset class="adm-sizes"><legend>Sizes and stock</legend>'
+        +   '<div class="adm-seg">'
+        +   [['clothing', 'Clothing'], ['shoes', 'Shoes'], ['one', 'One size']].map(function (o, i) {
+              return '<label><input type="radio" name="sizeset" value="' + o[0] + '"' + (i === 0 ? ' checked' : '') + '> ' + o[1] + '</label>';
+            }).join('') + '</div>'
+        +   '<div class="adm-stock" id="admSizes"></div>'
+        +   '<p class="adm-hint">Leave a size empty if you don’t sell it. 0 means sold out.</p></fieldset>'
+        + '<label class="adm-field">Description (optional)<textarea name="description" id="admDesc" rows="3" maxlength="1000"></textarea></label>'
+        + '<button class="adm-btn" type="submit" id="admNewSave">Add product</button></form>';
+      wireNewProduct();
+      document.getElementById('admNewTitle').focus();   // a new screen: tell screen readers where they are
+    }, failed);
+  }
+
+  function wireNewProduct() {
+    var form = document.getElementById('admNew'), err = document.getElementById('admNewErr');
+    var photo = document.getElementById('admPhoto'), preview = document.getElementById('admPreview');
+    var show = function (msg, field) {
+      err.textContent = msg; err.hidden = false;
+      if (field) field.focus(); else err.scrollIntoView({ block: 'center' });
+    };
+
+    function drawSizes() {
+      var set = form.querySelector('[name="sizeset"]:checked').value;
+      document.getElementById('admSizes').innerHTML = SIZE_SETS[set].map(function (size) {
+        return '<label>' + esc(size) + '<input type="number" min="0" max="9999" step="1" inputmode="numeric" data-size="' + esc(size) + '"'
+          + (set === 'one' ? ' value="1"' : '') + ' aria-label="Stock in ' + esc(size) + '"></label>';
+      }).join('');
+    }
+    form.querySelectorAll('[name="sizeset"]').forEach(function (r) { r.addEventListener('change', drawSizes); });
+    drawSizes();
+
+    photo.addEventListener('change', function () {
+      var file = photo.files[0];
+      preview.innerHTML = '<span>No photo yet</span>';
+      if (!file) return;
+      if (PHOTO_TYPES.indexOf(file.type) < 0 || file.size > PHOTO_MAX) {
+        // Say so now rather than after they've filled in everything else.
+        show(PHOTO_TYPES.indexOf(file.type) < 0 ? 'Photos must be JPEG, PNG, WebP or AVIF.' : 'That photo is over 5 MB. Please choose a smaller one.');
+        photo.value = ''; return;
+      }
+      err.hidden = true;
+      // The preview is read from the file itself as a data: address (the security policy allows data: images).
+      var reader = new FileReader();
+      reader.onload = function () {
+        preview.innerHTML = '<img src="' + esc(reader.result) + '" alt="Preview of the chosen photo">';
+        preview.querySelector('img').style.objectPosition = { top: '50% 15%', centre: '50% 50%', bottom: '50% 85%' }[form.focus.value];
+      };
+      reader.readAsDataURL(file);
+    });
+    // The preview follows the crop choice, so the admin sees what the card will show.
+    form.focus.addEventListener('change', function () {
+      var img = preview.querySelector('img');
+      if (img) img.style.objectPosition = { top: '50% 15%', centre: '50% 50%', bottom: '50% 85%' }[form.focus.value];
+    });
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      err.hidden = true;
+      var file = photo.files[0];
+      var price = parseInt(form.price.value, 10), was = form.was.value.trim() ? parseInt(form.was.value, 10) : null;
+      var sizes = Array.prototype.filter.call(form.querySelectorAll('[data-size]'), function (i) { return i.value.trim() !== ''; })
+        .map(function (i) { return { size: i.dataset.size, stock: parseInt(i.value, 10) }; });
+      // The same rules as the API, checked first so the photo isn't uploaded for a form that will be refused.
+      if (!file) return show('Choose a photo for the product.', photo);
+      if (form.name.value.trim().length < 2) return show('Enter a product name.', form.name);
+      if (!form.brand.value.trim()) return show('Enter a brand.', form.brand);
+      if (!(price > 0)) return show('Enter a price in whole shillings.', form.price);
+      if (was !== null && !(was > price)) return show('The “was” price must be higher than the price, or empty.', form.was);
+      if (!sizes.length) return show('Enter stock for at least one size.', form.querySelector('[data-size]'));
+      if (sizes.some(function (s) { return !(s.stock >= 0 && s.stock <= 9999); })) return show('Stock is a whole number from 0 to 9999.');
+
+      var btn = document.getElementById('admNewSave');
+      btn.disabled = true; btn.textContent = 'Uploading photo…';
+      uploadPhoto(file).then(function (publicId) {
+        btn.textContent = 'Saving…';
+        return api('/products', { method: 'POST', body: {
+          name: form.name.value.trim(), brand: form.brand.value.trim(), department: form.department.value,
+          style: form.style.value || null, priceKes: price, compareAtKes: was, sizes: sizes,
+          description: form.description.value.trim() || undefined,
+          image: { publicId: publicId }, imageFocus: form.focus.value,
+        } });
+      }).then(function (d) {
+        toast('Added ' + form.name.value.trim() + ' (' + d.product.sku + '). It’s on the shop now.');
+        location.hash = '#products';
+      }, function (e2) {
+        show(e2.message);
+        btn.disabled = false; btn.textContent = 'Add product';
+      });
+    });
+  }
+
 
   function activityScreen() {
     setTab('activity');
@@ -339,6 +528,7 @@
     if (path.indexOf('order/') === 0) return order(path.slice(6));
     if (path === 'orders') return orders(query);
     if (path === 'products') return products();
+    if (path === 'product/new') return newProduct();
     if (path === 'activity') return activityScreen();
     return dashboard();
   }

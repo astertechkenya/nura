@@ -9,8 +9,10 @@ import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { queueOrderEmail } from './emails.js';
 import {
-  adminActions, orderEmails, orderEvents, orderItems, orders, payments, productVariants, products, users,
+  adminActions, brands, orderEmails, orderEvents, orderItems, orders, payments, productVariants, products, users,
 } from '../db/schema.js';
+import { slugify } from '../lib/slug.js';
+import { verifiedImageUrl } from './cloudinary.js';
 import { httpError } from '../middleware/errors.js';
 import { ADMIN_NEXT, assertTransition, sideEffects } from './orderStates.js';
 
@@ -195,12 +197,18 @@ export async function markRefunded(admin, orderId, note) {
 
 /* ── Products ──────────────────────────────────────────────────────────────────── */
 
+// Every size the shop sells, in the order a shopper expects.
+export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'ONE SIZE'];
+// Where a photo is cropped on its card: the three choices offered in the admin.
+export const FOCUS = { top: '50% 15%', centre: '50% 50%', bottom: '50% 85%' };
+
 export async function listProducts() {
   const rows = await db.query.products.findMany({ with: { brand: true, variants: true }, orderBy: (p, { asc }) => [asc(p.sku)] });
-  const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'ONE SIZE'];
+  const order = SIZES;
   return rows.map((p) => ({
-    id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department,
+    id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department, style: p.style,
     priceKes: p.priceKes, compareAtKes: p.compareAtKes, isActive: p.isActive, imageUrl: p.imageUrl, cardBg: p.cardBg,
+    imageFocus: p.imageFocus,
     variants: [...p.variants].sort((a, b) => order.indexOf(a.size) - order.indexOf(b.size))
       .map((v) => ({ id: v.id, size: v.size, stock: v.stock })),
   }));
@@ -219,6 +227,67 @@ export async function updateProduct(admin, id, changes) {
     await tx.update(products).set({ ...changes, updatedAt: new Date() }).where(eq(products.id, id));
     await audited(tx, admin, 'product.update', 'product', id,
       pick(before, Object.keys(changes)), changes);
+  });
+}
+
+export async function listBrands() {
+  return db.select({ name: brands.name }).from(brands).orderBy(brands.name);
+}
+
+/**
+ * A new product, live on the shop at once (it arrives "now", so it's in New In too).
+ * The photo is checked with Cloudinary BEFORE the transaction: a network call must never hold
+ * database locks open.
+ */
+export async function createProduct(admin, input) {
+  if (input.compareAtKes != null && input.compareAtKes <= input.priceKes) {
+    throw httpError(400, 'The “was” price must be higher than the price, or empty for no sale.');
+  }
+  const imageUrl = await verifiedImageUrl(input.image.publicId);
+
+  return db.transaction(async (tx) => {
+    // Brand: an existing one (any capitalisation), or a new one.
+    let [brand] = await tx.select().from(brands).where(sql`lower(${brands.name}) = ${input.brand.toLowerCase()}`);
+    if (!brand) {
+      [brand] = await tx.insert(brands).values({ name: input.brand, slug: slugify(input.brand) })
+        .onConflictDoNothing().returning();
+      if (!brand) throw httpError(409, 'A brand with a very similar name already exists. Pick it from the list.');
+    }
+    // The next code after the highest nura-NNN. Serialised by a transaction-level lock, so two
+    // admins creating products at the same moment can't both get nura-022.
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('nura:new-product'))`);
+    const [{ n }] = (await tx.execute(sql`
+      select coalesce(max(substring(sku from '^nura-([0-9]+)$')::int), 0) + 1 as n from products`)).rows;
+    const sku = `nura-${String(n).padStart(3, '0')}`;
+    // Address: the name as a slug; -2, -3… if another product already has it.
+    const base = slugify(input.name) || sku;
+    const taken = new Set((await tx.select({ slug: products.slug }).from(products)
+      .where(sql`${products.slug} = ${base} or ${products.slug} like ${base + '-%'}`)).map((r) => r.slug));
+    let slug = base;
+    for (let i = 2; taken.has(slug); i++) slug = `${base}-${i}`;
+
+    const [p] = await tx.insert(products).values({
+      sku, slug, name: input.name, brandId: brand.id, department: input.department, style: input.style ?? null,
+      description: input.description || null, priceKes: input.priceKes, compareAtKes: input.compareAtKes ?? null,
+      imageUrl, imageFocus: FOCUS[input.imageFocus ?? 'centre'], arrivedAt: new Date(),
+    }).returning();
+    await tx.insert(productVariants).values(input.sizes.map((s) => ({ productId: p.id, size: s.size, stock: s.stock })));
+    await audited(tx, admin, 'product.create', 'product', p.id, null, {
+      sku, name: p.name, brand: brand.name, priceKes: p.priceKes, sizes: input.sizes,
+    });
+    return { id: p.id, sku, slug };
+  });
+}
+
+/** A new photo (and/or crop) for an existing product. */
+export async function setProductImage(admin, id, { publicId, imageFocus }) {
+  const imageUrl = publicId ? await verifiedImageUrl(publicId) : undefined;
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(products).where(eq(products.id, id)).for('update');
+    if (!before) throw httpError(404, 'Product not found.');
+    const changes = { ...(imageUrl ? { imageUrl } : {}), ...(imageFocus ? { imageFocus: FOCUS[imageFocus] } : {}) };
+    await tx.update(products).set({ ...changes, updatedAt: new Date() }).where(eq(products.id, id));
+    await audited(tx, admin, 'product.image', 'product', id, pick(before, Object.keys(changes)), changes);
   });
 }
 
