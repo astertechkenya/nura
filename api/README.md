@@ -117,7 +117,7 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | POST | `/api/admin/orders/:id/cod-collected` | Cash on delivery: payment PAID (receipt "Cash") and the order DELIVERED together |
 | POST | `/api/admin/orders/:id/refunded` | A refund marked due has been sent |
 | GET | `/api/admin/products` | Every product, hidden ones too, with stock per size |
-| PATCH | `/api/admin/products/:id` | `{ priceKes?, compareAtKes? (null = not on sale), isActive? }`. The was-price must be above the price |
+| PATCH | `/api/admin/products/:id` | `{ priceKes?, compareAtKes? (null = not on sale), isActive?, description? }`. The was-price must be above the price; an empty description clears it (1,000 characters at most) |
 | PATCH | `/api/admin/variants/:id` | `{ stock }` (0–9999) |
 | GET | `/api/admin/brands` | Brand names, for the add form's suggestions |
 | POST | `/api/admin/uploads/sign` | A signed Cloudinary upload (NURA's folder, JPEG/PNG/WebP/AVIF). 30 an hour per account |
@@ -133,6 +133,10 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 |---|---|---|
 | GET | `/p/:slug` | The product's page, as HTML: title, description, Open Graph tags (the WhatsApp/Facebook preview card), schema.org Product data (price and stock for Google), and the product itself, inside the shared layout `frontend/product.html`. 404 with `noindex` for unknown or hidden products |
 | GET | `/sitemap.xml` | The shop pages and every visible product, for search engines (`frontend/robots.txt` points to it) |
+
+Each page ends with **You may also like**: four other products that are on the shop and in stock, from departments that fit (never men-only items on a women's page, or the reverse), most similar first (same style, then department, then brand), ties broken by the closest price (`recommend()` in `routes/pages.js`).
+
+Descriptions: the 21 seeded products' descriptions live in `src/db/seed-descriptions.json`. Migration `0005` copied them to production once, only into products that had none. From then on they are edited in the admin (Products → Description).
 
 Netlify forwards `/p/*` and `/sitemap.xml` here (`netlify.toml`), and `server.py` does the same locally. The API renders these because link previews and crawlers don't run JavaScript. These pages carry the storefront's security headers (`lib/siteHeaders.js`), and a test fails if that policy and `frontend/_headers` ever differ: **change both together**. Product text goes into the page through `lib/html.js` (`esc` for HTML, `jsonForScript` for the data blocks), never raw.
 

@@ -64,3 +64,20 @@
 
 .pd-missing{padding:60px 0;text-align:center;}
 .pd-missing p{color:#5f5f5f;font-size:14px;}
+
+/* You may also like: two across on a phone, four from 860 px. Each card is one link. */
+.pd-recs{margin-top:48px;border-top:1px solid var(--light);padding-top:28px;}
+.pd-recs__title{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,34px);letter-spacing:1px;margin-bottom:16px;}
+.pd-recs__list{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px;}
+@media (min-width:860px){.pd-recs__list{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;}}
+.pd-rec{display:grid;gap:4px;color:var(--black);}
+.pd-rec__img{display:block;aspect-ratio:3/4;overflow:hidden;margin-bottom:6px;}
+.pd-rec__img img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease;}
+.pd-rec:hover .pd-rec__img img{transform:scale(1.03);}
+@media (prefers-reduced-motion:reduce){.pd-rec__img img{transition:none;}.pd-rec:hover .pd-rec__img img{transform:none;}}
+.pd-rec__brand{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#5f5f5f;}
+.pd-rec__name{font-size:13px;font-weight:700;line-height:1.35;}
+.pd-rec:hover .pd-rec__name,.pd-rec:focus-visible .pd-rec__name{text-decoration:underline;text-underline-offset:3px;}
+.pd-rec:focus-visible{outline:2px solid var(--purple);outline-offset:4px;}
+.pd-rec__price{font-size:13px;}
+.pd-rec__price s{color:#5f5f5f;margin-left:6px;font-size:12px;}

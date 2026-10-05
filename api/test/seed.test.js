@@ -37,3 +37,18 @@ describe('catalogue sources', () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 });
+
+describe('product descriptions', () => {
+  it('every product has one, under the admin’s 1,000-character limit, and migration 0005 carries exactly these', async () => {
+    const { readFileSync } = await import('node:fs');
+    const d = JSON.parse(readFileSync(new URL('../src/db/seed-descriptions.json', import.meta.url), 'utf8')).products;
+    const migration = readFileSync(new URL('../drizzle/0005_product_descriptions.sql', import.meta.url), 'utf8');
+    const skus = JSON.parse(readFileSync(new URL('../src/db/seed-catalogue.json', import.meta.url), 'utf8')).products.map((p) => p.sku);
+    expect(Object.keys(d).sort()).toEqual([...skus].sort());
+    for (const [sku, text] of Object.entries(d)) {
+      expect(text.length, sku).toBeLessThanOrEqual(1000);
+      expect(text.includes('$d$'), sku).toBe(false);
+      expect(migration, sku).toContain(`$d$${text}$d$, "updated_at" = now() WHERE "sku" = '${sku}' AND "description" IS NULL;`);
+    }
+  });
+});

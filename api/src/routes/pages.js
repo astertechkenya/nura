@@ -15,9 +15,10 @@
 // frontend/product.html, the same shared layout as every other page. It has two marked regions
 // this file fills: <!--nura:head-->…<!--/nura:head--> and <!--nura:main-->…<!--/nura:main-->.
 // Netlify forwards /p/* and /sitemap.xml here (netlify.toml), so it's all one site to a visitor.
+// Each page ends with "You may also like": four other products, chosen by recommend() below.
 import { readFile } from 'node:fs/promises';
 import { Router } from 'express';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { products } from '../db/schema.js';
 import { config } from '../config.js';
@@ -154,7 +155,7 @@ function deliveryHtml() {
         <li>Your order is confirmed by email, with a link to follow it.</li></ul></section>`;
 }
 
-function mainHtml(p) {
+function mainHtml(p, recs = []) {
   const dept = DEPARTMENT[p.department];
   const soldOut = p.totalStock === 0;
   const save = p.onSale ? Math.round((1 - p.priceKes / p.compareAtKes) * 100) : 0;
@@ -184,8 +185,51 @@ function mainHtml(p) {
         ${detailsHtml(p)}
         ${deliveryHtml()}
       </div>
-    </article>
+    </article>${recsHtml(recs)}
     <script type="application/json" id="pdData">${jsonForScript(p)}</script>`;
+}
+
+/* ── Recommendations ("You may also like") ───────────────────────────────────────── */
+
+export const RECOMMEND_COUNT = 4;
+// Which departments can sit next to which: a women's page never suggests men-only items, and
+// the other way round. Unisex goes with everything.
+const FITS = { WOMEN: ['WOMEN', 'UNISEX'], MEN: ['MEN', 'UNISEX'], UNISEX: ['WOMEN', 'MEN', 'UNISEX'] };
+
+/**
+ * Up to four other products a shopper looking at `p` might also want. Simple, explainable
+ * rules rather than a black box:
+ *   only products that are on the shop and in stock (never a dead end);
+ *   only departments that fit (above), unless there aren't enough of those;
+ *   then the most similar first: same style +3, same department +2, same brand +1;
+ *   ties broken by the closest price (someone looking at KSh 5,000 rarely wants KSh 45,000),
+ *   then by code, so the same page always shows the same suggestions.
+ */
+export function recommend(p, all, count = RECOMMEND_COUNT) {
+  const others = all.filter((o) => o.sku !== p.sku && o.totalStock > 0);
+  const score = (o) => (p.style && o.style === p.style ? 3 : 0) + (o.department === p.department ? 2 : 0)
+    + (o.brand.name === p.brand.name ? 1 : 0);
+  const distance = (o) => Math.abs(Math.log(o.priceKes / p.priceKes));
+  const rank = (a, b) => score(b) - score(a) || distance(a) - distance(b) || a.sku.localeCompare(b.sku);
+  const fitting = others.filter((o) => FITS[p.department].includes(o.department)).sort(rank);
+  const rest = others.filter((o) => !FITS[p.department].includes(o.department)).sort(rank);
+  return [...fitting, ...rest].slice(0, count);
+}
+
+function recsHtml(list) {
+  if (!list.length) return '';
+  return `
+    <section class="pd-recs" aria-labelledby="pdRecs">
+      <h2 class="pd-recs__title" id="pdRecs">You may also like</h2>
+      <ul class="pd-recs__list">${list.map((o) => `
+        <li><a class="pd-rec" href="/p/${esc(o.slug)}">
+          <span class="pd-rec__img" style="background-color:${safeColour(o.cardBg)}"><img src="${esc(photo(o.imageUrl))}" alt="" loading="lazy" width="300" height="400" style="object-position:${safeFocus(o.imageFocus)}"></span>
+          <span class="pd-rec__brand">${esc(o.brand.name)}</span>
+          <span class="pd-rec__name">${esc(o.name)}</span>
+          <span class="pd-rec__price">${ksh(o.priceKes)}${o.onSale ? ` <s><span class="visually-hidden">was </span>${ksh(o.compareAtKes)}</s>` : ''}</span>
+        </a></li>`).join('')}
+      </ul>
+    </section>`;
 }
 
 const NOT_FOUND_HEAD = '<title>Not found — NURA</title>\n  <meta name="robots" content="noindex" />';
@@ -211,13 +255,18 @@ async function render(res, status, head, main) {
 
 pagesRouter.get('/p/:slug', async (req, res) => {
   const slug = String(req.params.slug);
-  const row = /^[a-z0-9-]{1,100}$/.test(slug) && await db.query.products.findFirst({
-    where: and(eq(products.slug, slug), eq(products.isActive, true)),   // hidden products: not found
+  if (!/^[a-z0-9-]{1,100}$/.test(slug)) return render(res, 404, NOT_FOUND_HEAD, NOT_FOUND_MAIN);
+  // One query for the product and the candidates for "You may also like". The whole active
+  // catalogue is small (tens of products); past a few hundred, narrow this to the departments
+  // that fit (see the "Later, at about 150 products" note in the build map).
+  const rows = await db.query.products.findMany({
+    where: eq(products.isActive, true),                                  // hidden products: not found
     with: { brand: true, variants: true },
   });
-  if (!row) return render(res, 404, NOT_FOUND_HEAD, NOT_FOUND_MAIN);
-  const p = toPublicProduct(row);
-  return render(res, 200, headTags(p), mainHtml(p));
+  const all = rows.map((r) => toPublicProduct(r));
+  const p = all.find((o) => o.slug === slug);
+  if (!p) return render(res, 404, NOT_FOUND_HEAD, NOT_FOUND_MAIN);
+  return render(res, 200, headTags(p), mainHtml(p, recommend(p, all)));
 });
 
 const STATIC_PAGES = ['index.html', 'women.html', 'men.html', 'new-in.html', 'sale.html'];

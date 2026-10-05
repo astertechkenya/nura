@@ -282,9 +282,31 @@
             var cls = v.stock === 0 ? 'is-out' : v.stock <= 3 ? 'is-low' : '';
             return '<label>' + esc(v.size) + '<input type="number" min="0" max="9999" step="1" inputmode="numeric" class="' + cls + '" data-variant="' + esc(v.id)
               + '" data-was="' + Number(v.stock) + '" value="' + Number(v.stock) + '" aria-label="Stock, ' + esc(p.name) + ' ' + esc(v.size) + '"' + off + '></label>';
-          }).join('') + '</div></article>';
+          }).join('') + '</div>'
+          // Description: folded away (it's long), shown on the product page and in link previews.
+          + '<details class="adm-desc"><summary>Description' + (p.description ? '' : ' <span class="adm-pill adm-pill--refund">missing</span>') + '</summary>'
+          + '<form data-desc novalidate><label class="adm-field">Description<textarea name="description" rows="5" maxlength="1000"' + off + '>' + esc(p.description || '') + '</textarea></label>'
+          + '<span class="adm-hint">A blank line starts a new paragraph. The first ~155 characters show in Google and WhatsApp previews.</span>'
+          + (me.masked ? '' : '<button class="adm-btn adm-btn--small" type="submit">Save description</button>')
+          + ' <a class="adm-muted" href="/p/' + encodeURIComponent(p.slug) + '" target="_blank" rel="noopener">View page ↗</a></form></details>'
+          + '</article>';
       }).join('');
     if (me.masked) return;
+
+    main.querySelectorAll('[data-desc]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var id = form.closest('[data-id]').dataset.id, btn = form.querySelector('button');
+        btn.disabled = true;
+        api('/products/' + id, { method: 'PATCH', body: { description: form.description.value } })
+          .then(function () {
+            toast('Description saved. It’s on the product page now.');
+            var pill = form.closest('details').querySelector('summary .adm-pill');
+            if (pill && form.description.value.trim()) pill.remove();
+          }, failed)
+          .finally(function () { btn.disabled = false; });
+      });
+    });
 
     main.querySelectorAll('[data-prices]').forEach(function (form) {
       form.addEventListener('submit', function (e) {

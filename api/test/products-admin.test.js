@@ -178,3 +178,21 @@ describe('changing a photo', () => {
     expect((await db.execute(sql`select image_url from products where id = ${p.id}`)).rows[0].image_url).toBe(p.image_url);
   });
 });
+
+describe('editing a description', () => {
+  it('saves, shows on the product page, clears with an empty box; too long is refused; audited; not for the demo', async () => {
+    const [p] = (await db.execute(sql`select id, description from products where sku = 'nura-012'`)).rows;
+    const text = 'A navy shirt.\n\nWear it loose.';
+    const res = await as(admin).patch(`/api/admin/products/${p.id}`).send({ description: `  ${text}  ` });
+    expect(res.status).toBe(200);
+    expect(res.body.products.find((x) => x.id === p.id).description).toBe(text);   // trimmed
+    expect((await request(app).get('/p/relaxed-linen-shirt')).text).toContain('<p>A navy shirt.</p><p>Wear it loose.</p>');
+    const [log] = (await db.execute(sql`select before, after from admin_actions where action = 'product.update' order by created_at desc limit 1`)).rows;
+    expect(log).toMatchObject({ before: { description: p.description }, after: { description: text } });
+    await as(admin).patch(`/api/admin/products/${p.id}`).send({ description: '   ' });
+    expect((await db.execute(sql`select description from products where id = ${p.id}`)).rows[0].description).toBeNull();
+    expect((await as(admin).patch(`/api/admin/products/${p.id}`).send({ description: 'x'.repeat(1001) })).body.error).toMatch(/under 1,000/);
+    expect((await as(looker).patch(`/api/admin/products/${p.id}`).send({ description: 'demo was here' })).status).toBe(403);
+    await db.execute(sql`update products set description = ${p.description} where id = ${p.id}`);
+  });
+});

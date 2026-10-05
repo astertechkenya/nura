@@ -32,7 +32,7 @@ export function readCatalogue(file = here('./seed-catalogue.json')) {
   return JSON.parse(readFileSync(file, 'utf8')).products;
 }
 
-export function buildCatalogue(catalogue, overrides, now = new Date()) {
+export function buildCatalogue(catalogue, overrides, now = new Date(), descriptions = {}) {
   return catalogue.map((p) => {
     const o = overrides.products[p.sku];
     if (!o) throw new Error(`${p.sku} (${p.name}) has no entry in seed-overrides.json`);
@@ -42,6 +42,7 @@ export function buildCatalogue(catalogue, overrides, now = new Date()) {
         sku: p.sku,
         slug: slugify(p.name),
         name: p.name,
+        description: descriptions[p.sku] ?? null,
         brandName: p.brand,
         department: o.department,
         style: o.style ?? null,
@@ -59,7 +60,8 @@ export function buildCatalogue(catalogue, overrides, now = new Date()) {
 
 export async function seed({ log = console.log } = {}) {
   const overrides = JSON.parse(readFileSync(here('./seed-overrides.json'), 'utf8'));
-  const catalogue = buildCatalogue(readCatalogue(), overrides);
+  const descriptions = JSON.parse(readFileSync(here('./seed-descriptions.json'), 'utf8')).products;
+  const catalogue = buildCatalogue(readCatalogue(), overrides, new Date(), descriptions);
 
   // One transaction: the seed either lands completely or not at all.
   await db.transaction(async (tx) => {

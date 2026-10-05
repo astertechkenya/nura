@@ -9,7 +9,7 @@
 //   POST  /api/admin/orders/:id/cod-collected   { note? }      COD: cash in hand → DELIVERED + PAID
 //   POST  /api/admin/orders/:id/refunded        { note? }      a due refund has been paid back
 //   GET   /api/admin/products                   every product, hidden ones too, with stock per size
-//   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, isActive? }
+//   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, isActive?, description? }
 //   PATCH /api/admin/variants/:id               { stock }
 //   GET   /api/admin/brands                     brand names, for the new-product form
 //   POST  /api/admin/uploads/sign               a signed Cloudinary upload (see services/cloudinary.js)
@@ -98,6 +98,9 @@ const productPatch = z.strictObject({
   priceKes: kes.optional(),
   compareAtKes: kes.nullable().optional(),                  // null removes the sale
   isActive: z.boolean().optional(),
+  // Shown on the product page and in link previews. Empty clears it.
+  description: z.string().trim().max(1000, 'Keep the description under 1,000 characters.')
+    .transform((s) => s || null).nullable().optional(),
 }).refine((b) => Object.keys(b).length > 0, 'Nothing to change.');
 adminRouter.patch('/products/:id', validate(idParams, 'params'), validate(productPatch), async (req, res) => {
   await updateProduct(req.admin, req.valid.params.id, req.valid.body);

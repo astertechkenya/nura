@@ -36,6 +36,13 @@
       "when": 1790931838956,
       "tag": "0004_newsletter_optin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791184455649,
+      "tag": "0005_product_descriptions",
+      "breakpoints": true
     }
   ]
 }

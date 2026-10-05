@@ -208,7 +208,7 @@ export async function listProducts() {
   return rows.map((p) => ({
     id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department, style: p.style,
     priceKes: p.priceKes, compareAtKes: p.compareAtKes, isActive: p.isActive, imageUrl: p.imageUrl, cardBg: p.cardBg,
-    imageFocus: p.imageFocus,
+    imageFocus: p.imageFocus, description: p.description, slug: p.slug,
     variants: [...p.variants].sort((a, b) => order.indexOf(a.size) - order.indexOf(b.size))
       .map((v) => ({ id: v.id, size: v.size, stock: v.stock })),
   }));

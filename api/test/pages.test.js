@@ -11,6 +11,7 @@ import { createApp } from '../src/app.js';
 import { db, pool } from '../src/db/client.js';
 import { config } from '../src/config.js';
 import { SITE_CSP } from '../src/lib/siteHeaders.js';
+import { recommend } from '../src/routes/pages.js';
 import { seed } from '../src/db/seed.js';
 
 const app = createApp();
@@ -73,9 +74,15 @@ describe('a product page', () => {
 describe('text from the database stays text', () => {
   it('a hostile product name can’t close a tag, start a script, or use replacement patterns', async () => {
     const evil = `Evil </script><script>alert(1)</script> "quote" $& $1 <img src=x onerror=alert(2)>`;
-    await db.execute(sql`insert into products (sku, slug, name, brand_id, department, price_kes, image_url, description, image_focus, card_bg)
-      select 'nura-990', 'evil-test', ${evil}, id, 'WOMEN', 1000, 'images/x.webp', ${'Line one\n\n</p><script>alert(3)</script>'}, '1%;background:url(x)', 'red;}' from brands limit 1`);
+    // Casual, KikoRomeo, the blazer's price, in stock: so it's also the blazer page's first suggestion.
+    await db.execute(sql`insert into products (sku, slug, name, brand_id, department, style, price_kes, image_url, description, image_focus, card_bg)
+      select 'nura-990', 'evil-test', ${evil}, id, 'WOMEN', 'Casual', 14200, 'images/x.webp', ${'Line one\n\n</p><script>alert(3)</script>'}, '1%;background:url(x)', 'red;}' from brands where name = 'KikoRomeo'`);
+    await db.execute(sql`insert into product_variants (product_id, size, stock) select id, 'M', 3 from products where sku = 'nura-990'`);
     try {
+      const blazer = (await page('linen-oversized-blazer')).text;
+      expect(blazer).toContain('<a class="pd-rec" href="/p/evil-test">');
+      expect(blazer).not.toContain('<script>alert');
+      expect(blazer).not.toContain('<img src=x');
       const h = (await page('evil-test')).text;
       // Exactly the layout's own scripts, plus our two data blocks: nothing from the name.
       expect(h).not.toContain('<script>alert');
@@ -115,5 +122,53 @@ describe('the sitemap', () => {
     expect(res.text).not.toContain('/p/neverfull-tote-bag');       // hidden in the test above
     await db.execute(sql`update products set is_active = true where sku = 'nura-005'`);
     expect((await request(app).get('/sitemap.xml')).text).toContain('/p/neverfull-tote-bag');
+  });
+});
+
+const recsOf = (html) => [...html.matchAll(/<a class="pd-rec" href="\/p\/([a-z0-9-]+)">/g)].map((m) => m[1]);
+const deptOf = async (slug) => (await db.execute(sql`select department from products where slug = ${slug}`)).rows[0].department;
+
+describe('descriptions', () => {
+  it('the page shows the description as paragraphs, and previews use its opening', async () => {
+    const h = (await page('linen-oversized-blazer')).text;
+    expect(h).toContain('<p>An off-white blazer with a relaxed, oversized cut');
+    expect(h.match(/<section class="pd__section" aria-labelledby="pdDetails">.*?<\/section>/s)[0].match(/<p>/g)).toHaveLength(2);
+    const meta = /<meta name="description" content="([^"]*)" \/>/.exec(h)[1];
+    expect(meta.startsWith('An off-white blazer')).toBe(true);
+    expect(meta.length).toBeLessThanOrEqual(156);
+    expect(meta.endsWith('…')).toBe(true);
+  });
+});
+
+describe('you may also like', () => {
+  it('four others, most similar first, never the product itself or another department', async () => {
+    const recs = recsOf((await page('linen-oversized-blazer')).text);   // WOMEN, Casual, KikoRomeo
+    expect(recs).toHaveLength(4);
+    expect(recs[0]).toBe('cotton-wrap-skirt');                         // WOMEN + Casual + KikoRomeo
+    expect(recs).not.toContain('linen-oversized-blazer');
+    for (const r of recs) expect(['WOMEN', 'UNISEX']).toContain(await deptOf(r));
+    const men = recsOf((await page('slim-tapered-trousers')).text);
+    for (const r of men) expect(['MEN', 'UNISEX']).toContain(await deptOf(r));
+  });
+
+  it('never suggests something sold out or hidden', async () => {
+    await db.execute(sql`update product_variants set stock = 0 where product_id = (select id from products where sku = 'nura-010')`);
+    await db.execute(sql`update products set is_active = false where sku = 'nura-007'`);
+    try {
+      const recs = recsOf((await page('linen-oversized-blazer')).text);
+      expect(recs).not.toContain('cotton-wrap-skirt');
+      expect(recs).not.toContain('tailored-column-dress');
+      expect(recs).toHaveLength(4);
+    } finally {
+      await db.execute(sql`update products set is_active = true where sku = 'nura-007'`);
+    }
+  });
+
+  it('the rules on their own: fills from other departments only when it must; the same page, the same suggestions', () => {
+    const mk = (sku, department, style, priceKes, totalStock = 5, brand = 'X') => ({ sku, department, style, priceKes, totalStock, brand: { name: brand } });
+    const p = mk('a', 'MEN', 'Formal', 10000);
+    const all = [p, mk('b', 'MEN', 'Formal', 50000), mk('c', 'MEN', null, 9000), mk('d', 'WOMEN', 'Formal', 10000), mk('e', 'WOMEN', null, 10000), mk('f', 'UNISEX', null, 10000, 0)];
+    expect(recommend(p, all).map((o) => o.sku)).toEqual(['b', 'c', 'd', 'e']);   // MEN first (style beats price), WOMEN only to fill; f is sold out
+    expect(recommend(p, [...all].reverse()).map((o) => o.sku)).toEqual(['b', 'c', 'd', 'e']);
   });
 });
