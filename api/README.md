@@ -145,6 +145,10 @@ Netlify forwards `/p/*` and `/sitemap.xml` here (`netlify.toml`), and `server.py
 
 Production lives in its own Neon project and the API connects as `nura_app`, a login that can read and write rows but not change tables, with `sslmode=verify-full`. In production the API refuses to start otherwise. How it's set up, how to run migrations against it, and how to test a restore: **`ops/README.md`**.
 
+### Error reports (Sentry, `lib/sentry.js`)
+
+With `SENTRY_DSN` set (on Render only), anything logged at `error` level with an `err`, plus crashes and unhandled rejections, is sent to Sentry, which emails you the first time each new kind of error appears. Only crash-catching integrations are on (no request data, IPs, cookies, console output, local variables or breadcrumbs), every event goes through `scrubEvent` (database values removed), and there is no performance tracing. Tests and local development never send anything.
+
 ### Logs and the security policy (Phase 8)
 
 Logs hold no personal data or secrets (`lib/logSafe.js`, `logger.js`): request lines carry only method, path, status and an id, with query values kept only for harmless keys (`page`, `status`…); database errors keep their SQL and error code but lose their parameters and any value Postgres quotes back; fields named like secrets or contact details are redacted. The storefront's Content-Security-Policy (`frontend/_headers`) is **enforced**. Whatever it blocks is reported to `POST /api/csp-report` and logged as "CSP blocked something" with the rule, the blocked origin and path, and the page's path. After a deploy, a burst of those lines means the deploy broke something.

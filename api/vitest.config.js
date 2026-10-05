@@ -29,6 +29,8 @@ process.env.DATABASE_URL = testUrl;
 for (const key of ['RESEND_API_KEY', 'MAIL_ONLY_TO', 'MAIL_FROM', 'RESEND_BASE_URL']) delete process.env[key];
 // Same for real Cloudinary keys: tests use the fake ones set below.
 for (const key of ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'CLOUDINARY_API_BASE']) delete process.env[key];
+// Tests never report to Sentry, even if .env has a DSN.
+delete process.env.SENTRY_DSN;
 process.env.SESSION_SECRET ??= TEST_SESSION_SECRET;
 
 export default defineConfig({

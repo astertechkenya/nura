@@ -105,6 +105,10 @@ const schema = z.object({
   CLOUDINARY_API_SECRET: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/, 'must be your Cloudinary API secret').optional(),
   // Tests point this at a fake Cloudinary. Leave unset.
   CLOUDINARY_API_BASE: z.url().default('https://api.cloudinary.com'),
+
+  // Error reports (Phase 8). Sentry → your project → Settings → Client Keys (DSN). Set it on
+  // Render only; leave it unset locally so development errors don't fill the free quota.
+  SENTRY_DSN: z.url().regex(/^https:\/\/[0-9a-f]+@[a-z0-9.-]+\.sentry\.io\/\d+$/, 'must be the DSN from Sentry (https://…@….ingest….sentry.io/…)').optional(),
 });
 
 function load(env) {

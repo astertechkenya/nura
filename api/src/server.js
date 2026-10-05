@@ -6,6 +6,9 @@ import { pool } from './db/client.js';
 import { sessionStore } from './middleware/session.js';
 import { startJobs, stopJobs } from './jobs/index.js';
 import { pendingMigrations } from './db/schemaCheck.js';
+import { initSentry, flushSentry } from './lib/sentry.js';
+
+if (initSentry()) logger.info('Sentry error reports on');
 
 // The database must already have every migration this code expects (see db/schemaCheck.js).
 try {
@@ -34,6 +37,7 @@ function shutdown(signal) {
   server.close(async () => {
     sessionStore.close();       // stops the expired-session clean-up timer
     await pool.end();
+    await flushSentry();        // let queued error reports leave
     process.exit(0);
   });
   setTimeout(() => process.exit(1), 10_000).unref(); // don't hang forever

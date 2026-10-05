@@ -6,6 +6,7 @@
 import { pino } from 'pino';
 import { config } from './config.js';
 import { errSerializer } from './lib/logSafe.js';
+import { reportError } from './lib/sentry.js';
 
 // pino's redact paths are exact: '*.phone' means "a phone field one level down". Logged objects
 // are shallow ({ err, paymentId, … }), so the top level and one level down cover them.
@@ -19,6 +20,16 @@ export const LOG_OPTIONS = {
     censor: '[redacted]',
   },
   serializers: { err: errSerializer(pino.stdSerializers.err) },
+  hooks: {
+    // Anything logged at "error" or worse with an { err } also goes to Sentry (lib/sentry.js),
+    // including from pino-http's per-request loggers, which inherit this hook.
+    logMethod(args, method, level) {
+      if (level >= 50 && args[0] && typeof args[0] === 'object' && args[0].err instanceof Error) {
+        reportError(args[0].err, typeof args[1] === 'string' ? args[1] : undefined);
+      }
+      return method.apply(this, args);
+    },
+  },
 };
 
 /** A logger with NURA's rules. `destination` lets tests read what would have been written. */

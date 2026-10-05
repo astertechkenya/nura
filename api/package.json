@@ -19,6 +19,7 @@
     "create-admin": "node --env-file-if-exists=.env src/scripts/createAdmin.js"
   },
   "dependencies": {
+    "@sentry/node": "11.4.0",
     "argon2": "0.45.1",
     "connect-pg-simple": "10.0.0",
     "drizzle-orm": "0.45.3",
@@ -35,5 +36,11 @@
     "drizzle-kit": "0.31.11",
     "supertest": "7.3.0",
     "vitest": "5.0.2"
+  },
+  "allowScripts": {
+    "argon2@0.45.1": true,
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
   }
 }
