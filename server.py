@@ -3,7 +3,8 @@
     python server.py            (from C:\\dev\\nura)
 
 Serves the storefront from ./frontend on http://localhost:8000 and forwards /api/... to the
-API on http://localhost:3000 (start it with `npm run dev` in api/). This mirrors what
+API on http://localhost:3000 (start it with `npm run dev` in api/), along with /p/<slug> and
+/sitemap.xml, which the API renders. This mirrors what
 Netlify does in production, so the pages behave the same locally: same origin, same paths.
 
 Caching is switched off so edits show up on a normal refresh.
@@ -51,7 +52,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        return self._proxy() if self.path.startswith("/api/") else super().do_GET()
+        # /p/<slug> (product pages) and /sitemap.xml are rendered by the API, as on Netlify.
+        dynamic = self.path.startswith(("/api/", "/p/")) or self.path.split("?")[0] == "/sitemap.xml"
+        return self._proxy() if dynamic else super().do_GET()
 
     def do_POST(self):
         return self._proxy() if self.path.startswith("/api/") else self.send_error(405)

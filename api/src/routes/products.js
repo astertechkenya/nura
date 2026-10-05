@@ -37,6 +37,7 @@ export function toPublicProduct(p, now = new Date()) {
     sku: p.sku,
     slug: p.slug,
     name: p.name,
+    description: p.description ?? null,
     brand: { name: p.brand.name, slug: p.brand.slug },
     department: p.department,
     style: p.style,
@@ -77,7 +78,7 @@ const likeEscape = (s) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
 //     a copy 18 minutes out of date to every visitor after a quiet spell.
 // So a price change shows within 30 seconds, and at once on a hard refresh. Checkout re-prices
 // on the server regardless, so a stale card can never change what anyone pays.
-function cacheBriefly(res) {
+export function cacheBriefly(res) {
   res.set('Cache-Control', 'private, max-age=30');
   res.set('Netlify-CDN-Cache-Control', 'no-store');
 }

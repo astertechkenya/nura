@@ -17,6 +17,22 @@
 # `signed` makes Netlify add an x-nf-sign header, a token signed with the secret stored in
 # the NETLIFY_PROXY_SECRET environment variable (set on Netlify AND on Render). The API
 # believes the shopper-IP header only when that signature checks out.
+# Product pages and the sitemap are rendered by the API too (api/src/routes/pages.js), so a
+# link pasted into WhatsApp shows the product's photo, name and price. Same signed proxy.
+[[redirects]]
+  from = "/p/*"
+  to = "https://nura-api-w1nm.onrender.com/p/:splat"
+  status = 200
+  force = true
+  signed = "NETLIFY_PROXY_SECRET"
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "https://nura-api-w1nm.onrender.com/sitemap.xml"
+  status = 200
+  force = true
+  signed = "NETLIFY_PROXY_SECRET"
+
 [[redirects]]
   from = "/api/*"
   to = "https://nura-api-w1nm.onrender.com/api/:splat"

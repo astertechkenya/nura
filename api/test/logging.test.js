@@ -7,7 +7,7 @@ import { sql } from 'drizzle-orm';
 import { pino } from 'pino';
 import { createLogger } from '../src/logger.js';
 import { safeUrl, reqSerializer } from '../src/lib/logSafe.js';
-import { readReports, trimUrl } from '../src/routes/csp.js';
+import { isNetlifyBadge, readReports, trimUrl } from '../src/routes/csp.js';
 import { createApp } from '../src/app.js';
 import { db, pool } from '../src/db/client.js';
 import { netlifyToken } from './helpers.js';
@@ -108,6 +108,18 @@ describe('CSP reports', () => {
     expect(r).toEqual({ directive: 'connect-src', blocked: 'https://evil.example/c', page: '/newsletter.html', disposition: 'enforce' });
     expect(trimUrl('inline')).toBe('inline');
     expect(readReports([1, 2, 3].map(() => ({ body: {} })).concat(Array(20).fill({ body: {} })))).toHaveLength(10);
+  });
+
+  it('frames keep their scheme ("about:srcdoc", not "about"); only Netlify’s badge pattern is skipped', () => {
+    const [badge] = readReports({ 'csp-report': { 'document-uri': 'about:srcdoc', 'effective-directive': 'script-src-elem', 'blocked-uri': 'inline' } });
+    expect(badge.page).toBe('about:srcdoc');
+    expect(isNetlifyBadge(badge)).toBe(true);
+    const [blank] = readReports({ 'csp-report': { 'document-uri': 'about:blank', 'effective-directive': 'script-src-elem', 'blocked-uri': 'inline' } });
+    expect(blank.page).toBe('about:blank');
+    expect(isNetlifyBadge(blank)).toBe(false);
+    for (const other of [{ ...badge, page: '/index.html' }, { ...badge, blocked: 'https://evil.example/x.js' }, { ...badge, directive: 'img-src' }]) {
+      expect(isNetlifyBadge(other)).toBe(false);
+    }
   });
 
   it('junk is answered without crashing; a flood is limited', async () => {

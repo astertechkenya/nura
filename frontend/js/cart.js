@@ -281,5 +281,5 @@
 
   load().catch(function () { /* API asleep: the badge stays hidden until it wakes */ });
 
-  NURA.cart = { open: open, close: close, reload: load, count: function () { return cart ? cart.count : 0; } };
+  NURA.cart = { open: open, close: close, reload: load, add: addVariant, count: function () { return cart ? cart.count : 0; } };
 })();

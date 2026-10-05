@@ -1,6 +1,7 @@
 /* NURA search.js: the search overlay.
    Products come from the API (NURA.products(), fetched once per page and shared with
-   grid.js). Each result links to a page that holds its card (NURA.pageFor, in api.js, uses
+   grid.js). Each result links to the product's own page (NURA.productUrl, in api.js). (Before product pages,
+   it linked to a page that held its card: NURA.pageFor, which uses
    the same rules that fill the grids). Filtering the list happens here in the browser: 21 products is tiny, and
    filtering locally keeps results instant as you type. */
 (function () {
@@ -39,7 +40,7 @@
     if (!matches.length) { message('No results'); return; }
     results.innerHTML = matches.map(function (p) {
       var bg = esc(p.cardBg);
-      return '<a class="search-result" href="' + esc(NURA.pageFor(p)) + '">'
+      return '<a class="search-result" href="' + esc(NURA.productUrl(p)) + '">'
         + (p.imageUrl
             ? '<div class="search-result__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(p.imageUrl) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
             : '<div class="search-result__img" style="background:' + bg + '"></div>')

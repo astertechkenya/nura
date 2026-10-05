@@ -127,6 +127,15 @@ Every `/api/admin/*` route re-reads the account's role from the database on each
 | GET | `/api/admin/newsletter.csv` | Confirmed subscribers only. Audited; refused to the demo admin |
 | GET | `/api/admin/activity` | The audit log, newest first |
 
+### Product pages (`routes/pages.js`)
+
+| Method | Path | What it does |
+|---|---|---|
+| GET | `/p/:slug` | The product's page, as HTML: title, description, Open Graph tags (the WhatsApp/Facebook preview card), schema.org Product data (price and stock for Google), and the product itself, inside the shared layout `frontend/product.html`. 404 with `noindex` for unknown or hidden products |
+| GET | `/sitemap.xml` | The shop pages and every visible product, for search engines (`frontend/robots.txt` points to it) |
+
+Netlify forwards `/p/*` and `/sitemap.xml` here (`netlify.toml`), and `server.py` does the same locally. The API renders these because link previews and crawlers don't run JavaScript. These pages carry the storefront's security headers (`lib/siteHeaders.js`), and a test fails if that policy and `frontend/_headers` ever differ: **change both together**. Product text goes into the page through `lib/html.js` (`esc` for HTML, `jsonForScript` for the data blocks), never raw.
+
 ### Logs and the security policy (Phase 8)
 
 Logs hold no personal data or secrets (`lib/logSafe.js`, `logger.js`): request lines carry only method, path, status and an id, with query values kept only for harmless keys (`page`, `status`…); database errors keep their SQL and error code but lose their parameters and any value Postgres quotes back; fields named like secrets or contact details are redacted. The storefront's Content-Security-Policy (`frontend/_headers`) is **enforced**. Whatever it blocks is reported to `POST /api/csp-report` and logged as "CSP blocked something" with the rule, the blocked origin and path, and the page's path. After a deploy, a burst of those lines means the deploy broke something.

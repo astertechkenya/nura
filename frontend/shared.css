@@ -287,3 +287,10 @@ button.product-card__overlay,button.product__overlay{border:0;width:100%;font-fa
 .nura-toast{position:fixed;bottom:32px;left:32px;max-width:calc(100vw - 32px);background:var(--black);color:var(--white);padding:14px 22px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;line-height:1.6;z-index:999;transform:translateY(20px);opacity:0;transition:transform .35s ease,opacity .35s ease;pointer-events:none;}
 .nura-toast.show{transform:translateY(0);opacity:1;}
 @media (max-width:600px){.nura-toast{left:16px;right:16px;bottom:16px;}}
+
+/* Product cards link to the product page (Phase 8): the photo (a duplicate link, hidden from
+   keyboard and screen readers) and the name (the real link). */
+.card-photo-link{position:absolute;inset:0;display:block;}
+.card-name-link{color:inherit;}
+.card-name-link:hover,.card-name-link:focus-visible{text-decoration:underline;text-underline-offset:3px;}
+.card-name-link:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}

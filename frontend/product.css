@@ -1,0 +1,66 @@
+/* NURA product.css: the product page (/p/<slug>). Mobile first: one column, photo on top;
+   two columns from 860 px. Uses the colour and font variables every page defines. */
+.pd-page{max-width:1180px;margin:0 auto;padding:16px 16px 64px;}
+.pd-loading{padding:80px 0;text-align:center;color:#5f5f5f;}
+
+.pd-crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:6px;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#5f5f5f;margin-bottom:14px;}
+.pd-crumbs li+li::before{content:'/';margin-right:6px;color:var(--muted);}
+.pd-crumbs a{color:var(--black);}
+.pd-crumbs a:hover,.pd-crumbs a:focus-visible{color:var(--purple-dim);}
+.pd-crumbs [aria-current]{color:#5f5f5f;max-width:24ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.pd{display:grid;gap:22px;}
+@media (min-width:860px){.pd{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:48px;align-items:start;}}
+
+/* Same 3:4 shape as the cards, so the crop chosen in the admin is the crop shown here. */
+.pd__media{position:relative;aspect-ratio:3/4;overflow:hidden;}
+.pd__media img{width:100%;height:100%;object-fit:cover;}
+/* On a phone, keep the name and price within reach of the first screen. */
+@media (max-width:859px){.pd__media{max-height:68vh;width:100%;}}
+@media (min-width:860px){.pd__media{position:sticky;top:84px;}}
+.pd__badge{position:absolute;top:12px;left:12px;z-index:1;background:var(--black);color:var(--white);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:6px 10px;}
+.pd__badge--sale{background:var(--red-sale);}
+
+.pd__brand{font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#5f5f5f;}
+.pd__name{font-family:var(--display);font-weight:400;font-size:clamp(34px,6vw,52px);line-height:1;letter-spacing:1px;margin:6px 0 12px;}
+.pd__name:focus{outline:none;}
+.pd__price{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:22px;}
+.pd__now{font-size:22px;font-weight:700;}
+.pd__was{font-size:15px;color:#5f5f5f;}
+.pd__save{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--red-sale);}
+
+.pd__sizes{border:0;padding:0;margin:0 0 6px;}
+.pd__label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
+.pd__chips{display:flex;flex-wrap:wrap;gap:8px;}
+/* The radio button is visually hidden but still the real control: keyboard and screen readers
+   use it; the label is what you see and tap (44 px tall: a comfortable thumb target). */
+.pd-chip{position:relative;}
+.pd-chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;}
+.pd-chip span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:56px;min-height:44px;padding:0 12px;border:1.5px solid var(--light);background:var(--white);font-size:13px;font-weight:700;}
+.pd-chip input:checked+span{border-color:var(--black);background:var(--black);color:var(--white);}
+.pd-chip input:focus-visible+span{outline:2px solid var(--purple);outline-offset:2px;}
+.pd-chip.is-out span:first-of-type{color:var(--muted);text-decoration:line-through;background:var(--bg-light);}
+.pd-chip input:disabled{cursor:not-allowed;}
+
+.pd__stock{min-height:20px;font-size:12px;color:#5f5f5f;margin-top:6px;}
+.pd__stock.is-low{color:var(--red-sale);font-weight:700;}
+.pd__msg{min-height:18px;font-size:12px;font-weight:700;color:var(--red-sale);}
+.pd__actions{display:flex;gap:10px;margin:8px 0 30px;}
+.pd__add{flex:1;min-height:52px;background:var(--black);color:var(--white);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;transition:background .2s;}
+.pd__add:hover:not(:disabled),.pd__add:focus-visible{background:var(--purple-dim);}
+.pd__add:disabled{background:var(--mid);}
+.pd__add--link{display:inline-flex;align-items:center;justify-content:center;padding:0 28px;margin-top:20px;}
+.pd__wish{position:static;width:52px;min-height:52px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1.5px solid var(--light);color:var(--black);}
+.pd__wish:focus-visible,.pd__add:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+.pd__section{border-top:1px solid var(--light);padding:18px 0;}
+.pd__section h2{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
+.pd__section p{font-size:14px;line-height:1.7;margin-bottom:10px;}
+.pd__facts{display:grid;gap:6px;font-size:13px;}
+.pd__facts div{display:flex;gap:10px;}
+.pd__facts dt{color:#5f5f5f;min-width:110px;}
+.pd__list{list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.6;}
+.pd__list li::before{content:'—';margin-right:8px;color:var(--purple-dim);}
+
+.pd-missing{padding:60px 0;text-align:center;}
+.pd-missing p{color:#5f5f5f;font-size:14px;}

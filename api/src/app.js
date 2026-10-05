@@ -15,6 +15,7 @@ import { newsletterRouter } from './routes/newsletter.js';
 import { verifyNetlifySignature } from './lib/clientIp.js';
 import { reqSerializer } from './lib/logSafe.js';
 import { cspRouter } from './routes/csp.js';
+import { pagesRouter } from './routes/pages.js';
 import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
 import { wishlistRouter } from './routes/wishlist.js';
@@ -80,6 +81,9 @@ export function createApp() {
   app.use('/api/csp-report', cspRouter);
 
   app.use(sameOrigin);          // refuse writes triggered by other websites (CSRF)
+
+  // Product pages (/p/:slug) and /sitemap.xml: HTML for shoppers and crawlers (routes/pages.js).
+  app.use(pagesRouter);
 
   app.use('/api/products', productsRouter);   // public and cacheable: no session needed
   app.use('/api/newsletter', newsletterRouter);

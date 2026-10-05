@@ -1,0 +1,13 @@
+# NURA: search engines may index the shop and product pages, not private or one-off pages.
+User-agent: *
+Disallow: /admin/
+Disallow: /account.html
+Disallow: /checkout.html
+Disallow: /order-confirmed.html
+Disallow: /newsletter.html
+Disallow: /reset.html
+Disallow: /api/
+
+# Every product page, kept current by the API (api/src/routes/pages.js).
+# Update this address if the shop moves to its own domain.
+Sitemap: https://nurafashion.netlify.app/sitemap.xml

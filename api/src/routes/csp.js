@@ -25,7 +25,8 @@ export function trimUrl(u) {
   if (typeof u !== 'string' || !u) return undefined;
   try {
     const url = new URL(u);
-    return (url.origin === 'null' ? url.protocol : url.origin + url.pathname).slice(0, 200);
+    // about:srcdoc, about:blank, data:… have no origin: keep the scheme and the (short) path.
+    return (url.origin === 'null' ? url.protocol + url.pathname.slice(0, 20) : url.origin + url.pathname).slice(0, 200);
   } catch {
     return u.slice(0, 40);   // keywords such as "inline" or "eval"
   }
@@ -36,10 +37,21 @@ export function readReports(body) {
   return list.filter((r) => r && typeof r === 'object').slice(0, 10).map((r) => ({
     directive: String(r['effective-directive'] ?? r.effectiveDirective ?? r['violated-directive'] ?? '').slice(0, 60),
     blocked: trimUrl(r['blocked-uri'] ?? r.blockedURL),
-    page: (() => { const p = trimUrl(r['document-uri'] ?? r.documentURL); try { return p && new URL(p).pathname; } catch { return p; } })(),
+    page: (() => {
+      const p = trimUrl(r['document-uri'] ?? r.documentURL);
+      return p && /^https?:/.test(p) ? new URL(p).pathname : p;   // a path for our pages, "about:srcdoc" for frames
+    })(),
     disposition: r.disposition === 'report' ? 'report' : 'enforce',
   }));
 }
+
+// Netlify adds a "Powered by Netlify" badge to Free-plan projects created after 19 Aug 2026: an
+// iframe built from inline HTML (srcdoc) that runs an inline script. Our policy blocks it, which
+// Netlify documents as expected ("the badge won't render; nothing else is affected"), and we keep
+// it that way: allowing 'unsafe-inline' would undo the protection against injected scripts. Every
+// page view would report it, burying real reports, so this one known case isn't logged. NURA
+// itself never creates srcdoc frames, so nothing of ours can hide behind this rule.
+export const isNetlifyBadge = (r) => r.page === 'about:srcdoc' && r.blocked === 'inline' && r.directive.startsWith('script-src');
 
 cspRouter.post(
   '/',
@@ -47,7 +59,10 @@ cspRouter.post(
   limit({ windowMs: 10 * 60 * 1000, max: 30, message: 'Too many reports.' }),
   parse,
   (req, res) => {
-    for (const r of readReports(req.body)) logger.warn({ csp: r }, 'CSP blocked something');
+    for (const r of readReports(req.body)) {
+      if (isNetlifyBadge(r)) continue;
+      logger.warn({ csp: r }, 'CSP blocked something');
+    }
     res.status(204).end();
   },
 );

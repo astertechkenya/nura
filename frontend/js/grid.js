@@ -36,19 +36,23 @@
       ? '<button type="button" class="' + tag + '__overlay" data-sold-out aria-disabled="true">Sold out</button>'
       : '<button type="button" class="' + tag + '__overlay" data-action="add-to-cart">Add to cart</button>';
     var low = p.totalStock > 0 && p.totalStock <= LOW_STOCK;
+    var url = NURA.productUrl(p);
 
     return '<article class="' + tag + (soldOut ? ' is-sold-out' : '') + '" data-sku="' + esc(p.sku) + '"'
       + ' data-style="' + esc(p.style || '') + '" data-stock="' + Number(p.totalStock) + '"'
       + ' data-arrived="' + esc(p.arrivedAt) + '">'
       + '<div class="' + tag + '__img">'
       +   (badge ? '<span class="product-card__badge product-card__badge--' + badge + '">' + (badge === 'sale' ? 'Sale' : 'New') + '</span>' : '')
-      +   '<img class="nura-card-img" src="' + esc(p.imageUrl) + '" alt="' + esc(p.name) + '" loading="lazy">'
+      // The photo links to the product page too, but only the name is announced and in the tab
+      // order: one link per product for keyboard and screen-reader users, not two.
+      +   '<a class="card-photo-link" href="' + esc(url) + '" tabindex="-1" aria-hidden="true">'
+      +     '<img class="nura-card-img" src="' + esc(p.imageUrl) + '" alt="" loading="lazy"></a>'
       +   '<button class="product__wish product-card__wish" data-wishlist-id="' + esc(p.sku) + '" aria-label="Add to wishlist" aria-pressed="false" data-action="wishlist">' + HEART + '</button>'
       +   overlay
       + '</div>'
       + '<div class="' + tag + '__body">'
       +   '<p class="' + tag + '__brand">' + esc(p.brand.name) + '</p>'
-      +   '<p class="' + tag + '__name">' + esc(p.name) + '</p>'
+      +   '<p class="' + tag + '__name"><a class="card-name-link" href="' + esc(url) + '">' + esc(p.name) + '</a></p>'
       +   '<p><span class="' + tag + '__price">' + NURA.fmtKsh(p.priceKes) + '</span>'
       +     (p.onSale ? '<span class="' + tag + '__price-old"><span class="visually-hidden">was </span>' + NURA.fmtKsh(p.compareAtKes) + '</span>' : '')
       +   '</p>'

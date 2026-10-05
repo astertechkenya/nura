@@ -97,6 +97,9 @@
 
   /** The page to open for a search result: New In if it's new, Sale if it's on sale, else its
    *  department. The rules above guarantee that page contains the card; #sku scrolls to it. */
+  /** A product's own page (rendered by the API: api/src/routes/pages.js). */
+  NURA.productUrl = function (p) { return '/p/' + encodeURIComponent(p.slug); };
+
   NURA.pageFor = function (p) {
     var page = p.isNew ? 'new-in.html'
       : p.onSale ? 'sale.html'
