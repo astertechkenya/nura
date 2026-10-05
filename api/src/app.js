@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
+import { wakeJobs } from './jobs/index.js';
 import { config } from './config.js';
 import { logger, LOG_OPTIONS } from './logger.js';
 import { db } from './db/client.js';
@@ -47,9 +48,9 @@ export function createApp() {
       res.setHeader('X-Request-Id', id);
       return id;
     },
-    // Render calls /api/health every few seconds. Logging each one buries real traffic,
-    // so health checks are served but not logged.
-    autoLogging: config.isTest ? false : { ignore: (req) => req.url === '/api/health' },
+    // Render's health check and the uptime monitor call these every few seconds or minutes.
+    // Logging each one buries real traffic, so they're served but not logged.
+    autoLogging: config.isTest ? false : { ignore: (req) => req.url === '/api/health' || req.url === '/api/ping' },
     // Log only what's needed to trace a request. The default logs every header, including
     // shoppers' IP addresses and cookies: personal data we have no reason to keep
     // (Kenya's Data Protection Act asks for data minimisation).
@@ -68,7 +69,19 @@ export function createApp() {
     verify: (req, res, buf) => { if (req.url.startsWith('/api/payments/')) req.rawBody = buf; },
   }));
 
-  // Health check for Render and uptime monitors. It asks the database a trivial question, so
+  // Liveness: is the API process up? No database query, so Render's health checks and the
+  // uptime monitor (which keeps this free server awake) don't keep the database awake too.
+  app.get('/api/ping', (req, res) => res.json({ ok: true }));
+
+  // A request that may have opened or settled a payment wakes the payment jobs (jobs/index.js),
+  // which otherwise stay quiet so the database can sleep.
+  app.use(['/api/checkout', '/api/orders', '/api/payments'], (req, res, next) => {
+    if (req.method !== 'GET') res.on('finish', wakeJobs);
+    next();
+  });
+
+  // Readiness, with the database: for checking by hand after a deploy. Not for monitors that
+  // call every few minutes (see /api/ping). It asks the database a trivial question, so
   // "healthy" means the API can actually serve data, not just that the process is running.
   app.get('/api/health', async (req, res) => {
     await db.execute(sql`select 1`);

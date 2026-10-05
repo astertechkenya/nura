@@ -41,4 +41,14 @@ describe('config', () => {
   it('turns numeric strings from the environment into numbers', () => {
     expect(loadConfig({ DATABASE_URL: 'postgresql://u@h/db', SESSION_SECRET: 's'.repeat(32), PORT: '8080' }).PORT).toBe(8080);
   });
+
+  it('production connects as the limited app login, and checks Neon’s certificate', () => {
+    const prod = (url) => () => loadConfig({ NODE_ENV: 'production', DATABASE_URL: url, SESSION_SECRET: 's'.repeat(32) });
+    expect(prod('postgresql://nura_app:pw@ep-x.neon.tech/nura_prod?sslmode=verify-full&channel_binding=require')).not.toThrow();
+    expect(prod('postgresql://nura_app:pw@ep-x.neon.tech/nura_prod?sslmode=require')).toThrow(/verify-full/);
+    expect(prod('postgresql://neondb_owner:pw@ep-x.neon.tech/nura_prod?sslmode=verify-full')).toThrow(/limited app login.*neondb_owner/);
+    expect(prod('postgresql://nura_prod_owner:pw@h/nura_prod')).toThrow(/verify-full[\s\S]*neondb_owner|verify-full[\s\S]*nura_prod_owner/);
+    // Development and tests may use anything (local Postgres has no certificate).
+    expect(() => loadConfig({ DATABASE_URL: 'postgresql://neondb_owner@localhost/nura_dev' })).not.toThrow();
+  });
 });

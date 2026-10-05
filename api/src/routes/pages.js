@@ -220,7 +220,7 @@ function recsHtml(list) {
   if (!list.length) return '';
   return `
     <section class="pd-recs" aria-labelledby="pdRecs">
-      <h2 class="pd-recs__title" id="pdRecs">You may also like</h2>
+      <h2 class="pd-recs__title" id="pdRecs">You may also <span class="pd-recs__accent">like</span></h2>
       <ul class="pd-recs__list">${list.map((o) => `
         <li><a class="pd-rec" href="/p/${esc(o.slug)}">
           <span class="pd-rec__img" style="background-color:${safeColour(o.cardBg)}"><img src="${esc(photo(o.imageUrl))}" alt="" loading="lazy" width="300" height="400" style="object-position:${safeFocus(o.imageFocus)}"></span>

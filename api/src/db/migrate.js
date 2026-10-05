@@ -1,6 +1,9 @@
 // migrate.js: applies any SQL files in api/drizzle/ that the database has not seen yet.
 //
-// Run by `npm run db:migrate` locally and by Render on every deploy. It uses the runtime
+// Run by `npm run db:migrate`, from your laptop. For production, run it as the production
+// database's OWNER through the Read-Host window, before pushing code that needs the change
+// (ops/README.md). Render doesn't run it: Render's login (nura_app) can't change tables, and
+// the server refuses to start in production while a migration is missing (db/schemaCheck.js). It uses the runtime
 // migrator from drizzle-orm (not drizzle-kit), so production does not need dev tools installed.
 // Drizzle records what it applied in drizzle.__drizzle_migrations, so running it twice is safe.
 import { fileURLToPath } from 'node:url';
@@ -14,11 +17,19 @@ export async function runMigrations() {
 
 // Only run when executed directly (`node src/db/migrate.js`), not when imported by tests.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  // Say who and where (never the password), so a wrong string is obvious before anything runs.
+  const target = new URL(process.env.DATABASE_URL ?? 'postgresql://unset');
+  console.log(`Migrating ${target.pathname.slice(1)} on ${target.hostname} as ${decodeURIComponent(target.username)}`);
   try {
     await runMigrations();
     console.log('Migrations applied.');
   } catch (err) {
-    console.error('Migration failed:', err.message);
+    // Drizzle's own message only says which statement failed; Postgres' reason is in the cause.
+    console.error('Migration failed:', (err.message ?? '').split('\nparams:')[0]);
+    if (err.cause?.message) console.error('Reason:', err.cause.message);
+    if (/permission denied/.test(err.cause?.message ?? '')) {
+      console.error('This login can\'t change tables. Migrations need the database OWNER (neondb_owner), not nura_app.');
+    }
     process.exitCode = 1;
   } finally {
     await pool.end();

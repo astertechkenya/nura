@@ -5,6 +5,21 @@ import { logger } from './logger.js';
 import { pool } from './db/client.js';
 import { sessionStore } from './middleware/session.js';
 import { startJobs, stopJobs } from './jobs/index.js';
+import { pendingMigrations } from './db/schemaCheck.js';
+
+// The database must already have every migration this code expects (see db/schemaCheck.js).
+try {
+  const pending = await pendingMigrations();
+  if (pending.length) {
+    const msg = `The database is missing migrations: ${pending.join(', ')}. Run them first (npm run db:migrate, as the owner; see ops/README.md).`;
+    if (config.isProd) { logger.fatal(msg); process.exit(1); }
+    logger.warn(msg);
+  }
+} catch (err) {
+  // Can't tell (e.g. a login without the grant on drizzle.__drizzle_migrations, from
+  // ops/app-role.sql): say so, but don't stop the shop over the check itself.
+  logger.warn({ err }, 'could not check the database for missing migrations');
+}
 
 const server = createApp().listen(config.PORT, () => {
   logger.info(`NURA API listening on http://localhost:${config.PORT} (${config.NODE_ENV})`);

@@ -37,6 +37,7 @@
 .pd-chip{position:relative;}
 .pd-chip input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;}
 .pd-chip span:first-of-type{display:flex;align-items:center;justify-content:center;min-width:56px;min-height:44px;padding:0 12px;border:1.5px solid var(--light);background:var(--white);font-size:13px;font-weight:700;}
+.pd-chip span:first-of-type{transition:background-color .2s ease,border-color .2s ease,color .2s ease;}
 .pd-chip input:checked+span{border-color:var(--black);background:var(--black);color:var(--white);}
 .pd-chip input:focus-visible+span{outline:2px solid var(--purple);outline-offset:2px;}
 .pd-chip.is-out span:first-of-type{color:var(--muted);text-decoration:line-through;background:var(--bg-light);}
@@ -52,6 +53,21 @@
 .pd__add--link{display:inline-flex;align-items:center;justify-content:center;padding:0 28px;margin-top:20px;}
 .pd__wish{position:static;width:52px;min-height:52px;display:flex;align-items:center;justify-content:center;background:var(--white);border:1.5px solid var(--light);color:var(--black);}
 .pd__wish:focus-visible,.pd__add:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+.pd__wish{transition:background-color .2s ease,border-color .2s ease;}
+
+/* Purple fill on hover, like the cart button and card overlays. Only where a real pointer can
+   hover: on a phone, a tap would otherwise leave the button stuck purple. Text and the heart
+   stay black on purple: white on this light purple is too faint to read (about 2.9:1), black
+   is about 7:1. */
+@media (hover:hover){
+  .pd-chip input:not(:disabled)+span:hover,
+  .pd-chip input:not(:disabled):hover+span{background:var(--purple);border-color:var(--purple);color:var(--black);}
+  .pd__wish:hover{background:var(--purple);border-color:var(--purple);}
+  /* wishlist.js colours a saved heart purple inline; on a purple button it turns black. */
+  .pd__wish:hover svg{stroke:var(--black)!important;}
+  .pd__wish.wishlisted:hover svg{fill:var(--black)!important;}
+}
+@media (prefers-reduced-motion:reduce){.pd-chip span:first-of-type,.pd__wish{transition:none;}}
 
 .pd__section{border-top:1px solid var(--light);padding:18px 0;}
 .pd__section h2{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
@@ -68,6 +84,8 @@
 /* You may also like: two across on a phone, four from 860 px. Each card is one link. */
 .pd-recs{margin-top:48px;border-top:1px solid var(--light);padding-top:28px;}
 .pd-recs__title{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,34px);letter-spacing:1px;margin-bottom:16px;}
+/* The site's darker purple: the lighter one is too faint on this pale background (2.6:1). */
+.pd-recs__accent{color:var(--purple-dim);}
 .pd-recs__list{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px;}
 @media (min-width:860px){.pd-recs__list{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;}}
 .pd-rec{display:grid;gap:4px;color:var(--black);}

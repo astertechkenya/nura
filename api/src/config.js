@@ -12,6 +12,7 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
   // postgres://user:password@host/dbname?sslmode=require  (Neon gives you this string)
+  // Production (Render) must use sslmode=verify-full and the app login, never an owner (below).
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
 
   // The storefront's public address. Used to build links in emails and payment redirects.
@@ -119,6 +120,19 @@ function load(env) {
     throw new Error(`Invalid environment configuration:\n${problems}\nSee api/.env.example.`);
   }
   const c = parsed.data;
+  if (c.NODE_ENV === 'production') {
+    const db = new URL(c.DATABASE_URL);
+    const rules = [];
+    // Check Neon's certificate, not only encrypt: without it, anything that can sit between
+    // Render and Neon could pose as the database and read every query.
+    if (db.searchParams.get('sslmode') !== 'verify-full') rules.push('DATABASE_URL: production must use ?sslmode=verify-full');
+    // The live API reads and writes rows; it must never hold the owner login that can drop
+    // tables. Neon names owner logins <database>_owner (neondb_owner…). See ops/README.md.
+    if (/_owner$/.test(decodeURIComponent(db.username))) {
+      rules.push(`DATABASE_URL: production must connect as the limited app login (nura_app), not ${decodeURIComponent(db.username)}`);
+    }
+    if (rules.length) throw new Error(`Invalid environment configuration:\n${rules.map((r) => `  - ${r}`).join('\n')}\nSee api/ops/README.md.`);
+  }
   const mpesaEnabled = Boolean(c.DARAJA_CONSUMER_KEY && c.DARAJA_CONSUMER_SECRET && c.DARAJA_SHORTCODE
     && c.DARAJA_PASSKEY && c.PUBLIC_API_URL && c.MPESA_CALLBACK_SECRET);
   const cardEnabled = Boolean(c.PAYSTACK_SECRET_KEY);

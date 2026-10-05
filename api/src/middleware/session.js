@@ -21,7 +21,9 @@ export const sessionStore = new PgStore({
   pool,
   tableName: 'sessions',            // created by our Drizzle migration, not by the library
   createTableIfMissing: false,
-  pruneSessionInterval: config.isTest ? false : 15 * 60,   // delete expired sessions every 15 min
+  // Delete expired sessions every 6 hours. (Every 15 minutes, the default, would wake the
+  // database 96 times a day for nothing: an expired session is refused when read anyway.)
+  pruneSessionInterval: config.isTest ? false : 6 * 60 * 60,
 });
 
 export const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;

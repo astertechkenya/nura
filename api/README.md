@@ -52,7 +52,8 @@ test/               Vitest + Supertest
 
 | Method | Path | Returns |
 |---|---|---|
-| GET | `/api/health` | `{ ok: true }` when the database answers |
+| GET | `/api/ping` | `{ ok: true }` when the API is up. No database query: for Render's health check and the uptime monitor, so they don't keep the database awake |
+| GET | `/api/health` | `{ ok: true }` when the database answers. For checking by hand |
 | GET | `/api/products` | Active products with brand, sizes and stock. Filters: `department`, `sale=true`, `new=true`, `brand`, `q`, `limit` |
 | GET | `/api/products/:slug` | One product, or 404 |
 | POST | `/api/auth/register` | `{ name, email, password }` → account created and signed in (5 per hour per shopper) |
@@ -139,6 +140,10 @@ Each page ends with **You may also like**: four other products that are on the s
 Descriptions: the 21 seeded products' descriptions live in `src/db/seed-descriptions.json`. Migration `0005` copied them to production once, only into products that had none. From then on they are edited in the admin (Products → Description).
 
 Netlify forwards `/p/*` and `/sitemap.xml` here (`netlify.toml`), and `server.py` does the same locally. The API renders these because link previews and crawlers don't run JavaScript. These pages carry the storefront's security headers (`lib/siteHeaders.js`), and a test fails if that policy and `frontend/_headers` ever differ: **change both together**. Product text goes into the page through `lib/html.js` (`esc` for HTML, `jsonForScript` for the data blocks), never raw.
+
+### Production database (`ops/`)
+
+Production lives in its own Neon project and the API connects as `nura_app`, a login that can read and write rows but not change tables, with `sslmode=verify-full`. In production the API refuses to start otherwise. How it's set up, how to run migrations against it, and how to test a restore: **`ops/README.md`**.
 
 ### Logs and the security policy (Phase 8)
 
