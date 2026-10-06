@@ -13,7 +13,7 @@ import { users } from '../src/db/schema.js';
 import { sessionStore } from '../src/middleware/session.js';
 import { seed } from '../src/db/seed.js';
 import { codeAt, newSecret } from '../src/lib/totp.js';
-import { createProduct } from '../src/services/admin.js';
+import { createProduct, listProducts } from '../src/services/admin.js';
 import { netlifyToken } from './helpers.js';
 import { startFakeCloudinary, TEST_CLOUD } from './fakeCloudinary.js';
 
@@ -118,6 +118,23 @@ describe('creating a product', () => {
     const made = await Promise.all([...Array(8).keys()].map((i) =>
       createProduct({ id: adminId }, { ...body({ name: `Race ${i}`, image: uploaded(`race${i}`) }) })));
     expect(new Set(made.map((m) => m.sku)).size).toBe(8);
+  });
+
+  it('the products list sorts codes by number: nura-101 before nura-1000', async () => {
+    const [{ id: adminId }] = (await db.execute(sql`select id from users where email = 'maker@nura.test'`)).rows;
+    const [x, y] = await Promise.all(['Sort A', 'Sort B'].map((name, i) => createProduct({ id: adminId }, body({ name, image: uploaded(`sort${i}`) }))));
+    // As text, "nura-1000" < "nura-101" (it compares "0" with "1" at the 8th character).
+    await db.execute(sql`update products set sku = 'nura-1000' where sku = ${x.sku}`);
+    await db.execute(sql`update products set sku = 'nura-101' where sku = ${y.sku}`);
+    try {
+      const skus = (await listProducts()).map((p) => p.sku);
+      expect(skus.indexOf('nura-101')).toBeLessThan(skus.indexOf('nura-1000'));
+      expect(skus.slice(0, 3)).toEqual(['nura-001', 'nura-002', 'nura-003']);
+      const numbers = skus.map((k) => Number(k.slice(5)));
+      expect(numbers).toEqual([...numbers].sort((m, n) => m - n));
+    } finally {
+      await db.execute(sql`delete from products where sku in ('nura-1000', 'nura-101')`);
+    }
   });
 });
 

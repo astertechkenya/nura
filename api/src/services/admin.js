@@ -248,7 +248,10 @@ export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'UK 6', 'UK 7', 'UK 8', 
 export const FOCUS = { top: '50% 15%', centre: '50% 50%', bottom: '50% 85%' };
 
 export async function listProducts() {
-  const rows = await db.query.products.findMany({ with: { brand: true, variants: true }, orderBy: (p, { asc }) => [asc(p.sku)] });
+  // By the code's NUMBER: as text, nura-1000 would sort before nura-101 ("0" < "1" at the 8th
+  // character). A code without a trailing number (none today) goes last, then by text.
+  const rows = await db.query.products.findMany({ with: { brand: true, variants: true },
+    orderBy: (p, { asc }) => [sql`substring(${p.sku} from '[0-9]+$')::int nulls last`, asc(p.sku)] });
   const order = SIZES;
   return rows.map((p) => ({
     id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department, style: p.style,
