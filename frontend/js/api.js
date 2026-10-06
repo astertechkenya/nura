@@ -97,6 +97,30 @@
 
   /** The page to open for a search result: New In if it's new, Sale if it's on sale, else its
    *  department. The rules above guarantee that page contains the card; #sku scrolls to it. */
+  /* Right-sized photos. Every photo exists at 400, 800 and 1200 pixels wide, always the WHOLE
+     picture (the frame crops it, in CSS). srcset lists them; the browser picks the smallest
+     that is sharp for the frame's width on this screen. Same rules as the server's
+     api/src/lib/photo.js (product pages): change one, change both.
+       Cloudinary  …/upload/f_auto,q_auto,c_limit,w_1200/…  → the same with w_400 / w_800
+       our own     images/cottonwrap.webp                    → images/sized/cottonwrap-400.webp …
+     Anything else (an old or unexpected address) is used as it is, with no srcset. */
+  var PHOTO_WIDTHS = [400, 800, 1200];
+  var CLOUDINARY_SIZE = /(\/image\/upload\/f_auto,q_auto,c_limit,)w_1200\//;
+  var LOCAL_PHOTO = /^images\/([A-Za-z0-9_-]+)\.(?:webp|avif|jpe?g|png)$/;
+  function photoAt(url, w) {
+    url = String(url || '');
+    if (CLOUDINARY_SIZE.test(url)) return url.replace(CLOUDINARY_SIZE, '$1w_' + w + '/');
+    var m = LOCAL_PHOTO.exec(url);
+    return m ? 'images/sized/' + m[1] + '-' + w + '.webp' : null;
+  }
+  /** One size, for small thumbnails (cart, checkout): 400 is sharp up to ~130px on any screen. */
+  NURA.photo = function (url, w) { return photoAt(url, w || 400) || url; };
+  /** The srcset attribute's value, or '' when the address has no sizes. */
+  NURA.photoSrcset = function (url) {
+    if (!photoAt(url, 400)) return '';
+    return PHOTO_WIDTHS.map(function (w) { return photoAt(url, w) + ' ' + w + 'w'; }).join(', ');
+  };
+
   /** A product's own page (rendered by the API: api/src/routes/pages.js). */
   NURA.productUrl = function (p) { return '/p/' + encodeURIComponent(p.slug); };
 

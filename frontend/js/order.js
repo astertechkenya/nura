@@ -53,7 +53,7 @@
     var items = o.items.map(function (it) {
       return '<div class="co-line">'
         + '<div class="co-line__img" style="background:' + esc(it.cardBg || '#efefed') + '">'
-        +   (it.imageUrl ? '<img src="' + esc(it.imageUrl) + '" alt="">' : '')
+        +   (it.imageUrl ? '<img src="' + esc(NURA.photo(it.imageUrl)) + '" alt="">' : '')
         +   '<span class="co-line__qty" aria-hidden="true">' + Number(it.qty) + '</span></div>'
         + '<div>' + (it.brand ? '<p class="co-line__brand">' + esc(it.brand) + '</p>' : '')
         +   '<p class="co-line__name">' + esc(it.name) + '</p>'
@@ -141,8 +141,10 @@
   /** What happened to the money, for a cancelled or expired order. Never promises a refund that
    *  isn't owed, never hides one that is. */
   function refundText(o, fallback) {
-    if (o.refund && o.refund.status === 'DONE') return 'We’ve refunded ' + NURA.fmtKsh(o.refund.kes) + ' to you.';
-    if (o.refund) return 'You paid ' + NURA.fmtKsh(o.refund.kes) + '. A full refund is on its way; we’ll email you when it’s sent.';
+    // kes is null when the payment wasn't in shillings: name no amount rather than "KSh 0".
+    var amount = o.refund && o.refund.kes != null ? NURA.fmtKsh(o.refund.kes) : 'your payment';
+    if (o.refund && o.refund.status === 'DONE') return 'We’ve refunded ' + amount + ' to you.';
+    if (o.refund) return (o.refund.kes != null ? 'You paid ' + amount + '. ' : '') + 'A full refund is on its way; we’ll email you when it’s sent.';
     return fallback;
   }
 

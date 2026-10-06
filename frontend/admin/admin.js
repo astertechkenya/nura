@@ -21,7 +21,8 @@
   var METHOD = { COD: 'Cash on delivery', MPESA: 'M-Pesa', CARD: 'Card' };
   // Photos are either the shop's own files (images/x.webp, relative to the shop, so ../ from
   // /admin/) or Cloudinary addresses (https://…, used as they are).
-  var imgSrc = function (u) { return /^https:\/\//.test(u) ? u : '../' + u; };
+  // Thumbnails: the 400px copy (js/api.js). Our own photos are relative to the site root.
+  var imgSrc = function (u) { var s = NURA.photo(u); return /^https:\/\//.test(s) ? s : '../' + s; };
 
   function toast(text) {
     var t = document.getElementById('nuraToast');
@@ -121,7 +122,7 @@
         + tile(b.PAID, 'Paid, to pack', '#orders?status=PAID', 'is-hot')
         + tile(b.SHIPPED, 'On their way', '#orders?status=SHIPPED')
         + tile(s.refundsDue, 'Refunds due', '#orders?status=REFUND_DUE', 'is-bad')
-        + tile(s.flaggedPayments, 'Payments to check', '#orders', 'is-bad')
+        + tile(s.flaggedPayments, 'Payments to check', '#orders?status=FLAGGED', 'is-bad')
         + '<div class="adm-tile" style="grid-column:span 2;"><strong>' + esc(ksh(s.takingsLast7DaysKes)) + '</strong><span>Taken in the last 7 days</span></div>'
         + '</div>'
         + '<h2 class="adm-h2">Low stock</h2>'
@@ -133,7 +134,7 @@
   }
 
   var FILTERS = [['TODO', 'To do'], ['AWAITING_COD', 'New cash'], ['PAID', 'Paid'], ['PROCESSING', 'Packing'],
-    ['SHIPPED', 'Shipped'], ['DELIVERED', 'Delivered'], ['REFUND_DUE', 'Refunds'], ['', 'All']];
+    ['SHIPPED', 'Shipped'], ['DELIVERED', 'Delivered'], ['REFUND_DUE', 'Refunds'], ['FLAGGED', 'Payments to check'], ['', 'All']];
 
   function orders(query) {
     setTab('orders');
@@ -177,6 +178,19 @@
     });
   }
 
+  // The two decisions on a payment for the wrong amount. Accepting is only possible while the
+  // order still waits for payment (its stock is still reserved); rejecting always is.
+  function flagChoice(p, o) {
+    var open = o.status === 'PENDING_PAYMENT';
+    return '<div class="adm-flag" role="group" aria-label="Decide on this payment">'
+      + '<p class="adm-flag__help">Check the receipt in your ' + (p.provider === 'DARAJA' ? 'M-Pesa' : 'Paystack') + ' dashboard first. '
+      + (open ? 'Accept it if the difference is fine with you; reject it to refund the shopper (they can still pay the right amount).'
+              : 'The order has closed, so this money can only be refunded.') + '</p>'
+      + (open ? '<button class="adm-btn" type="button" data-flag="accept" data-payment="' + esc(p.id) + '">Accept as payment</button> ' : '')
+      + '<button class="adm-btn adm-btn--danger" type="button" data-flag="reject" data-payment="' + esc(p.id) + '">Reject: refund it</button>'
+      + '</div>';
+  }
+
   function drawOrder(o) {
     var c = o.customer, dl = o.delivery;
     var items = o.items.map(function (i) {
@@ -185,16 +199,21 @@
         + '<strong>' + esc(ksh(i.lineTotalKes)) + '</strong></div>';
     }).join('');
     var pays = o.payments.map(function (p) {
-      return '<li><span><strong>' + esc(METHOD[{ COD: 'COD', DARAJA: 'MPESA', PAYSTACK: 'CARD' }[p.provider]] || p.provider) + ' · ' + esc(p.status) + '</strong> '
-        + esc(ksh(p.amountKes)) + (p.receipt ? ' · ' + esc(p.receipt) : '')
-        + (p.failureReason ? '<small>' + esc(p.failureReason) + '</small>' : '') + '<small>' + esc(when(p.createdAt)) + '</small></span></li>';
+      var rejected = p.status === 'FAILED' && p.resultCode === 'REJECTED';
+      // A different amount arrived (flagged, or accepted anyway): show both figures.
+      var amount = p.receivedKes ? esc(ksh(p.receivedKes)) + ' received <span class="adm-muted">(' + esc(ksh(p.amountKes)) + ' asked)</span>' : esc(ksh(p.amountKes));
+      return '<li><span><strong>' + esc(METHOD[{ COD: 'COD', DARAJA: 'MPESA', PAYSTACK: 'CARD' }[p.provider]] || p.provider) + ' · '
+        + (rejected ? 'REJECTED (refund due)' : esc(p.status)) + '</strong> '
+        + amount + (p.receipt ? ' · ' + esc(p.receipt) : '')
+        + (p.failureReason ? '<small>' + esc(p.failureReason) + '</small>' : '') + '<small>' + esc(when(p.createdAt)) + '</small>'
+        + (p.status === 'FLAGGED' && !me.masked ? flagChoice(p, o) : '') + '</span></li>';
     }).join('');
     var events = o.events.map(function (e) {
       return '<li><span><strong>' + esc(STATUS[e.to] || e.to) + '</strong>' + (e.note ? ' · ' + esc(e.note) : '')
         + '<small>' + esc(when(e.at)) + (e.by ? ' · ' + esc(e.by) : '') + '</small></span></li>';
     }).join('');
     var EMAIL = { received: 'Order received', confirmed: 'Payment confirmed', shipped: 'On its way', delivered: 'Delivered',
-                  cancelled: 'Cancelled', expired: 'Not completed (expired)', refund_due: 'Refund due (late payment)', refunded: 'Refund sent' };
+                  cancelled: 'Cancelled', expired: 'Not completed (expired)', refund_due: 'Refund due (late payment)', payment_rejected: 'Payment not accepted (refund due)', refunded: 'Refund sent' };
     var EMAIL_STATUS = { sent: 'Sent', queued: 'Sending…', held: 'Held: address not in MAIL_ONLY_TO',
                          failed: 'Failed (see the API’s log)', logged: 'Not sent: email isn’t set up' };
     var emails = (o.emails || []).map(function (e) {
@@ -232,6 +251,27 @@
           + (refund ? '<button class="adm-btn adm-btn--quiet" type="button" data-act="refunded">Refund paid back</button>' : '')
           + '</div>'
         : '');
+
+    main.querySelectorAll('[data-flag]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        // Both decisions are final: the first tap arms the button, the second confirms.
+        if (!btn.classList.contains('is-arming')) {
+          var label = btn.textContent;
+          btn.classList.add('is-arming'); btn.textContent = 'Tap again to confirm';
+          setTimeout(function () { btn.classList.remove('is-arming'); btn.textContent = label; }, 4000);
+          return;
+        }
+        var noteBox = document.getElementById('admNote');
+        var body = { paymentId: btn.dataset.payment, decision: btn.dataset.flag };
+        if (noteBox && noteBox.value.trim()) body.note = noteBox.value.trim();
+        main.querySelectorAll('[data-flag],[data-act]').forEach(function (b) { b.disabled = true; });
+        api('/orders/' + encodeURIComponent(o.id) + '/flagged', { method: 'POST', body: body }).then(function (d) {
+          toast(body.decision === 'accept' ? 'Payment accepted: order is paid' : 'Payment rejected: refund due');
+          drawOrder(d.order);
+          main.focus();
+        }, function (err) { failed(err); order(o.id); });
+      });
+    });
 
     main.querySelectorAll('[data-act]').forEach(function (btn) {
       btn.addEventListener('click', function () {

@@ -122,7 +122,7 @@
       // (catalogue hydration, #sku links, counts), and these rows are not cards.
       return '<div class="wishlist-item" data-wl-sku="' + esc(p.sku) + '">'
         + (p.imageUrl
-            ? '<div class="wishlist-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(p.imageUrl) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>'
+            ? '<div class="wishlist-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>'
             : '<div class="wishlist-item__img" style="background:' + bg + '"></div>')
         + '<div class="wishlist-item__info">'
         + '<p class="wishlist-item__brand">' + esc(p.brand.name) + '</p>'

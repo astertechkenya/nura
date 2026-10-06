@@ -46,7 +46,13 @@
       // The photo links to the product page too, but only the name is announced and in the tab
       // order: one link per product for keyboard and screen-reader users, not two.
       +   '<a class="card-photo-link" href="' + esc(url) + '" tabindex="-1" aria-hidden="true">'
-      +     '<img class="nura-card-img" src="' + esc(p.imageUrl) + '" alt="" loading="lazy"></a>'
+      // srcset + sizes: a phone downloads the 400px photo for a card, not the 1200px one.
+      // sizes="auto" lets browsers that support it (Chrome, Edge) measure the card itself. The
+      // others use the estimate after it, which errs wide: grids differ per page (one card
+      // across on a phone on some), and too wide costs bytes, too narrow costs sharpness.
+      +     '<img class="nura-card-img" src="' + esc(NURA.photo(p.imageUrl, 800)) + '"'
+      +       (NURA.photoSrcset(p.imageUrl) ? ' srcset="' + esc(NURA.photoSrcset(p.imageUrl)) + '" sizes="auto, (max-width: 540px) 100vw, (max-width: 960px) 50vw, 33vw"' : '')
+      +       ' alt="" loading="lazy"></a>'
       +   '<button class="product__wish product-card__wish" data-wishlist-id="' + esc(p.sku) + '" aria-label="Add to wishlist" aria-pressed="false" data-action="wishlist">' + HEART + '</button>'
       +   overlay
       + '</div>'

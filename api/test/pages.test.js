@@ -42,6 +42,9 @@ describe('a product page', () => {
     expect(dataOf(h)).toMatchObject({ sku: 'nura-002', slug: 'linen-oversized-blazer' });
     expect(h).not.toContain('<!--nura:');                       // both regions were filled
     expect(h).toContain('<script src="js/product.js" defer></script>');
+    // Right-sized photo (lib/photo.js): the 800px copy by default, all three offered.
+    expect(h).toContain('src="/images/sized/linen_blazer-800.webp" srcset="/images/sized/linen_blazer-400.webp 400w, '
+      + '/images/sized/linen_blazer-800.webp 800w, /images/sized/linen_blazer-1200.webp 1200w" sizes="(min-width: 1180px) 580px');
   });
 
   it('a one-size product has its size chosen already; a sold-out size is disabled and says so', async () => {

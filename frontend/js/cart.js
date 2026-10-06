@@ -195,7 +195,7 @@
     var sized = it.variant.size !== 'ONE SIZE';
     return '<div class="cart-item' + (it.problem ? ' has-problem' : '') + '" data-id="' + id + '">'
       + (p.imageUrl
-          ? '<div class="cart-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(p.imageUrl) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
+          ? '<div class="cart-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
           : '<div class="cart-item__img" style="background:' + bg + '"></div>')
       + '<div><p class="cart-item__brand">' + esc(p.brand) + '</p>'
       + '<p class="cart-item__name">' + esc(p.name) + '</p>'

@@ -87,6 +87,10 @@ body.adm{font-family:var(--sans);background:var(--bg);color:var(--black);min-hei
 .adm-btn:hover{background:var(--adm-accent);}
 .adm-btn--danger{background:var(--white);color:var(--red-sale);border:1.5px solid var(--red-sale);}
 .adm-btn--danger.is-arming{background:var(--red-sale);color:var(--white);}
+/* A flagged payment's decision, inside its line in the Payments list. */
+.adm-flag{margin-top:10px;padding:10px 12px;border-left:3px solid var(--red-sale);background:var(--bg);}
+.adm-flag__help{margin:0 0 8px;font-size:13px;line-height:1.5;}
+.adm-btn.is-arming:not(.adm-btn--danger){background:var(--black);color:var(--white);}
 .adm-btn--quiet{background:var(--white);color:var(--black);border:1.5px solid var(--black);}
 .adm-btn:disabled{opacity:.45;}
 .adm-note{width:100%;}

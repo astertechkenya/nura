@@ -16,6 +16,7 @@ import { orderEvents, orders, payments } from '../db/schema.js';
 import { httpError } from '../middleware/errors.js';
 import { logger } from '../logger.js';
 import { queueOrderEmail } from './emails.js';
+import { sendAlert } from './alerts.js';
 import { amountToRequest, stkPush, stkQuery } from './daraja.js';
 import { MAX_STK_ATTEMPTS, assertTransition } from './orderStates.js';
 
@@ -126,6 +127,8 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
     const now = new Date();
     await tx.update(payments).set({
       status: wrongAmount ? 'FLAGGED' : 'PAID',
+      // The real figure, for a refund or an accepted difference. -1 (another currency): unknown.
+      receivedKes: wrongAmount && fromCallback.amountKes > 0 ? fromCallback.amountKes : null,
       receipt: fromCallback.receipt ?? null,
       resultCode: '0',
       failureReason: wrongAmount ? `Paid ${fromCallback.amountKes} KES, expected ${p.amountKes}` : null,
@@ -134,7 +137,10 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
     }).where(eq(payments.id, p.id));
     if (wrongAmount) {
       logger.warn({ paymentId, got: fromCallback.amountKes, expected: p.amountKes, method }, 'amount mismatch: payment FLAGGED');
-      return;                                                      // the order stays unpaid until reviewed
+      const [o] = await tx.select({ number: orders.number, expiresAt: orders.expiresAt }).from(orders).where(eq(orders.id, p.orderId));
+      // The order stays unpaid until reviewed; the owner is emailed (after the commit, below).
+      return { flagged: { orderId: p.orderId, number: o.number, method, expectedKes: p.amountKes,
+                          gotKes: fromCallback.amountKes, receipt: fromCallback.receipt, expiresAt: o.expiresAt } };
     }
 
     const [o] = await tx.select().from(orders).where(eq(orders.id, p.orderId)).for('update');
@@ -151,7 +157,8 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
       await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status,
         note: `${method} payment arrived after the order closed: refund due` });
       logger.warn({ orderId: o.id, status: o.status, method }, 'late payment: refund due');
-      return { late: o.id };
+      return { late: o.id, alert: { orderId: o.id, number: o.number, method, expectedKes: p.amountKes,
+                                    receipt: fromCallback.receipt, orderStatus: o.status } };
     }
     return null;
   });
@@ -159,6 +166,8 @@ export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') 
   // above makes sure there is exactly one, however many callbacks race).
   if (outcome?.paid) queueOrderEmail(outcome.paid, 'confirmed');
   if (outcome?.late) queueOrderEmail(outcome.late, 'refund_due');
+  if (outcome?.late) sendAlert('refund_due', outcome.alert);
+  if (outcome?.flagged) sendAlert('flagged', outcome.flagged);
 }
 
 /** Ask Safaricom about one payment and record the answer. Returns the state it found. */
@@ -229,6 +238,7 @@ export async function paymentSummary(orderId) {
     sent: Boolean(p.providerRef),
     phone: p.phone,
     amountKes: p.amountKes,        // what the phone prompt asks for (a token amount in the sandbox)
+    receivedKes: p.receivedKes,     // set when a different amount arrived (FLAGGED, or accepted by the admin)
     receipt: p.receipt,
     resultCode: p.resultCode,
     message: p.status === 'FAILED' ? p.failureReason : null,

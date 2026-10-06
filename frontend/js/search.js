@@ -42,7 +42,7 @@
       var bg = esc(p.cardBg);
       return '<a class="search-result" href="' + esc(NURA.productUrl(p)) + '">'
         + (p.imageUrl
-            ? '<div class="search-result__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(p.imageUrl) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
+            ? '<div class="search-result__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl, 800)) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
             : '<div class="search-result__img" style="background:' + bg + '"></div>')
         + '<p class="search-result__brand">' + esc(p.brand.name) + '</p>'
         + '<p class="search-result__name">' + esc(p.name) + '</p>'

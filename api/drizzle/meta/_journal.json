@@ -43,6 +43,13 @@
       "when": 1791184455649,
       "tag": "0005_product_descriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791268999872,
+      "tag": "0006_payment_received_kes",
+      "breakpoints": true
     }
   ]
 }

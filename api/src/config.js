@@ -94,6 +94,11 @@ const schema = z.object({
     // email would be silently held. Better to refuse to start and say why.
     .refine((list) => !list || list.every((a) => /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/.test(a)),
       'must be plain email addresses like you@example.com: no < >, quotes, spaces or comments on the line; separate several with commas'),
+  // Where alerts for YOU go (Phase 8): a payment that needs checking, money owed back to a
+  // shopper. One plain address. Must be in MAIL_ONLY_TO while that is set, or the alert is held.
+  ALERT_EMAIL: z.string().trim().toLowerCase()
+    .regex(/^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/, 'must be one plain email address like you@example.com')
+    .optional(),
   // Tests point this at a fake Resend. Leave unset.
   RESEND_BASE_URL: z.url().default('https://api.resend.com'),
 
@@ -124,6 +129,10 @@ function load(env) {
     throw new Error(`Invalid environment configuration:\n${problems}\nSee api/.env.example.`);
   }
   const c = parsed.data;
+  // An alert address outside MAIL_ONLY_TO would be held every time, silently: refuse instead.
+  if (c.ALERT_EMAIL && c.MAIL_ONLY_TO && !c.MAIL_ONLY_TO.includes(c.ALERT_EMAIL)) {
+    throw new Error('Invalid environment configuration:\n  - ALERT_EMAIL: must also be in MAIL_ONLY_TO, or alerts are never sent\nSee api/.env.example.');
+  }
   if (c.NODE_ENV === 'production') {
     const db = new URL(c.DATABASE_URL);
     const rules = [];

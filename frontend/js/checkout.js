@@ -33,7 +33,7 @@
       var p = it.product, bg = esc(p.cardBg || '#efefed');
       return '<div class="co-line">'
         + '<div class="co-line__img" style="background:' + bg + '">'
-        +   (p.imageUrl ? '<img src="' + esc(p.imageUrl) + '" alt="">' : '')
+        +   (p.imageUrl ? '<img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="">' : '')
         +   '<span class="co-line__qty" aria-hidden="true">' + Number(it.qty) + '</span></div>'
         + '<div><p class="co-line__brand">' + esc(p.brand) + '</p>'
         +   '<p class="co-line__name">' + esc(p.name) + '</p>'

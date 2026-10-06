@@ -57,6 +57,8 @@ export default defineConfig({
       CLOUDINARY_API_KEY: '123456789012345',
       CLOUDINARY_API_SECRET: 'testOnlyCloudinarySecret0123',
       CLOUDINARY_API_BASE: 'http://127.0.0.1:4595',
+      // Alerts for the owner (services/alerts.js) land in the test outbox at this address.
+      ALERT_EMAIL: 'owner@nura.test',
     },
     globalSetup: ['./test/globalSetup.js'],
     setupFiles: ['./test/setup.js'],        // waits for background emails before closing the pool

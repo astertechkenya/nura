@@ -15,7 +15,7 @@ import {
 import { config } from '../config.js';
 import { httpError } from '../middleware/errors.js';
 import { priceOrder } from './pricing.js';
-import { MAX_STK_ATTEMPTS, assertTransition, sideEffects } from './orderStates.js';
+import { MAX_STK_ATTEMPTS, REJECTED, assertTransition, sideEffects } from './orderStates.js';
 import { amountToRequest } from './daraja.js';
 import { paymentSummary } from './payments.js';
 
@@ -137,13 +137,24 @@ export async function placeOrder({ cartId, userId, details }) {
   }
 }
 
-/** The money actually taken on an order (all PAID payments) and how it was paid. */
+/** The money a refund on this order would send back, and how it was paid. */
 export async function paidOn(orderId) {
-  const rows = await db.select({ amountKes: payments.amountKes, provider: payments.provider, phone: payments.phone })
-    .from(payments).where(and(eq(payments.orderId, orderId), eq(payments.status, 'PAID')))
-    .orderBy(sql`${payments.createdAt} desc`);
+  // Money we hold for this order that a refund would send back:
+  //   - payments the admin REJECTED (wrong amount): always, whatever happened to the order;
+  //   - normal PAID payments: only once the order is closed (cancelled after paying, or paid
+  //     after it expired). A live or delivered order's payment is the shop's, not a refund.
+  // `kes` is null when a rejected payment's amount isn't known in shillings (another currency).
+  const [o] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId));
+  const closed = o && (o.status === 'CANCELLED' || o.status === 'EXPIRED');
+  const rows = (await db.select({ amountKes: payments.amountKes, receivedKes: payments.receivedKes, status: payments.status,
+                                  resultCode: payments.resultCode, provider: payments.provider, phone: payments.phone })
+    .from(payments).where(and(eq(payments.orderId, orderId), inArray(payments.status, ['PAID', 'FAILED'])))
+    .orderBy(sql`${payments.createdAt} desc`))
+    .filter((r) => (r.status === 'FAILED' ? r.resultCode === REJECTED : closed));
   if (!rows.length) return null;
-  return { kes: rows.reduce((n, r) => n + r.amountKes, 0), provider: rows[0].provider, phone: rows[0].phone };
+  const unknown = rows.some((r) => r.status === 'FAILED' && r.receivedKes === null);
+  return { kes: unknown ? null : rows.reduce((n, r) => n + (r.receivedKes ?? r.amountKes), 0),
+           provider: rows[0].provider, phone: rows[0].phone };
 }
 
 /** The order as its owner sees it: what was bought, where it goes, and what happens next. */
@@ -177,7 +188,7 @@ export async function loadOrder(id) {
     guest: o.userId === null,
     // A refund owed or already sent (cancelled after paying, or paid after it closed).
     refund: o.refundStatus === 'NONE' ? null
-      : { status: o.refundStatus, kes: (await paidOn(o.id))?.kes ?? 0 },
+      : { status: o.refundStatus, kes: (await paidOn(o.id))?.kes ?? null },   // null: amount not known in shillings
     // M-Pesa: where the latest attempt stands, how many prompts are left, and until when.
     payment: await paymentSummary(o.id),
     promptsLeft: o.paymentMethod === 'MPESA' ? Math.max(0, MAX_STK_ATTEMPTS - o.stkAttempts) : 0,

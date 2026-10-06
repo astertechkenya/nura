@@ -14,7 +14,7 @@ import {
 import { slugify } from '../lib/slug.js';
 import { verifiedImageUrl } from './cloudinary.js';
 import { httpError } from '../middleware/errors.js';
-import { ADMIN_NEXT, assertTransition, sideEffects } from './orderStates.js';
+import { ADMIN_NEXT, REJECTED, assertTransition, canTransitionPayment, sideEffects } from './orderStates.js';
 
 /* ── Audit ──────────────────────────────────────────────────────────────────────── */
 
@@ -70,6 +70,8 @@ export async function listOrders({ status, q, limit = 50, offset = 0 }, masked) 
   const where = [];
   if (status === 'TODO') where.push(inArray(orders.status, TODO));
   else if (status === 'REFUND_DUE') where.push(eq(orders.refundStatus, 'DUE'));
+  // Orders with a payment that came in for the wrong amount: the ones the alert email links to.
+  else if (status === 'FLAGGED') where.push(sql`exists (select 1 from payments fp where fp.order_id = "orders"."id" and fp.status = 'FLAGGED')`);
   else if (status) where.push(eq(orders.status, status));
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -94,7 +96,8 @@ export async function orderDetail(id, masked) {
   }).from(orderItems).leftJoin(products, eq(orderItems.productId, products.id))
     .where(eq(orderItems.orderId, id)).orderBy(orderItems.name);
   const pays = await db.select({
-    provider: payments.provider, status: payments.status, amountKes: payments.amountKes, receipt: payments.receipt,
+    id: payments.id, provider: payments.provider, status: payments.status, amountKes: payments.amountKes,
+    receivedKes: payments.receivedKes, receipt: payments.receipt,
     resultCode: payments.resultCode, failureReason: payments.failureReason, phone: payments.phone, createdAt: payments.createdAt,
   }).from(payments).where(eq(payments.orderId, id)).orderBy(payments.createdAt);
   const events = await db.select({
@@ -193,6 +196,48 @@ export async function markRefunded(admin, orderId, note) {
     await audited(tx, admin, 'order.refunded', 'order', o.id, { refundStatus: 'DUE' }, { refundStatus: 'DONE' });
   });
   queueOrderEmail(orderId, 'refunded');
+}
+
+/**
+ * A payment came in for the wrong amount (FLAGGED: see markPaid in payments.js). The admin decides:
+ *   accept  the money counts as payment and the order is PAID. Only while the order is still
+ *           waiting for payment: once it has expired or been cancelled its stock is back on sale.
+ *   reject  the money isn't accepted. It's owed back: the order's refund becomes due, and the
+ *           shopper is told (if the order is still open, they can pay the right amount).
+ */
+export async function resolveFlagged(admin, orderId, paymentId, decision, note) {
+  await db.transaction(async (tx) => {
+    // Payment first, then order: the same order markPaid() locks them in, so the two can't deadlock.
+    const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for('update');
+    if (!p || p.orderId !== orderId) throw httpError(404, 'Payment not found on this order.');
+    if (p.status !== 'FLAGGED') throw httpError(409, 'This payment has already been dealt with.');
+    const [o] = await tx.select().from(orders).where(eq(orders.id, orderId)).for('update');
+    const now = new Date();
+    const got = p.receivedKes ? `KSh ${p.receivedKes.toLocaleString('en-KE')}` : 'a payment in another currency';
+
+    if (decision === 'accept') {
+      if (o.status !== 'PENDING_PAYMENT') {
+        throw httpError(409, 'This order has closed and its stock went back on sale, so the payment can’t be accepted. Reject it to refund the shopper.');
+      }
+      if (!canTransitionPayment('FLAGGED', 'PAID')) throw httpError(409, 'Not allowed.');
+      assertTransition(o.status, 'PAID', 'system');
+      await tx.update(payments).set({ status: 'PAID', updatedAt: now }).where(eq(payments.id, p.id));
+      await tx.update(orders).set({ status: 'PAID', expiresAt: null, updatedAt: now }).where(eq(orders.id, o.id));
+      await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: 'PAID', actorId: admin.id,
+        note: note || `Accepted ${got} instead of KSh ${o.totalKes.toLocaleString('en-KE')}` });
+      await audited(tx, admin, 'payment.accept', 'payment', p.id, { status: 'FLAGGED', order: o.status }, { status: 'PAID', order: 'PAID' });
+    } else {
+      if (!canTransitionPayment('FLAGGED', 'FAILED')) throw httpError(409, 'Not allowed.');
+      await tx.update(payments).set({ status: 'FAILED', resultCode: REJECTED, updatedAt: now }).where(eq(payments.id, p.id));
+      await tx.update(orders).set({ refundStatus: 'DUE', updatedAt: now }).where(eq(orders.id, o.id));
+      await tx.insert(orderEvents).values({ orderId: o.id, fromStatus: o.status, toStatus: o.status, actorId: admin.id,
+        note: note || `Payment of ${got} rejected (wrong amount): refund due` });
+      await audited(tx, admin, 'payment.reject', 'payment', p.id, { status: 'FLAGGED', refundStatus: o.refundStatus },
+        { status: 'FAILED', refundStatus: 'DUE' });
+    }
+  });
+  // After the commit, as always.
+  queueOrderEmail(orderId, decision === 'accept' ? 'confirmed' : 'payment_rejected');
 }
 
 /* ── Products ──────────────────────────────────────────────────────────────────── */

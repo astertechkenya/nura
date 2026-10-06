@@ -3,11 +3,12 @@
 //   GET   /api/admin/me                         who am I, and do I still need my 6-digit code?
 //   POST  /api/admin/totp        { code }       enter the code from the authenticator app
 //   GET   /api/admin/summary                    counts for the dashboard
-//   GET   /api/admin/orders?status=&q=&page=    the order list (status TODO = everything to act on)
+//   GET   /api/admin/orders?status=&q=&page=    the order list (TODO = everything to act on, FLAGGED = a payment to check)
 //   GET   /api/admin/orders/:id                 one order, its payments, history and next actions
 //   POST  /api/admin/orders/:id/transition      { to, note? }  move it one allowed step
 //   POST  /api/admin/orders/:id/cod-collected   { note? }      COD: cash in hand → DELIVERED + PAID
 //   POST  /api/admin/orders/:id/refunded        { note? }      a due refund has been paid back
+//   POST  /api/admin/orders/:id/flagged         { paymentId, decision: accept|reject, note? }  a wrong-amount payment
 //   GET   /api/admin/products                   every product, hidden ones too, with stock per size
 //   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, isActive?, description? }
 //   PATCH /api/admin/variants/:id               { stock }
@@ -27,7 +28,7 @@ import { adminGate, needsTotp } from '../middleware/adminGate.js';
 import { verifyCode } from '../lib/totp.js';
 import { ORDER_STATUSES } from '../services/orderStates.js';
 import {
-  activity, codCollected, createProduct, FOCUS, listBrands, listCustomers, listOrders, newsletterCsv, listProducts, markRefunded, orderDetail,
+  activity, codCollected, createProduct, FOCUS, listBrands, listCustomers, listOrders, newsletterCsv, listProducts, markRefunded, orderDetail, resolveFlagged,
   setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct,
 } from '../services/admin.js';
 import { signUpload } from '../services/cloudinary.js';
@@ -58,7 +59,7 @@ adminRouter.post(
 adminRouter.get('/summary', async (req, res) => res.json(await summary()));
 
 const listQuery = z.strictObject({
-  status: z.enum([...ORDER_STATUSES, 'TODO', 'REFUND_DUE']).optional(),
+  status: z.enum([...ORDER_STATUSES, 'TODO', 'REFUND_DUE', 'FLAGGED']).optional(),
   q: z.string().trim().min(1).max(60).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
@@ -90,6 +91,14 @@ adminRouter.post('/orders/:id/refunded', validate(idParams, 'params'), validate(
   await markRefunded(req.admin, req.valid.params.id, req.valid.body.note);
   res.json({ order: await orderDetail(req.valid.params.id, false) });
 });
+
+// A payment for the wrong amount: accept it as payment, or reject it (refund due).
+adminRouter.post('/orders/:id/flagged', validate(idParams, 'params'),
+  validate(z.strictObject({ paymentId: z.uuid(), decision: z.enum(['accept', 'reject']), note })), async (req, res) => {
+    const { paymentId, decision, note: n } = req.valid.body;
+    await resolveFlagged(req.admin, req.valid.params.id, paymentId, decision, n);
+    res.json({ order: await orderDetail(req.valid.params.id, false) });
+  });
 
 adminRouter.get('/products', async (req, res) => res.json({ products: await listProducts() }));
 

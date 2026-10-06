@@ -213,6 +213,9 @@ export const payments = pgTable('payments', {
   // where a token amount is requested (see DARAJA_SANDBOX_AMOUNT_KES).
   amountKes: integer('amount_kes').notNull(),
   status: paymentStatusEnum('status').notNull().default('PENDING'),
+  // What the provider says actually arrived, when it differs from amountKes (a FLAGGED payment).
+  // Null means "the same as amountKes" or, for a payment in another currency, "not in shillings".
+  receivedKes: integer('received_kes'),
   failureReason: text('failure_reason'),
   raw: jsonb('raw'),                               // provider's payload, kept for disputes
   createdAt: createdAt(),
@@ -221,6 +224,7 @@ export const payments = pgTable('payments', {
   // At most one PENDING payment per order: no two live M-Pesa prompts for one order.
   uniqueIndex('payments_one_pending_per_order_uq').on(t.orderId).where(sql`${t.status} = 'PENDING'`),
   check('payments_amount_positive', sql`${t.amountKes} > 0`),
+  check('payments_received_positive', sql`${t.receivedKes} is null or ${t.receivedKes} > 0`),
 ]);
 
 // Every status change, by the system or an admin. Powers the "status history" on the

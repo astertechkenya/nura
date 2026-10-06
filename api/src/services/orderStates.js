@@ -67,6 +67,11 @@ export const PAYMENT_NEXT = Object.freeze({
   FLAGGED: Object.freeze(['PAID', 'FAILED']),
 });
 
+// result_code of a FLAGGED payment the admin turned down: the money arrived, but it isn't
+// accepted as payment and is owed back. (FAILED, because it can't pay the order; this code is
+// what tells it apart from a payment that never went through.)
+export const REJECTED = 'REJECTED';
+
 export function canTransitionPayment(from, to) {
   return (PAYMENT_NEXT[from] ?? []).includes(to);
 }

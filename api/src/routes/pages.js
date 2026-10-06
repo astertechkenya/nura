@@ -26,6 +26,7 @@ import { logger } from '../logger.js';
 import { esc, jsonForScript } from '../lib/html.js';
 import { setSiteHeaders } from '../lib/siteHeaders.js';
 import { cacheBriefly, toPublicProduct } from './products.js';
+import { photoAt, photoSrcset } from '../lib/photo.js';
 
 export const pagesRouter = Router();
 
@@ -68,6 +69,14 @@ function fill(html, name, content) {
 const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 // Shop photos are relative ("images/x.webp"); Cloudinary photos are absolute.
 const photo = (u) => (/^https:\/\//.test(u) ? u : `/${u}`);
+// <img> attributes for a right-sized photo (lib/photo.js): src at `w`, plus srcset and sizes.
+// Our own photos get a leading / like photo() above (the page lives under /p/).
+const sized = (u, w, sizes) => {
+  const set = photoSrcset(u);
+  if (!set) return `src="${esc(photo(u))}"`;
+  const root = (x) => (/^https:\/\//.test(x) ? x : `/${x}`);
+  return `src="${esc(root(photoAt(u, w)))}" srcset="${esc(set.split(', ').map(root).join(', '))}" sizes="${sizes}"`;
+};
 const absolutePhoto = (u) => (/^https:\/\//.test(u) ? u : `${config.SITE_URL}/${u}`);
 // Database values only reach a style="" attribute after matching these exact shapes.
 const safeColour = (c) => (/^#[0-9a-f]{3,8}$/i.test(c) ? c : '#efefed');
@@ -166,7 +175,7 @@ function mainHtml(p, recs = []) {
       <li aria-current="page">${esc(p.name)}</li></ol></nav>
     <article class="pd" data-sku="${esc(p.sku)}" data-slug="${esc(p.slug)}">
       <div class="pd__media" style="background-color:${safeColour(p.cardBg)}">${badge}
-        <img src="${esc(photo(p.imageUrl))}" alt="${esc(p.name)}" width="900" height="1200" style="object-position:${safeFocus(p.imageFocus)}" fetchpriority="high">
+        <img ${sized(p.imageUrl, 800, '(min-width: 1180px) 580px, (min-width: 860px) 50vw, 100vw')} alt="${esc(p.name)}" width="900" height="1200" style="object-position:${safeFocus(p.imageFocus)}" fetchpriority="high">
       </div>
       <div class="pd__info">
         <p class="pd__brand">${esc(p.brand.name)}</p>
@@ -223,7 +232,7 @@ function recsHtml(list) {
       <h2 class="pd-recs__title" id="pdRecs">You may also <span class="pd-recs__accent">like</span></h2>
       <ul class="pd-recs__list">${list.map((o) => `
         <li><a class="pd-rec" href="/p/${esc(o.slug)}">
-          <span class="pd-rec__img" style="background-color:${safeColour(o.cardBg)}"><img src="${esc(photo(o.imageUrl))}" alt="" loading="lazy" width="300" height="400" style="object-position:${safeFocus(o.imageFocus)}"></span>
+          <span class="pd-rec__img" style="background-color:${safeColour(o.cardBg)}"><img ${sized(o.imageUrl, 400, '(min-width: 1180px) 270px, (min-width: 860px) 23vw, 50vw')} alt="" loading="lazy" width="300" height="400" style="object-position:${safeFocus(o.imageFocus)}"></span>
           <span class="pd-rec__brand">${esc(o.brand.name)}</span>
           <span class="pd-rec__name">${esc(o.name)}</span>
           <span class="pd-rec__price">${ksh(o.priceKes)}${o.onSale ? ` <s><span class="visually-hidden">was </span>${ksh(o.compareAtKes)}</s>` : ''}</span>

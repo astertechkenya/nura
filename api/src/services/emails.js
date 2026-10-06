@@ -13,13 +13,13 @@ import { inBackground, sendMail } from './mail.js';
 
 // Everything that goes into HTML passes through here: a product or customer name is data,
 // never markup. (A name like <img onerror=…> must arrive as text.)
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 const firstName = (name) => String(name ?? '').trim().split(/\s+/)[0] || 'there';
 const localPhone = (p) => { const m = /^254(\d{3})(\d{3})(\d{3})$/.exec(String(p)); return m ? `0${m[1]} ${m[2]} ${m[3]}` : p; };
 
 const PURPLE = '#7038c9';
-function layout({ heading, intro, body = '', button }) {
+export function layout({ heading, intro, body = '', button }) {
   return `<!doctype html><html><body style="margin:0;padding:0;background:#f4f4f2;">
 <div style="max-width:560px;margin:0 auto;padding:32px 20px;font-family:Helvetica,Arial,sans-serif;color:#111;">
   <p style="margin:0 0 28px;font-size:22px;letter-spacing:6px;">NUR<span style="color:${PURPLE};">A</span></p>
@@ -51,6 +51,8 @@ Subtotal ${ksh(o.subtotalKes)} · Delivery ${o.shippingKes ? ksh(o.shippingKes) 
 Delivering to: ${o.contact.name}, ${o.delivery.addressLine1}, ${o.delivery.area}, ${o.delivery.county}`;
 
 // Where a refund goes, in the customer's words. M-Pesa refunds go back to the paying number.
+// The refund's amount in words. kes is null when a rejected payment wasn't in shillings.
+const refundAmount = (o) => (o.paid?.kes != null ? ksh(o.paid.kes) : 'your payment');
 const refundTo = (o) => (o.paid?.provider === 'DARAJA'
   ? `to the M-Pesa number you paid from${o.paid.phone ? ` (ending ${String(o.paid.phone).slice(-3)})` : ''}`
   : 'to the card you paid with');
@@ -64,11 +66,12 @@ const ORDER_EMAILS = {
     introText: `We'll call you on ${localPhone(o.contact.phone)} to confirm delivery. Pay ${ksh(o.totalKes)} in cash when it arrives.`,
   }),
   // M-Pesa and card: sent when the payment is confirmed (never before: an unpaid order may expire).
+  // The amount is what arrived: normally the total; a different amount the admin accepted otherwise.
   confirmed: (o) => ({
     subject: `Order ${o.number} confirmed`,
     heading: `Payment received. Thank you, ${esc(firstName(o.contact.name))}.`,
-    intro: `We’ve received <strong>${ksh(o.totalKes)}</strong>${o.payment?.receipt ? ` (${esc(o.payment.receipt)})` : ''}. We’ll email you again when your order is on its way.`,
-    introText: `We've received ${ksh(o.totalKes)}${o.payment?.receipt ? ` (${o.payment.receipt})` : ''}. We'll email you again when your order is on its way.`,
+    intro: `We’ve received <strong>${ksh(o.payment?.receivedKes ?? o.totalKes)}</strong>${o.payment?.receipt ? ` (${esc(o.payment.receipt)})` : ''}. We’ll email you again when your order is on its way.`,
+    introText: `We've received ${ksh(o.payment?.receivedKes ?? o.totalKes)}${o.payment?.receipt ? ` (${o.payment.receipt})` : ''}. We'll email you again when your order is on its way.`,
   }),
   shipped: (o) => {
     const cash = o.paymentMethod === 'COD' ? ` Please have <strong>${ksh(o.totalKes)}</strong> ready in cash.` : '';
@@ -91,9 +94,9 @@ const ORDER_EMAILS = {
   // Cancelled by the shop. If money was taken, say how much comes back and where; never
   // promise a refund that isn't owed, never deny one that is.
   cancelled: (o) => {
-    const refund = o.paid?.kes
-      ? [`You paid <strong>${ksh(o.paid.kes)}</strong>. We’ll refund it ${esc(refundTo(o))} and email you when it’s sent.`,
-         `You paid ${ksh(o.paid.kes)}. We'll refund it ${refundTo(o)} and email you when it's sent.`]
+    const refund = o.paid
+      ? [`You paid <strong>${refundAmount(o)}</strong>. We’ll refund it ${esc(refundTo(o))} and email you when it’s sent.`,
+         `You paid ${refundAmount(o)}. We'll refund it ${refundTo(o)} and email you when it's sent.`]
       : ['No payment was taken for it.', 'No payment was taken for it.'];
     return {
       subject: `Order ${o.number} cancelled`,
@@ -114,16 +117,27 @@ const ORDER_EMAILS = {
   refund_due: (o) => ({
     subject: `About your payment for order ${o.number}`,
     heading: 'Your payment arrived after the order closed',
-    intro: `We received <strong>${ksh(o.paid?.kes ?? 0)}</strong>, but by then the order had closed and the items were no longer held for you. We’ll refund it in full ${esc(refundTo(o))} and email you when it’s sent.`,
-    introText: `We received ${ksh(o.paid?.kes ?? 0)}, but by then the order had closed and the items were no longer held for you. We'll refund it in full ${refundTo(o)} and email you when it's sent.`,
+    intro: `We received <strong>${refundAmount(o)}</strong>, but by then the order had closed and the items were no longer held for you. We’ll refund it in full ${esc(refundTo(o))} and email you when it’s sent.`,
+    introText: `We received ${refundAmount(o)}, but by then the order had closed and the items were no longer held for you. We'll refund it in full ${refundTo(o)} and email you when it's sent.`,
   }),
+  // The admin turned down a payment for the wrong amount (services/admin.js resolveFlagged).
+  payment_rejected: (o) => {
+    const open = o.status === 'PENDING_PAYMENT';
+    const next = open ? ' Your order is still open: you can pay the correct amount of ' : '';
+    return {
+      subject: `About your payment for order ${o.number}`,
+      heading: 'We couldn’t accept that payment',
+      intro: `We received <strong>${refundAmount(o)}</strong> for this order, but its total is <strong>${ksh(o.totalKes)}</strong>, so we couldn’t accept it as payment. We’ll refund it in full ${esc(refundTo(o))} and email you when it’s sent.${open ? `${next}<strong>${ksh(o.totalKes)}</strong> from your order page.` : ''}`,
+      introText: `We received ${refundAmount(o)} for this order, but its total is ${ksh(o.totalKes)}, so we couldn't accept it as payment. We'll refund it in full ${refundTo(o)} and email you when it's sent.${open ? `${next}${ksh(o.totalKes)} from your order page.` : ''}`,
+    };
+  },
   refunded: (o) => {
     const card = o.paid?.provider === 'PAYSTACK' ? ' Card refunds can take a few working days to appear.' : '';
     return {
       subject: `Refund sent for order ${o.number}`,
       heading: 'Your refund is on its way',
-      intro: `We’ve refunded <strong>${ksh(o.paid?.kes ?? 0)}</strong> ${esc(refundTo(o))}.${card}`,
-      introText: `We've refunded ${ksh(o.paid?.kes ?? 0)} ${refundTo(o)}.${card}`,
+      intro: `We’ve refunded <strong>${refundAmount(o)}</strong> ${esc(refundTo(o))}.${card}`,
+      introText: `We've refunded ${refundAmount(o)} ${refundTo(o)}.${card}`,
     };
   },
 };
