@@ -59,17 +59,33 @@ previous version running, so the shop stays up while you run the migration.
 
 ## Running a migration or create-admin on production from now on
 
-Same as before, except the string is the **new project's owner** string (Neon → `nura-prod` →
-Connect → `nura_prod`), with `sslmode=verify-full`:
+Run migrations **before** pushing the code that needs them. They only add things, so the code
+running now carries on unaffected.
 
-```powershell
-cd C:\dev\nura\api
-$env:DATABASE_URL = Read-Host "nura-prod owner connection string"
-npm run db:migrate
-```
+1. **Neon → `nura-prod` → Connect.** Database `nura_prod`, Role **`neondb_owner`**, and
+   **Connection pooling off** (the host must NOT contain `-pooler`: the pooler is for the app's
+   many short queries, not for changing tables). Copy the string.
+2. Change `sslmode=require` to `sslmode=verify-full`; keep `&channel_binding=require`. Check it
+   starts `postgresql://neondb_owner:`. (Edit in Notepad, copy, close Notepad without saving.)
+3. In a **new** PowerShell window:
+   ```powershell
+   cd C:\dev\nura\api
+   $s = Read-Host "nura-prod owner connection string" -AsSecureString
+   $env:DATABASE_URL = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+   npm run db:migrate
+   ```
+   The paste shows as `****`: the owner password never appears on screen or in scrollback.
+   `.env` doesn't interfere: Node never overrides a variable that is already set.
+4. The first line must say **Migrating nura_prod on ep-lingering-rice… as neondb_owner**, then
+   **Migrations applied.** If it names `nura_app`, `nura_dev` or `ep-dawn-silence…`, nothing
+   was migrated in production: stop and check the string.
+5. **Close the window.** That wipes the password from memory.
 
-Close the window afterwards. Migrations create tables as the owner, and `app-role.sql` set
-default privileges, so `nura_app` can use new tables straight away.
+`create-admin` works the same way: in step 3, replace the last line with
+`npm run create-admin -- --email you@example.com --name "Your Name"`.
+
+Migrations create tables as the owner, and `app-role.sql` set default privileges, so
+`nura_app` can use new tables straight away.
 
 **Never** run `npm run db:seed` against production: it resets the 21 seeded products' prices,
 stock and photos.

@@ -1,0 +1,22 @@
+# .gitleaks.toml: settings for gitleaks, the secret scanner run by .github/workflows/ci.yml.
+#
+# gitleaks looks for anything shaped like a key or password in every commit, ever. It found
+# exactly five, all deliberately fake values the tests use. They are listed here BY VALUE, not
+# by file, on purpose: allowing a whole file (say api/test/) would also hide a REAL key pasted
+# into a test one day. Each new fake value must be added here by name, which is the point.
+#
+# Never add a real key here to silence a warning. If gitleaks finds a real one, the key is
+# already public: revoke it at the provider first, then remove it from the code.
+
+[extend]
+useDefault = true            # all of gitleaks' built-in rules, plus the exceptions below
+
+[[allowlists]]
+description = "Fake keys that only the tests use (they talk to fake Paystack/Resend/Netlify)"
+regexTarget = "secret"
+regexes = [
+  '''^sk_test_fakeKeyForTestsOnly0123456789$''',
+  '''^sk_test_someoneElsesKey$''',
+  '''^re_testkey_1234567890$''',
+  '''^test-only-secret-that-is-long-enough-123$''',
+]
