@@ -9,6 +9,7 @@
   <!--nura:head--><title>NURA</title><!--/nura:head-->
   <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/bebas-neue-v16-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="shared.css" />
   <link rel="stylesheet" href="product.css" />
@@ -17,7 +18,7 @@
       --bg:#f5f5f3; --bg-card:#ffffff; --bg-light:#efefed; --bg-mid:#e8e8e6;
       --black:#0a0a0a; --purple:#B57BFF; --purple-dim:#9B5FE8;
       --white:#ffffff; --mid:#888888; --light:#e0e0e0; --muted:#cccccc; --red-sale:#cc1111;
-      --display: 'Bebas Neue', 'Bebas Neue Fallback', Impact, sans-serif; --sans: 'DM Sans', 'DM Sans Fallback', system-ui, sans-serif; --transition:0.25s ease;
+      --display: 'Bebas Neue', 'Bebas Neue Fallback', 'Bebas Neue Fallback Narrow', Impact, sans-serif; --sans: 'DM Sans', 'DM Sans Fallback', 'DM Sans Fallback Android', system-ui, sans-serif; --transition:0.25s ease;
     }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
@@ -45,7 +46,7 @@ body.cursor-hover
 .nav__logo span{color:var(--purple);}
 .nav__links{display:flex;gap:32px;list-style:none;}
 .nav__links a{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--mid);transition:color var(--transition);position:relative;}
-.nav__links a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--purple);transition:width .3s ease;}
+.nav__links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--purple);transition:width .3s ease;}
 .nav__links a:hover{color:var(--black);}
 .nav__links a:hover::after,.nav__links a.active::after{width:100%;}
 .nav__links a.active{color:var(--black);}

@@ -7,6 +7,8 @@
   <meta name="description" content="NURA. The newest, boldest, most wanted fashion — all in one place. Nairobi-born. World-ready." />
   <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/bebas-neue-v16-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" as="image" href="images/hero-street-1600.webp" imagesrcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w" imagesizes="(max-aspect-ratio: 16/9) 180vh, 100vw" fetchpriority="high" />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="shared.css" />
   <style>
@@ -26,8 +28,8 @@
       --muted:       #cccccc;
       --red-sale:    #cc1111;
 
-      --display: 'Bebas Neue', 'Bebas Neue Fallback', Impact, sans-serif;
-      --sans: 'DM Sans', 'DM Sans Fallback', system-ui, sans-serif;
+      --display: 'Bebas Neue', 'Bebas Neue Fallback', 'Bebas Neue Fallback Narrow', Impact, sans-serif;
+      --sans: 'DM Sans', 'DM Sans Fallback', 'DM Sans Fallback Android', system-ui, sans-serif;
       --transition: 0.25s ease;
 
       
@@ -119,8 +121,9 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       color: var(--mid); transition: color var(--transition); position: relative;
     }
 .nav__links a::after {
-      content: ''; position: absolute; bottom: -2px; left: 0;
-      width: 0; height: 1px; background: var(--purple);
+      /* 2 px, 4 px below: the same line the hero slideshow draws, on every page. */
+      content: ''; position: absolute; bottom: -4px; left: 0;
+      width: 0; height: 2px; background: var(--purple);
       transition: width 0.3s ease;
     }
 .nav__links a:hover { color: var(--black); }
@@ -157,59 +160,198 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     }
 .mobile-menu a.sale-link { color: var(--red-sale); }
 .mobile-menu a:hover { color: var(--purple); }
-.hero { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 64px - 37px); }
-.hero__left {
-      background: var(--black);
-      display: flex; flex-direction: column; justify-content: flex-end;
-      padding: 48px 40px; position: relative; overflow: hidden;
+.hero {
+      /* One photo, full width, the text set over a dark fade on its left (Option B, Oct 2026).
+         The fade sits where the street is darkest and the group isn't, so the headline never
+         crosses a face. Below 861 px the photo is cropped to the centre of the group and the
+         fade moves to the bottom, under the text. */
+      position: relative; overflow: hidden; display: grid;
+      /* The screen below the nav and ticker, but at most 900 px: on a tall portrait tablet a
+         full-height crop would blow the photo up past its own resolution. */
+      min-height: min(calc(100vh - 64px - 37px), 900px); background: var(--black);
     }
-.hero__left::before {
-      content: 'NURA'; font-family: var(--display);
-      font-size: 240px; color: rgba(181,123,255,0.05);
-      position: absolute; bottom: -40px; left: -15px;
-      letter-spacing: -6px; line-height: 1; pointer-events: none; user-select: none;
+/* The slides sit on top of each other in one grid cell, so the hero is as tall as the tallest
+   slide (never a fixed height that a long headline could overflow), and cross-fade. */
+.hero__slides, .hero__slide { display: grid; grid-area: 1 / 1; }
+.hero__slide {
+      position: relative; display: flex; align-items: center;
+      opacity: 0; visibility: hidden;
+      /* visibility waits for the fade to finish, then hides the old slide from screen readers
+         and the Tab key: a hidden slide's link must never take focus. */
+      transition: opacity .8s ease, visibility 0s linear .8s;
+    }
+.hero__slide.is-current { opacity: 1; visibility: visible; z-index: 1; transition: opacity .8s ease; }
+.hero__photo {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; object-position: 70% 30%;
+    }
+/* The zoom and the text's slide-in replay each time a slide comes round: they are tied to
+   .is-current, and an animation restarts whenever its rule starts to apply. */
+.hero__slide.is-current .hero__photo { animation: heroZoom 10s ease-out forwards; }
+.hero__slide::after {         /* the fade: dark behind the text, clear over the group */
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(to right, rgba(10,10,10,.92) 0%, rgba(10,10,10,.75) 28%, rgba(10,10,10,0) 55%);
+    }
+.hero__text { position: relative; z-index: 1; padding: 48px 56px; max-width: 560px; }
+@media (min-width: 861px) {
+      /* Desktop: the photo starts 30% in from the left, so the headline has the left of the
+         screen to itself and the group fills the rest. The strip it leaves is the hero's own
+         black, and the fade runs from that black into the photo's left edge, so there is no
+         visible seam. object-position 40% crops more off the photo's right (the empty street)
+         than its left, so the frame ends just past the last model. */
+      .hero__photo { left: 30%; width: 75%; object-position: 40% 30%; }   /* 75%: the last 5% runs off the right edge (the hero hides it) */
+      .hero__slide::after { background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 30%, rgba(10,10,10,.6) 38%, rgba(10,10,10,0) 55%); }
+    }
+@media (min-width: 861px) {
+      /* Desktop: the headline as big as the screen allows, with "Shop now" still above the
+         fold. Two limits, whichever is smaller:
+           height: the hero is the screen height (at most 1001 px) minus the nav and ticker
+             (101 px); everything in it but the headline takes about 290 px (210 px with the
+             tighter spacing of short screens, below); the three-line headline is 2.76 times
+             its font size. That gives min(36vh, 362px) - 150px (- 125px on short screens),
+             leaving a little air under the button.
+           width: the longest line ("LIKE YOU") is 2.82 times the font size; it should end by
+             about 40% of the screen, where the photo's fade gets light: 14vw - 20px.
+         200 px is a ceiling for very large screens. */
+      .hero .hero__title { font-size: clamp(48px, min(14vw - 20px, min(36vh, 362px) - 150px), 200px); }   /* .hero: outranks the base rule further down */
+      .hero .hero__text { max-width: 48vw; }   /* room for the headline's longest line at full size */
+      /* The line and the button grow with the screen too, so they stay in proportion to a
+         headline that reaches 200 px: 14 px and 10 px at 1280 px wide, about 17 px and 12 px
+         at 1920, at most 18 px and 13 px. (Their extra height is within the button's air.) */
+      .hero .hero__sub { font-size: clamp(14px, 0.45vw + 8.25px, 18px); max-width: clamp(320px, 22vw, 440px); }
+      .hero .hero__season { font-size: clamp(9px, 0.2vw + 6.4px, 12px); }   /* the small label too */
+      .hero .hero__cta { font-size: clamp(10px, 0.3vw + 6.2px, 13px); padding: clamp(15px, 0.9vw + 3.5px, 21px) clamp(32px, 2vw + 6.4px, 46px); }
+    }
+@media (min-width: 861px) and (max-height: 720px) {
+      /* Short desktop screens: tighter spacing, so the button stays in view. */
+      .hero .hero__text { padding-top: 24px; padding-bottom: 24px; }
+      .hero .hero__season { margin-bottom: 12px; }
+      .hero .hero__title { margin-bottom: 16px; font-size: clamp(48px, min(14vw - 20px, 36vh - 125px), 200px); }
+      .hero .hero__sub { margin-bottom: 22px; }
+    }
+@media (min-width: 861px) and (max-width: 1199px) {
+      /* Smaller laptops and landscape tablets: the hero is nearly square here, so a 70%-wide
+         photo can't hold all five people; start it at 20% instead. */
+      .hero__photo { left: 20%; width: 80%; object-position: 50% 30%; }
+      .hero .hero__title { font-size: clamp(48px, min(12vw - 20px, min(36vh, 362px) - 150px), 200px); }   /* the photo starts at 20% here, so the text must end sooner */
+      .hero__slide::after { background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 20%, rgba(10,10,10,.65) 30%, rgba(10,10,10,0) 50%); }
     }
 .hero__season {
       font-size: 9px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase;
-      color: var(--purple); margin-bottom: 18px; position: relative; z-index: 1;
-      animation: fadeUp 0.8s ease 0.2s both;
+      color: var(--purple); margin-bottom: 18px;
     }
 .hero__title {
       font-family: var(--display);
-      font-size: clamp(60px, 8vw, 96px); line-height: 0.92;
+      font-size: clamp(60px, 8vw, 104px); line-height: 0.92;
       letter-spacing: 2px; color: var(--white); margin-bottom: 22px;
-      position: relative; z-index: 1;
-      animation: fadeUp 0.8s ease 0.35s both;
     }
 .hero__title span { color: var(--purple); }
 .hero__sub {
-      font-size: 14px; font-weight: 300; color: #555;
-      line-height: 1.85; max-width: 300px; margin-bottom: 36px;
-      position: relative; z-index: 1;
-      animation: fadeUp 0.8s ease 0.5s both;
+      /* Light grey, not the old #555: that was 2.6:1 on black, under the 4.5:1 minimum. */
+      font-size: 14px; font-weight: 300; color: rgba(255,255,255,.82);
+      line-height: 1.85; max-width: 320px; margin-bottom: 32px;
     }
 .hero__cta {
       display: inline-flex; align-items: center; gap: 12px;
       background: var(--purple); color: var(--white);
       padding: 15px 32px; font-size: 10px; font-weight: 700;
       letter-spacing: 3px; text-transform: uppercase;
-      width: fit-content; position: relative; z-index: 1;
-      animation: fadeUp 0.8s ease 0.65s both;
+      width: fit-content;
       transition: background var(--transition), gap var(--transition);
     }
+.hero__slide.is-current .hero__season { animation: fadeUp 0.8s ease 0.2s both; }
+.hero__slide.is-current .hero__title  { animation: fadeUp 0.8s ease 0.35s both; }
+.hero__slide.is-current .hero__sub    { animation: fadeUp 0.8s ease 0.5s both; }
+.hero__slide.is-current .hero__cta    { animation: fadeUp 0.8s ease 0.65s both; }
 .hero__cta:hover { background: var(--purple-dim); gap: 18px; }
-.hero__right { display: grid; grid-template-rows: 1fr 1fr; }
-.hero__img {
-      background: var(--bg-light); display: flex; align-items: center;
-      justify-content: center; padding: 24px; position: relative; overflow: hidden;
+.hero__cta:focus-visible { outline: 2px solid var(--white); outline-offset: 3px; }
+@media (max-width: 860px) {
+      .hero__slide { align-items: flex-end; }
+      .hero__photo { object-position: 52% 30%; }
+      .hero__slide::after { background: linear-gradient(to top, rgba(10,10,10,.92) 0%, rgba(10,10,10,.6) 40%, rgba(10,10,10,0) 70%); }
+      .hero__text { padding: 32px 24px 40px; }
     }
-.hero__img--top { border-bottom: 1px solid var(--muted); border-left: 1px solid var(--muted); }
-.hero__img--bot { border-left: 1px solid var(--muted); background: var(--bg-mid); }
-.hero__img-label {
-      position: absolute; top: 18px; right: 20px;
-      font-family: var(--display); font-size: 11px; letter-spacing: 3px; color: var(--purple);
+/* Some people get dizzy from motion: no zoom, no slide-in. */
+@media (prefers-reduced-motion: reduce) {
+      .hero .hero__slide.is-current * { animation: none; }   /* outranks the .is-current animation rules above */
+      .hero__slide, .hero__slide.is-current { transition: none; }   /* slides swap, no fade */
+      /* Still rotates (there is no other way to reach slides 2-4), but as plain swaps: no fade,
+         no zoom, no slide-in. The nav underline still fills: slow, thin, and nothing moves. */
     }
-.hero__img-label--dim { color: var(--muted); }
+/* ---- Slides 2-4 use slide 1's frame exactly: the same black strip, the same photo edge and the
+   same fade, so the left side never jumps as the slides change. Only object-position differs,
+   which picks the part of each photo that shows inside that frame (0% keeps its left side,
+   100% its right), so each one's people land in the clear part. ---- */
+.hero .hero__photo--women { object-position: 62% 30%; }   /* desktop: her at about 3/4 across; phone: her, centred */
+.hero .hero__photo--men   { object-position: 55% 30%; }   /* desktop: the group clear of the fade; phone: the man in grey at the front */
+.hero .hero__photo--sale  { object-position: 50% 50%; }
+/* Same black strip, longer fade. Slide 1's photo happens to start on a dark doorway, so its
+   short fade melts in; these photos start on sunlit street and stone, and the same fade
+   leaves a visible edge at 30%. So their fade runs further (to 60% instead of 55%) and stays
+   darker for longer, which makes the black read the same width on every slide. */
+@media (min-width: 1200px) {
+      .hero .hero__slide--women::after, .hero .hero__slide--men::after, .hero .hero__slide--sale::after {
+        background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 30%, rgba(10,10,10,.88) 36%, rgba(10,10,10,.6) 44%, rgba(10,10,10,.25) 52%, rgba(10,10,10,0) 60%);
+      }
+    }
+@media (min-width: 861px) and (max-width: 1199px) {
+      .hero .hero__slide--women::after, .hero .hero__slide--men::after, .hero .hero__slide--sale::after {
+        background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 20%, rgba(10,10,10,.88) 26%, rgba(10,10,10,.6) 34%, rgba(10,10,10,.25) 43%, rgba(10,10,10,0) 52%);
+      }
+    }
+/* ---- Slide 4: the sale. The shop photo is dimmed so the outlined number reads over it. ---- */
+.hero__photo--sale { filter: brightness(.70) saturate(.9); }   /* was .55: 15 points less darkening, Oct 2026 */
+/* The sale slide speaks in the sale page's red, not the brand purple, so it reads as "sale"
+   at a glance and matches the page the button leads to. */
+.hero__slide--sale .hero__title span { color: var(--red-sale); }
+.hero__slide--sale .hero__cta { background: var(--red-sale); }               /* white on #cc1111: 5.7:1 */
+.hero__slide--sale .hero__cta:hover { background: #a30d0d; }
+/* The small label is 9-12 px: #cc1111 on black is only 3.4:1, under the 4.5:1 small text
+   needs, so it gets a lighter red from the same family (6.5:1). The big headline is fine at 3.4:1 (large text needs 3:1). */
+.hero__slide--sale .hero__season { color: #ff5a5a; }
+.hero__sale-mark {
+      position: absolute; z-index: 1; right: 4vw; top: 50%; transform: translateY(-50%);
+      font-family: var(--display); line-height: .8; letter-spacing: 2px;
+      font-size: min(34vw, 62vh);
+      color: rgba(181,123,255,.14);                          /* a faint purple fill, so the shape holds on a busy photo */
+      -webkit-text-stroke: 3px var(--purple);                /* the brand purple, kept on purpose next to the red text */
+      text-shadow: 0 0 40px rgba(10,10,10,.45);
+      pointer-events: none; user-select: none;
+    }
+@media (max-width: 860px) {
+      /* Phone: the number sits in the top half, above the text at the bottom. */
+      .hero__sale-mark { top: 15%; right: 50%; transform: translateX(50%); font-size: min(58vw, 34vh); -webkit-text-stroke-width: 2px; }
+    }
+/* ---- The slide clock: an invisible element whose 7 s animation ends each slide (hero.js
+   listens for its animationend). Pausing the animation (hover, focus, scrolled away) pauses
+   the slideshow exactly where it was. It must stay displayed, if invisible: an element with
+   display:none never runs its animation, so the slideshow would stop. ---- */
+.hero__clock { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.hero.is-playing .hero__clock { animation: heroTimer var(--hero-interval, 7s) linear; }
+.hero.is-held .hero__clock { animation-play-state: paused; }
+@keyframes heroTimer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* ---- The play symbol: appears bottom-right while the visitor has paused the hero. ---- */
+.hero__play {
+      position: absolute; z-index: 2; right: 32px; bottom: 28px;
+      display: grid; place-items: center; width: 44px; height: 44px; padding: 0 0 0 3px;   /* 3px: a triangle looks off-centre when it's centred */
+      border: 0; border-radius: 50%; color: var(--white); fill: currentColor;
+      background: rgba(10,10,10,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      animation: heroPlayIn .25s ease-out;
+    }
+.hero__play[hidden] { display: none; }
+.hero__play:hover { background: var(--purple); }
+.hero__play:focus-visible { outline: 2px solid var(--white); outline-offset: 3px; }
+@keyframes heroPlayIn { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
+@media (max-width: 860px) { .hero__play { right: 20px; bottom: 24px; } }
+@media (prefers-reduced-motion: reduce) { .hero__play { animation: none; } }
+/* ---- The main nav shows which slide is up, while the hero is on screen: New In for the
+   collection, then Women, Men, Sale. The link's own hover underline fills across in time with
+   the clock (same 7 s, started and paused together). Same 2 px line as the hover. ---- */
+.nav__links a.nav-hero-current { color: var(--black); }
+.nav__links a.nav-hero-current::after { width: 100%; transition: none; }
+.hero-playing a.nav-hero-current::after { animation: heroUnderline var(--hero-interval, 7s) linear; }
+.hero-held a.nav-hero-current::after { animation-play-state: paused; }
+@keyframes heroUnderline { from { width: 0; } to { width: 100%; } }
 .img-ph { background: var(--muted); border-radius: 1px; }
 .img-ph--dark { background: #c0c0be; }
 .section-header {
@@ -267,7 +409,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     }
 .product:hover .product__img { background: var(--bg-mid); }
 @keyframes heroZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
-.hero__img img { animation: heroZoom 10s ease-out forwards; }
 .feature__img img { animation: heroZoom 10s ease-out forwards; }
 .product__img img { width:100%; height:100%; transition: transform 0.6s ease; }
 .product:hover .product__img img { transform: scale(1.05); }
@@ -412,11 +553,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       .nav__links { display: none; }
       .nav__toggle { display: flex; }
 
-      .hero { grid-template-columns: 1fr; }
-      .hero__left { min-height: 420px; padding: 32px 24px; }
-      .hero__right { grid-template-columns: 1fr 1fr; grid-template-rows: 240px; }
-      .hero__img--top { border-bottom: none; border-right: 1px solid var(--muted); }
-
       .categories { margin: 0 24px 8px; grid-template-columns: 1fr 1fr; }
       .section-header { padding: 24px 24px 14px; }
       .products { margin: 0 24px; grid-template-columns: 1fr 1fr; }
@@ -425,8 +561,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       .footer { padding: 40px 24px 0; }
     }
 @media (max-width: 540px) {
-      .hero__right { grid-template-columns: 1fr; grid-template-rows: 200px 180px; }
-      .hero__img--top { border-right: none; border-bottom: 1px solid var(--muted); }
       .categories { grid-template-columns: 1fr 1fr; }
       .products { grid-template-columns: 1fr; }
       .newsletter__form { flex-direction: column; }
@@ -488,10 +622,10 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     <a href="index.html" class="nav__logo" aria-label="NURA home">NUR<span>A</span></a>
     <ul class="nav__links">
       <li><a href="index.html" class="active">Home</a></li>
-      <li><a href="new-in.html">New In</a></li>
-      <li><a href="women.html">Women</a></li>
-      <li><a href="men.html">Men</a></li>
-      <li><a href="sale.html">Sale</a></li>
+      <li><a href="new-in.html" data-hero-slide="0">New In</a></li>
+      <li><a href="women.html" data-hero-slide="1">Women</a></li>
+      <li><a href="men.html" data-hero-slide="2">Men</a></li>
+      <li><a href="sale.html" data-hero-slide="3">Sale</a></li>
     </ul>
     <div class="nav__actions">
       <button class="nav__icon" aria-label="Search" data-action="open-search">
@@ -655,31 +789,101 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   </div>
   <main>
 
-    <!-- Hero -->
-    <section class="hero" aria-labelledby="hero-heading">
-      <div class="hero__left">
-        <p class="hero__season">SS26 Collection</p>
-        <h1 class="hero__title" id="hero-heading">
-          DRESS<br>LIKE YOU<br><span>MEAN IT</span>
-        </h1>
-        <p class="hero__sub">
-          The newest, the boldest, the most wanted —
-          all in one place. Fashion without compromise.
-        </p>
-        <a href="#new-in" class="hero__cta">
-          Shop now
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </a>
-      </div>
-      <div class="hero__right">
-        <div class="hero__img hero__img--top" role="img" aria-label="New season arrivals">
-          <img src="images/index_try1.avif" alt="New season arrivals" loading="eager" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;" fetchpriority="high" decoding="async">
-          <span class="hero__img-label">New In</span>
+    <!-- Hero: a slideshow of four (Oct 2026). A click or tap on it pauses it, another one
+         carries on; it also waits while it's scrolled away. The main nav underlines the slide
+         that's up. No pause button, by choice (see hero.js). hero.js runs it; without JavaScript the first
+         slide simply shows, like the old single hero. -->
+    <section class="hero" aria-roledescription="carousel" aria-label="Featured">
+      <!-- The page's one h1. The slides' headlines are h2s: a hidden slide can't hold the h1,
+           or a screen reader arriving while "Men" shows would find no page title. -->
+      <h1 class="visually-hidden">NURA: dress like you mean it</h1>
+
+      <span class="hero__clock" aria-hidden="true"></span>
+      <!-- Shown only while paused (hero.js), bottom-right. A real button, so it can be reached
+           with Tab and read out while it's there; clicking it, or anywhere on the hero, plays. -->
+      <button type="button" class="hero__play" aria-label="Play the slideshow" hidden>
+        <svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1l8 5-8 5z"/></svg>
+      </button>
+
+      <!-- aria-live "off": announcing every change would talk over the page every 7 s. -->
+      <div class="hero__slides" aria-live="off">
+
+        <div class="hero__slide is-current" role="group" aria-roledescription="slide" aria-label="1 of 4">
+          <!-- The original was 1376 px; these copies come from a 2x Real-ESRGAN upscale (2752 px). -->
+          <img class="hero__photo" src="images/hero-street-1600.webp"
+               srcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w"
+               sizes="(max-aspect-ratio: 16/9) 180vh, 100vw"
+               alt="Five people in tailored coats and suits walking down a city street"
+               width="2752" height="1536" fetchpriority="high" decoding="async">
+          <div class="hero__text">
+            <p class="hero__season">SS26 Collection</p>
+            <h2 class="hero__title">DRESS<br>LIKE YOU<br><span>MEAN IT</span></h2>
+            <p class="hero__sub">
+              The newest, the boldest, the most wanted —
+              all in one place. Fashion without compromise.
+            </p>
+            <a href="new-in.html" class="hero__cta">
+              Shop now
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+          </div>
         </div>
-        <div class="hero__img hero__img--bot" role="img" aria-label="Trending pieces">
-          <img src="images/beggie.webp" alt="Trending fashion pieces" loading="eager" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;">
-          <span class="hero__img-label">Hot Now</span>
+
+        <!-- Slides 2-4 carry their photos in data-srcset: hero.js loads them after the page
+             has loaded, so they never compete with the first photo (the page's LCP). -->
+        <!-- All three: 2x Real-ESRGAN upscales, like the street photo. sizes: these photos are
+             wider than the screen's shape, so they are drawn by height (about 2.4x the hero's height). -->
+        <div class="hero__slide hero__slide--women" role="group" aria-roledescription="slide" aria-label="2 of 4">
+          <img class="hero__photo hero__photo--women" data-srcset="images/hero-women-800.webp 800w, images/hero-women-1600.webp 1600w, images/hero-women-2400.webp 2400w, images/hero-women-3168.webp 3168w"
+               sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
+               alt="A woman in a wide black hat and sunglasses, a red and green print bustier and a black blazer over her shoulders, on a sunny city street"
+               width="3168" height="1344" decoding="async">
+          <div class="hero__text">
+            <p class="hero__season">Women · SS26</p>
+            <h2 class="hero__title">TAILORED<br>FOR<br><span>HER</span></h2>
+            <p class="hero__sub">Sharp blazers, print and polish. Pieces that walk in before you do.</p>
+            <a href="women.html" class="hero__cta">
+              Shop women
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+          </div>
         </div>
+
+        <div class="hero__slide hero__slide--men" role="group" aria-roledescription="slide" aria-label="3 of 4">
+          <img class="hero__photo hero__photo--men" data-srcset="images/hero-men-800.webp 800w, images/hero-men-1600.webp 1600w, images/hero-men-2400.webp 2400w, images/hero-men-3168.webp 3168w"
+               sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
+               alt="Six bearded men in tailored suits, waistcoats and hats on the steps of a brownstone"
+               width="3168" height="1344" decoding="async">
+          <div class="hero__text">
+            <p class="hero__season">Men · SS26</p>
+            <h2 class="hero__title">BUILT<br>TO BE<br><span>NOTICED</span></h2>
+            <p class="hero__sub">Sharp suits, bold colour, the right hat. Tailoring that holds its ground.</p>
+            <a href="men.html" class="hero__cta">
+              Shop men
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- The number is the picture; the shop behind it is atmosphere (alt="": it says nothing
+             the headline doesn't). hero.js swaps in the real biggest discount from the catalogue,
+             so the claim can never outlive the sale (40% is true today). -->
+        <div class="hero__slide hero__slide--sale" role="group" aria-roledescription="slide" aria-label="4 of 4">
+          <img class="hero__photo hero__photo--sale" data-srcset="images/hero-sale-800.webp 800w, images/hero-sale-1600.webp 1600w, images/hero-sale-2400.webp 2400w, images/hero-sale-2816.webp 2816w"
+               sizes="(max-aspect-ratio: 16/9) 180vh, 100vw" alt=""
+               width="2816" height="1536" decoding="async">
+          <p class="hero__sale-mark" aria-hidden="true"><span data-hero-off>40</span>%</p>
+          <div class="hero__text">
+            <p class="hero__season">The Sale · Limited stock</p>
+            <h2 class="hero__title">UP TO<br><span><span data-hero-off>40</span>% OFF</span><br>RIGHT NOW</h2>
+            <p class="hero__sub">Real reductions on pieces from this season. When a size is gone, it’s gone.</p>
+            <a href="sale.html" class="hero__cta">
+              Shop the sale
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -862,5 +1066,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   <script src="js/search.js" defer></script>
   <script src="js/grid.js" defer></script>
   <script src="js/home.js" defer></script>
+  <script src="js/hero.js" defer></script>
 </body>
 </html>

@@ -11,6 +11,13 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
+# Fonts never change under the same name (a new version gets a new file name, like
+# dm-sans-v18), so browsers may keep them for a year without asking again. Without this,
+# Netlify's default makes the browser re-check every font on every page, and the page shows
+# the stand-in font until the answer comes back: a visible flicker on each click.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
 # Shared scripts change between deploys; make browsers check for a new version.
 /js/*
   Cache-Control: public, max-age=0, must-revalidate

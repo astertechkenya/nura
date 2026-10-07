@@ -86,16 +86,11 @@
 .pd-recs__title{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,34px);letter-spacing:1px;margin-bottom:16px;}
 /* The site's darker purple: the lighter one is too faint on this pale background (2.6:1). */
 .pd-recs__accent{color:var(--purple-dim);}
-.pd-recs__list{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px;}
-@media (min-width:860px){.pd-recs__list{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px;}}
-.pd-rec{display:grid;gap:4px;color:var(--black);}
-.pd-rec__img{display:block;aspect-ratio:3/4;overflow:hidden;margin-bottom:6px;}
-.pd-rec__img img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease;}
-.pd-rec:hover .pd-rec__img img{transform:scale(1.03);}
-@media (prefers-reduced-motion:reduce){.pd-rec__img img{transition:none;}.pd-rec:hover .pd-rec__img img{transform:none;}}
-.pd-rec__brand{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#5f5f5f;}
-.pd-rec__name{font-size:13px;font-weight:700;line-height:1.35;}
-.pd-rec:hover .pd-rec__name,.pd-rec:focus-visible .pd-rec__name{text-decoration:underline;text-underline-offset:3px;}
-.pd-rec:focus-visible{outline:2px solid var(--purple);outline-offset:4px;}
-.pd-rec__price{font-size:13px;}
-.pd-rec__price s{color:#5f5f5f;margin-left:6px;font-size:12px;}
+/* The suggestions are the shop's product cards (styled in product.html, as on the category
+   pages), laid out like a category grid: hairline borders between cards (a 2 px gap over a
+   grey background), four across on a wide screen, two below 961 px, as the category grids
+   go to two. Phones keep two across rather than the category pages' one: four full-width
+   cards would make the page about 1,600 px longer for a "maybe also" row. */
+.pd-recs__list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--muted);border:1px solid var(--muted);}
+@media (min-width:961px){.pd-recs__list{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media (prefers-reduced-motion:reduce){.pd-rec .product-card__img img,.pd-rec .product-card__overlay{transition:none;}.pd-rec:hover .product-card__img img{transform:none;}}

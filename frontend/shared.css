@@ -15,8 +15,8 @@
       --muted:       #cccccc;
       --red-sale:    #cc1111;
 
-      --display:    'Bebas Neue', Impact, sans-serif;
-      --sans:       'DM Sans', system-ui, sans-serif;
+      --display:    'Bebas Neue', 'Bebas Neue Fallback', 'Bebas Neue Fallback Narrow', Impact, sans-serif;
+      --sans:       'DM Sans', 'DM Sans Fallback', 'DM Sans Fallback Android', system-ui, sans-serif;
       --transition: 0.25s ease;
 
       /* Exercise book ruled lines */

@@ -36,7 +36,10 @@
     document.querySelectorAll('[data-wishlist-id]').forEach(function (btn) {
       var on = skus.indexOf(btn.dataset.wishlistId) > -1;
       btn.classList.toggle('wishlisted', on);
-      btn.setAttribute('aria-label', on ? 'Remove from wishlist' : 'Add to wishlist');
+      // With a name (product-page suggestions), say which product: four "Add to wishlist"
+      // buttons in a row are indistinguishable to a screen-reader user.
+      var name = btn.dataset.wishlistName ? ' ' + btn.dataset.wishlistName : '';
+      btn.setAttribute('aria-label', on ? 'Remove' + name + ' from wishlist' : 'Add' + name + ' to wishlist');
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       var svg = btn.querySelector('svg');
       if (svg) { svg.style.fill = on ? 'var(--purple)' : 'none'; svg.style.stroke = on ? 'var(--purple)' : 'currentColor'; }

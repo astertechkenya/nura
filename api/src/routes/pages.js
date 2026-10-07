@@ -225,18 +225,46 @@ export function recommend(p, all, count = RECOMMEND_COUNT) {
   return [...fitting, ...rest].slice(0, count);
 }
 
+// Each suggestion is the shop's own product card: the same markup and classes as the cards
+// js/grid.js draws on the category pages (badge, heart, sliding "Add to cart", brand, name,
+// price, "Only N left"), so it looks and behaves the same, styled by the same rules (in
+// product.html, copied from the category pages). The shop's cart.js and wishlist.js act on any
+// [data-sku] card with these data-action buttons, so there is no second copy of that logic.
+// Two differences from grid.js, both for screen readers: each button names its product (four
+// identical "Add to cart" buttons in a row can't be told apart), and the heart's label does too.
+const CARD_HEART = HEART.replace('width="20" height="20"', 'width="17" height="17"');   // the grid's size
+const LOW_STOCK = 3;
+
+function recCardHtml(o) {
+  const url = `/p/${esc(o.slug)}`;
+  const badge = o.onSale ? 'sale' : o.isNew ? 'new' : null;           // as the grid: Sale wins
+  const low = o.totalStock > 0 && o.totalStock <= LOW_STOCK;
+  return `
+        <li class="product-card pd-rec" data-sku="${esc(o.sku)}">
+          <div class="product-card__img" style="background-color:${safeColour(o.cardBg)}">${badge
+            ? `<span class="product-card__badge product-card__badge--${badge}">${badge === 'sale' ? 'Sale' : 'New'}</span>` : ''}
+            <a class="card-photo-link" href="${url}" tabindex="-1" aria-hidden="true"><img class="nura-card-img" ${sized(o.imageUrl, 400, '(min-width: 1180px) 290px, (min-width: 541px) 50vw, 50vw')} alt="" loading="lazy" style="object-position:${safeFocus(o.imageFocus)}"></a>
+            <button class="product__wish product-card__wish" data-wishlist-id="${esc(o.sku)}" data-wishlist-name="${esc(o.name)}" aria-label="Add ${esc(o.name)} to wishlist" aria-pressed="false" data-action="wishlist">${CARD_HEART}</button>
+            ${o.totalStock > 0
+              ? `<button type="button" class="product-card__overlay" data-action="add-to-cart" aria-label="Add ${esc(o.name)} to cart">Add to cart</button>`
+              : '<button type="button" class="product-card__overlay" data-sold-out aria-disabled="true">Sold out</button>'}
+          </div>
+          <div class="product-card__body">
+            <p class="product-card__brand">${esc(o.brand.name)}</p>
+            <p class="product-card__name"><a class="card-name-link" href="${url}">${esc(o.name)}</a></p>
+            <p><span class="product-card__price">${ksh(o.priceKes)}</span>${o.onSale
+              ? `<span class="product-card__price-old"><span class="visually-hidden">was </span>${ksh(o.compareAtKes)}</span>` : ''}</p>${low
+              ? `\n            <p class="nura-stock">Only ${Number(o.totalStock)} left</p>` : ''}
+          </div>
+        </li>`;
+}
+
 function recsHtml(list) {
   if (!list.length) return '';
   return `
     <section class="pd-recs" aria-labelledby="pdRecs">
       <h2 class="pd-recs__title" id="pdRecs">You may also <span class="pd-recs__accent">like</span></h2>
-      <ul class="pd-recs__list">${list.map((o) => `
-        <li><a class="pd-rec" href="/p/${esc(o.slug)}">
-          <span class="pd-rec__img" style="background-color:${safeColour(o.cardBg)}"><img ${sized(o.imageUrl, 400, '(min-width: 1180px) 270px, (min-width: 860px) 23vw, 50vw')} alt="" loading="lazy" width="300" height="400" style="object-position:${safeFocus(o.imageFocus)}"></span>
-          <span class="pd-rec__brand">${esc(o.brand.name)}</span>
-          <span class="pd-rec__name">${esc(o.name)}</span>
-          <span class="pd-rec__price">${ksh(o.priceKes)}${o.onSale ? ` <s><span class="visually-hidden">was </span>${ksh(o.compareAtKes)}</s>` : ''}</span>
-        </a></li>`).join('')}
+      <ul class="pd-recs__list">${list.map(recCardHtml).join('')}
       </ul>
     </section>`;
 }

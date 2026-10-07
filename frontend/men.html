@@ -7,6 +7,7 @@
   <meta name="description" content="Shop men's fashion at NURA. Casual, formal, streetwear and evening — the best of Kenyan and global menswear." />
   <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="fonts/bebas-neue-v16-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="shared.css" />
   <style>
@@ -14,7 +15,7 @@
       --bg:#f5f5f3; --bg-card:#ffffff; --bg-light:#efefed; --bg-mid:#e8e8e6;
       --black:#0a0a0a; --purple:#B57BFF; --purple-dim:#9B5FE8;
       --white:#ffffff; --mid:#888888; --light:#e0e0e0; --muted:#cccccc; --red-sale:#cc1111;
-      --display: 'Bebas Neue', 'Bebas Neue Fallback', Impact, sans-serif; --sans: 'DM Sans', 'DM Sans Fallback', system-ui, sans-serif; --transition:0.25s ease;
+      --display: 'Bebas Neue', 'Bebas Neue Fallback', 'Bebas Neue Fallback Narrow', Impact, sans-serif; --sans: 'DM Sans', 'DM Sans Fallback', 'DM Sans Fallback Android', system-ui, sans-serif; --transition:0.25s ease;
     }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
@@ -42,7 +43,7 @@ body.cursor-hover
 .nav__logo span{color:var(--purple);}
 .nav__links{display:flex;gap:32px;list-style:none;}
 .nav__links a{font-size:10px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--mid);transition:color var(--transition);position:relative;}
-.nav__links a::after{content:'';position:absolute;bottom:-2px;left:0;width:0;height:1px;background:var(--purple);transition:width .3s ease;}
+.nav__links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--purple);transition:width .3s ease;}
 .nav__links a:hover{color:var(--black);}
 .nav__links a:hover::after,.nav__links a.active::after{width:100%;}
 .nav__links a.active{color:var(--black);}
@@ -53,153 +54,51 @@ body.cursor-hover
 .nav__cart:hover{background:var(--purple);}
 .nav__toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;padding:4px;}
 .nav__toggle span{display:block;width:22px;height:1px;background:var(--black);}
-.hero-banner{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      min-height:500px;
-      border-bottom:1px solid var(--light);
+/* ---- Page header (Oct 2026): type instead of a photo. The page's name, big, then a line and
+   the live counts; the products start much higher up than under the old photo banner. ---- */
+.cat-head{
+      background:var(--bg);padding:48px 40px 36px;
+      display:grid;grid-template-columns:1fr minmax(280px,420px);gap:48px;align-items:end;
     }
-.hero-banner__img{
-      background:var(--black);
-      position:relative;
-      overflow:hidden;
-      min-height:500px;
-      display:flex;
-      align-items:flex-end;
-      padding:32px;
+/* The page's name again, huge and faint, bleeding off the bottom-right corner: the same
+   watermark as the New In and Sale headers. Those sit on black at 5% purple; on this light
+   background it needs 10% to show as much. */
+.cat-head{position:relative;overflow:hidden;}
+.cat-head::before{
+      content:'MEN';font-family:var(--display);font-size:160px;line-height:1;letter-spacing:-2px;
+      color:rgba(181,123,255,0.10);position:absolute;bottom:-20px;right:-10px;pointer-events:none;
     }
-.hero-banner__img::before{
-      content:'MEN';
-      font-family:var(--display);
-      font-size:160px;
-      color:rgba(181,123,255,0.05);
-      position:absolute;
-      bottom:-20px;left:-10px;
-      letter-spacing:-2px;line-height:1;
-      pointer-events:none;
+.cat-head > div{position:relative;}   /* the text stays above the watermark */
+.cat-head__eyebrow{font-size:10px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:var(--purple);margin-bottom:14px;}
+.cat-head__title{
+      /* Same size as the New In and Sale page titles, so the four shop pages match. */
+      font-family:var(--display);font-size:clamp(52px,7vw,88px);line-height:.92;letter-spacing:2px;
+      color:var(--black);animation:fadeUp .7s ease .1s both;
     }
-@keyframes heroZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
-.hero-banner__img img { animation: heroZoom 10s ease-out forwards; }
-.hero-banner__img-inner{
-      position:absolute;inset:0;
-      background:#111;
-      
-    }
-.hero-banner__img-credit{
-      position:relative;z-index:1;
-      font-size:10px;color:rgba(255,255,255,0.25);
-      letter-spacing:2px;text-transform:uppercase;
-    }
-.hero-banner__content{
-      background:var(--bg);
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      padding:60px 48px;
-      position:relative;
-      overflow:hidden;
-    }
-.hero-banner__eyebrow{
-      font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;
-      color:var(--purple);margin-bottom:16px;
-      animation:fadeUp .7s ease .1s both;
-    }
-.hero-banner__title{
-      font-family:var(--display);
-      font-size:clamp(56px,7vw,88px);
-      line-height:0.92;letter-spacing:2px;
-      color:var(--black);margin-bottom:20px;
-      animation:fadeUp .7s ease .25s both;
-    }
-.hero-banner__title span{color:var(--purple);}
-.hero-banner__sub{
-      font-size:14px;font-weight:300;color:var(--mid);
-      line-height:1.85;max-width:340px;margin-bottom:32px;
-      animation:fadeUp .7s ease .4s both;
-    }
-.hero-banner__stats{
-      display:flex;gap:32px;margin-bottom:36px;
-      animation:fadeUp .7s ease .5s both;
-    }
-.hero-stat__num{
-      font-family:var(--display);font-size:36px;letter-spacing:1px;
-      color:var(--black);line-height:1;margin-bottom:4px;
-    }
-.hero-stat__num span{color:var(--purple);}
-.hero-stat__label{
-      font-size:9px;font-weight:600;letter-spacing:2px;
-      text-transform:uppercase;color:var(--mid);
-    }
-.hero-banner__cta{
-      display:inline-flex;align-items:center;gap:12px;
-      background:var(--black);color:var(--white);
-      padding:15px 32px;font-size:10px;font-weight:700;
-      letter-spacing:3px;text-transform:uppercase;
-      width:fit-content;
-      animation:fadeUp .7s ease .6s both;
-      transition:background var(--transition),gap var(--transition);
-    }
-.hero-banner__cta:hover{background:var(--purple);gap:18px;}
+.cat-head__title span{color:var(--purple);}
+/* #555, not --mid (#888): grey text on this off-white needs to be that dark to reach 4.5:1. */
+.cat-head__sub{font-size:14px;font-weight:300;line-height:1.8;color:#555;margin-bottom:22px;max-width:420px;}
+.cat-head__stats{display:flex;gap:28px;margin:0;}
+.cat-head__stats div{display:flex;flex-direction:column-reverse;}   /* number above its label, label first in the source */
+.cat-head__stats dt{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:#666;}
+.cat-head__stats dd{margin:0 0 4px;font-family:var(--display);font-size:34px;line-height:1;letter-spacing:1px;color:var(--black);min-width:1ch;}
+/* ---- Style filter (Oct 2026): a quiet row of tabs instead of five big coloured tiles. Same
+   underline as the main nav: grows on hover, stays on the one that's chosen. ---- */
 .subcats{
-      display:grid;
-      grid-template-columns:repeat(5,1fr);
-      gap:2px;background:var(--muted);
-      border-bottom:1px solid var(--light);
+      display:flex;gap:32px;padding:0 40px;background:var(--bg);border-bottom:1px solid var(--light);
+      overflow-x:auto;scrollbar-width:none;   /* phones: the row scrolls sideways if it doesn't fit */
     }
+.subcats::-webkit-scrollbar{display:none;}
 .subcat{
-      background:var(--white);
-      padding:0;
-      cursor:none;
-      position:relative;
-      overflow:hidden;
-      min-height:180px;
-      display:flex;
-      flex-direction:column;
-      justify-content:flex-end;
-      transition:background var(--transition);
+      position:relative;flex:none;background:none;border:0;padding:16px 0;cursor:none;
+      font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;
+      color:#555;white-space:nowrap;transition:color var(--transition);
     }
-.subcat__img{
-      position:absolute;inset:0;
-      transition:transform .5s ease;
-    }
-.subcat:hover .subcat__img{transform:scale(1.04);}
-.subcat--casual   .subcat__img{background:#dde0e4;}
-.subcat--formal   .subcat__img{background:#c8cdd4;}
-.subcat--street   .subcat__img{background:#111518;}
-.subcat--evening  .subcat__img{background:#1a1f2a;}
-.subcat::before{
-      content:'';position:absolute;inset:0;
-      background:var(--purple);opacity:0;
-      transition:opacity .3s ease;z-index:1;
-    }
-.subcat:hover::before{opacity:0.7;}
-.subcat__body{
-      position:relative;z-index:2;
-      padding:20px;
-      background:linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 100%);
-    }
-.subcat--casual .subcat__body,
-    .subcat--formal .subcat__body{
-      background:linear-gradient(to top,rgba(0,0,0,0.2) 0%,transparent 100%);
-    }
-.subcat__name{
-      font-family:var(--display);
-      font-size:24px;letter-spacing:2px;
-      color:var(--white);margin-bottom:3px;
-      transition:color var(--transition);
-    }
-.subcat--casual .subcat__name,
-    .subcat--formal .subcat__name{color:var(--white);}
-.subcat--all .subcat__name{color:var(--white);}
-.subcat--all .subcat__count{color:rgba(255,255,255,0.75);}
-.subcat:hover .subcat__name{color:var(--white);}
-.subcat__count{
-      font-size:9px;font-weight:600;letter-spacing:2px;
-      text-transform:uppercase;color:rgba(255,255,255,0.6);
-    }
-.subcat--casual  .subcat__count,
-    .subcat--formal  .subcat__count{color:rgba(255,255,255,0.75);}
-.subcat:hover .subcat__count{color:rgba(255,255,255,0.8);}
+.subcat__count{margin-left:6px;font-weight:400;letter-spacing:1px;color:#6b6b6b;}   /* 4.9:1 */
+.subcat::after{content:'';position:absolute;left:0;bottom:-1px;width:0;height:2px;background:var(--purple);transition:width .3s ease;}
+.subcat:hover,.subcat.active{color:var(--black);}
+.subcat:hover::after,.subcat.active::after{width:100%;}
+.subcat:focus-visible{outline:2px solid var(--purple);outline-offset:4px;}
 .sort-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 40px;border-bottom:1px solid var(--light);background:var(--bg);}
 .sort-bar__left{display:flex;align-items:center;gap:10px;}
 .sort-bar__count{font-size:11px;color:var(--mid);letter-spacing:1px;}
@@ -249,10 +148,8 @@ body.cursor-hover
 @media(max-width:960px){.nav{padding:0 24px;}
       .nav__links{display:none;}
       .nav__toggle{display:flex;}
-      .hero-banner{grid-template-columns:1fr;}
-      .hero-banner__img{min-height:300px;order:2;}
-      .hero-banner__content{padding:40px 24px;order:1;}
-      .subcats{grid-template-columns:1fr 1fr;}
+      .cat-head{grid-template-columns:1fr;gap:16px;padding:32px 24px 24px;}
+      .subcats{padding:0 24px;gap:24px;}
       .sort-bar{padding:12px 24px;}
       .shop-layout{width:100%;}
       .filters{position:fixed;left:0;top:0;bottom:0;width:300px;z-index:150;transform:translateX(-100%);transition:transform .35s ease;height:100vh;border-right:1px solid var(--light);}
@@ -261,9 +158,9 @@ body.cursor-hover
       .product-grid{grid-template-columns:repeat(2,1fr);}
     }
 @media(max-width:540px){
-      .subcats{grid-template-columns:1fr 1fr;}
+      .cat-head{padding:28px 20px 20px;}
+      .subcats{padding:0 20px;}
       .product-grid{grid-template-columns:1fr;}
-      .hero-banner__stats{gap:20px;}
     }
 .footer{background:var(--black);padding:56px 40px 0;}
 .footer__brand{max-width:420px;}
@@ -481,81 +378,31 @@ body.cursor-hover
   </div>
   <main>
 
-    <!-- Hero Banner -->
-    <section class="hero-banner" aria-labelledby="men-heading">
-      <div class="hero-banner__img">
-        <img src="images/menhero.webp" alt="NURA Men SS26" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 20%;"  fetchpriority="high" decoding="async" loading="eager"/>
+    <!-- Page header (Oct 2026): the page's name and live counts, no photo. -->
+    <section class="cat-head" aria-labelledby="men-heading">
+      <div>
+        <p class="cat-head__eyebrow">SS26 Collection</p>
+        <h1 class="cat-head__title" id="men-heading">MEN<span aria-hidden="true">.</span></h1>
       </div>
-      <div class="hero-banner__content">
-        <p class="hero-banner__eyebrow">SS26 Collection</p>
-        <h1 class="hero-banner__title" id="men-heading">
-          BUILT<br>TO <span>MOVE</span>
-        </h1>
-        <p class="hero-banner__sub">
-          From the Nairobi streets to the boardroom —
-          sharp, considered, and entirely your own.
-        </p>
-        <div class="hero-banner__stats">
-          <div>
-            <div class="hero-stat__num">180<span>+</span></div>
-            <div class="hero-stat__label">Pieces available</div>
-          </div>
-          <div>
-            <div class="hero-stat__num">14<span>+</span></div>
-            <div class="hero-stat__label">Kenyan brands</div>
-          </div>
-          <div>
-            <div class="hero-stat__num">4</div>
-            <div class="hero-stat__label">Style categories</div>
-          </div>
-        </div>
-        <a href="#grid" class="hero-banner__cta">
-          Shop men
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </a>
+      <div>
+        <p class="cat-head__sub">From the Nairobi streets to the boardroom: sharp, considered, and entirely your own.</p>
+        <!-- Counted from the products on the page (filters.js), never typed in. -->
+        <dl class="cat-head__stats">
+          <div><dt>Pieces</dt><dd data-live-num="pieces"></dd></div>
+          <div><dt>Brands</dt><dd data-live-num="brands"></dd></div>
+          <div><dt>Styles</dt><dd>4</dd></div>
+        </dl>
       </div>
     </section>
 
-    <!-- Subcategory tiles -->
-    <section aria-label="Shop by style" class="reveal">
-      <div class="subcats">
-        <div class="subcat subcat--all" role="link" tabindex="0" data-action="subcat" data-style="All" aria-label="Shop All">
-          <div class="subcat__img"><img src="images/allm.webp" alt="Shop All" style="width:100%;height:100%;object-fit:cover;object-position:50% 15%;"></div>
-          <div class="subcat__body">
-            <div class="subcat__name">All</div>
-            <div class="subcat__count"></div>
-          </div>
-        </div>
-        <div class="subcat subcat--casual" role="link" tabindex="0" data-action="subcat" data-style="Casual" aria-label="Shop Casual">
-          <div class="subcat__img"><img src="images/casualm.webp" alt="Shop Casual" style="width:100%;height:100%;object-fit:cover;object-position:60% 15%;"></div>
-          <div class="subcat__body">
-            <div class="subcat__name">Casual</div>
-            <div class="subcat__count"></div>
-          </div>
-        </div>
-        <div class="subcat subcat--formal" role="link" tabindex="0" data-action="subcat" data-style="Formal" aria-label="Shop Formal">
-          <div class="subcat__img"><img src="images/formalm.webp" alt="Shop Formal" style="width:100%;height:100%;object-fit:cover;object-position:50% 10%;"></div>
-          <div class="subcat__body">
-            <div class="subcat__name">Formal</div>
-            <div class="subcat__count"></div>
-          </div>
-        </div>
-        <div class="subcat subcat--street" role="link" tabindex="0" data-action="subcat" data-style="Streetwear" aria-label="Shop Streetwear">
-          <div class="subcat__img"><img src="images/streetwearm.webp" alt="Shop Streetwear" style="width:100%;height:100%;object-fit:cover;object-position:50% 20%;"></div>
-          <div class="subcat__body">
-            <div class="subcat__name">Streetwear</div>
-            <div class="subcat__count"></div>
-          </div>
-        </div>
-        <div class="subcat subcat--evening" role="link" tabindex="0" data-action="subcat" data-style="Evening" aria-label="Shop Evening">
-          <div class="subcat__img"><img src="images/eveningm.avif" alt="Shop Evening" style="width:100%;height:100%;object-fit:cover;object-position:50% 10%;"></div>
-          <div class="subcat__body">
-            <div class="subcat__name">Evening</div>
-            <div class="subcat__count"></div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <!-- Style filter: plain buttons (aria-pressed says which one is on). -->
+    <nav class="subcats" aria-label="Shop by style">
+        <button type="button" class="subcat active" data-action="subcat" data-style="All" aria-pressed="true">All<span class="subcat__count"></span></button>
+        <button type="button" class="subcat" data-action="subcat" data-style="Casual" aria-pressed="false">Casual<span class="subcat__count"></span></button>
+        <button type="button" class="subcat" data-action="subcat" data-style="Formal" aria-pressed="false">Formal<span class="subcat__count"></span></button>
+        <button type="button" class="subcat" data-action="subcat" data-style="Streetwear" aria-pressed="false">Streetwear<span class="subcat__count"></span></button>
+        <button type="button" class="subcat" data-action="subcat" data-style="Evening" aria-pressed="false">Evening<span class="subcat__count"></span></button>
+    </nav>
 
 
     <!-- Sort bar -->

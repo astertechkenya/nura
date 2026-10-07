@@ -83,7 +83,9 @@ describe('text from the database stays text', () => {
     await db.execute(sql`insert into product_variants (product_id, size, stock) select id, 'M', 3 from products where sku = 'nura-990'`);
     try {
       const blazer = (await page('linen-oversized-blazer')).text;
-      expect(blazer).toContain('<a class="pd-rec" href="/p/evil-test">');
+      expect(blazer).toContain('<a class="card-name-link" href="/p/evil-test">');
+      // The name also sits inside attributes now (the buttons' labels): still only text.
+      expect(blazer).not.toMatch(/aria-label="Add [^"]*"[^>]*onerror/);
       expect(blazer).not.toContain('<script>alert');
       expect(blazer).not.toContain('<img src=x');
       const h = (await page('evil-test')).text;
@@ -128,7 +130,7 @@ describe('the sitemap', () => {
   });
 });
 
-const recsOf = (html) => [...html.matchAll(/<a class="pd-rec" href="\/p\/([a-z0-9-]+)">/g)].map((m) => m[1]);
+const recsOf = (html) => [...html.matchAll(/<a class="card-name-link" href="\/p\/([a-z0-9-]+)">/g)].map((m) => m[1]);
 const deptOf = async (slug) => (await db.execute(sql`select department from products where slug = ${slug}`)).rows[0].department;
 
 describe('descriptions', () => {
@@ -152,6 +154,23 @@ describe('you may also like', () => {
     for (const r of recs) expect(['WOMEN', 'UNISEX']).toContain(await deptOf(r));
     const men = recsOf((await page('slim-tapered-trousers')).text);
     for (const r of men) expect(['MEN', 'UNISEX']).toContain(await deptOf(r));
+  });
+
+  it('each suggestion can be saved or added to the cart from here, and says which product', async () => {
+    const h = (await page('linen-oversized-blazer')).text;
+    const cards = [...h.matchAll(/<li class="product-card pd-rec" data-sku="(nura-\d+)">([\s\S]*?)<\/li>/g)];
+    expect(cards).toHaveLength(4);
+    for (const [, sku, card] of cards) {
+      expect(card).toMatch(new RegExp(`data-wishlist-id="${sku}"[^>]*data-action="wishlist"`));
+      // The shop's own card, part for part (the same classes js/grid.js uses on the category pages).
+      for (const part of ['product-card__img', 'card-photo-link', 'nura-card-img', 'product-card__wish', 'product-card__overlay',
+        'product-card__body', 'product-card__brand', 'product-card__name', 'card-name-link', 'product-card__price']) {
+        expect(card, part).toMatch(new RegExp(`class="([^"]* )?${part}( [^"]*)?"`));
+      }
+      expect(card).toMatch(/data-action="add-to-cart" aria-label="Add [^"]+ to cart">Add to cart<\/button>/);
+      expect(card).toContain('tabindex="-1" aria-hidden="true"');      // the photo link stays out of the tab order
+      expect(card).not.toMatch(/<a[^>]*>(?:(?!<\/a>)[\s\S])*<button/);  // never a button inside a link
+    }
   });
 
   it('never suggests something sold out or hidden', async () => {

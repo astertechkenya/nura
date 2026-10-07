@@ -48,30 +48,105 @@
   font-family: 'Bebas Neue';
   font-style: normal;
   font-weight: 400;
-  font-display: swap;
+  /* "fallback", not "swap": the text stays invisible for up to 100 ms, which is usually
+     long enough for this preloaded 14 KB file, so the logo and headlines appear once, in
+     their own font. On a slow first visit the stand-in below shows instead, and the real
+     font may still swap in during the first 3 s; after that, never mid-read. */
+  font-display: fallback;
   src: url('fonts/bebas-neue-v16-latin-regular.woff2') format('woff2');
 }
 
 /* ============================================================
-   Fallback metric overrides — makes the system fallback font
-   occupy nearly the same space as the real font, so when the
-   swap happens there's little or no visible reflow ("jump").
-   These names are referenced by the --sans / --display fallback
-   chains below.
+   Stand-in fonts, sized to match (so the swap doesn't make text jump)
+
+   Until a web font arrives, the browser draws text in a font already on the device.
+   Without help that stand-in is wider or narrower, so when the real font swaps in,
+   lines re-wrap and everything below them jumps: the "jarring" moment. These faces
+   point at fonts devices already have and scale them so each line takes the same
+   width and height as it will in the real font. The swap then changes the letter
+   shapes, not the layout.
+
+   Two stand-ins per font, tried in order (see --sans / --display in shared.css):
+     'DM Sans Fallback'          Arial: Windows, Mac, iPhone
+     'DM Sans Fallback Android'  Roboto: Android, which has no Arial
+   A device without the first font skips that face and tries the next.
+
+   The sizes were measured, not guessed: all the text on the home, women, men, new-in
+   and checkout pages, drawn in DM Sans and in each stand-in, weight by weight (bold
+   Arial runs wider than bold DM Sans; bold Roboto narrower). Line height copies DM
+   Sans' own (ascent 0.992, descent 0.31 of the font size).
    ============================================================ */
 @font-face {
   font-family: 'DM Sans Fallback';
-  src: local('Arial');
-  ascent-override: 92%;
-  descent-override: 24%;
+  font-weight: 100 350;
+  src: local('Arial'), local('ArialMT');
+  size-adjust: 102.7%;
+  ascent-override: 96.6%;
+  descent-override: 30.2%;
   line-gap-override: 0%;
-  size-adjust: 100%;
 }
 @font-face {
-  font-family: 'Bebas Neue Fallback';
-  src: local('Arial Narrow'), local('Arial');
-  ascent-override: 95%;
-  descent-override: 0%;
+  font-family: 'DM Sans Fallback';
+  font-weight: 351 500;
+  src: local('Arial'), local('ArialMT');
+  size-adjust: 103.4%;
+  ascent-override: 95.9%;
+  descent-override: 30.0%;
   line-gap-override: 0%;
-  size-adjust: 100%;
+}
+@font-face {
+  font-family: 'DM Sans Fallback';
+  font-weight: 501 900;
+  src: local('Arial Bold'), local('Arial-BoldMT');
+  size-adjust: 95.9%;
+  ascent-override: 103.4%;
+  descent-override: 32.3%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'DM Sans Fallback Android';
+  font-weight: 100 350;
+  src: local('Roboto'), local('Roboto-Regular');
+  size-adjust: 102.4%;
+  ascent-override: 96.9%;
+  descent-override: 30.3%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'DM Sans Fallback Android';
+  font-weight: 351 500;
+  src: local('Roboto'), local('Roboto-Regular');
+  size-adjust: 104.1%;
+  ascent-override: 95.3%;
+  descent-override: 29.8%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'DM Sans Fallback Android';
+  font-weight: 501 900;
+  src: local('Roboto Bold'), local('Roboto-Bold');
+  size-adjust: 102.5%;
+  ascent-override: 96.8%;
+  descent-override: 30.2%;
+  line-gap-override: 0%;
+}
+/* Bebas Neue is tall and narrow, so its stand-in must be a narrow font too: Roboto
+   Condensed on Android (measured), Arial Narrow on most Windows and Mac machines
+   (estimated from Arial's measurement: Arial Narrow is 82% of Arial's width). A device
+   with neither falls through to Impact, then any sans-serif. */
+@font-face {
+  font-family: 'Bebas Neue Fallback';
+  src: local('Roboto Condensed'), local('RobotoCondensed-Regular');
+  size-adjust: 77.4%;
+  ascent-override: 116.3%;
+  descent-override: 38.8%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Bebas Neue Fallback Narrow';
+  src: local('Arial Narrow'), local('ArialNarrow');
+  size-adjust: 80.3%;
+  ascent-override: 112.1%;
+  descent-override: 37.4%;
+  line-gap-override: 0%;
 }

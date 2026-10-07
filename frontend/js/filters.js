@@ -1,4 +1,4 @@
-/* NURA filters.js: category-page controls (subcategory tiles, sort, grid/list view).
+/* NURA filters.js: category-page controls (style tabs, sort, grid/list view).
    Loaded on men, women, new-in and sale. The cards are rendered by grid.js from the API, so
    everything here that counts or sorts cards runs when grid.js announces them (`nura:grid`).
    The counts are always counted from the cards on screen, never typed into the HTML. */
@@ -41,8 +41,10 @@
     document.querySelectorAll('.subcat[data-style]').forEach(function (tile) {
       var style = tile.dataset.style;
       var n = style === 'All' ? all.length : all.filter(function (c) { return c.dataset.style === style; }).length;
+      // The style tabs show the bare number ("Casual 3"); the visually-hidden word makes a
+      // screen reader say "Casual, 3 pieces" rather than "Casual 3".
       var label = tile.querySelector('.subcat__count');
-      if (label) label.textContent = plural(n, 'piece', 'pieces');
+      if (label) label.innerHTML = n + '<span class="visually-hidden"> ' + (n === 1 ? 'piece' : 'pieces') + '</span>';
     });
   }
   var sortSelect = document.getElementById('sortSelect');
@@ -60,10 +62,11 @@
     currentStyle = el.dataset.style || 'All';
     document.querySelectorAll('.subcat[data-action="subcat"]').forEach(function (t) {
       t.classList.toggle('active', t === el);
+      t.setAttribute('aria-pressed', t === el ? 'true' : 'false');
     });
     applyStyleFilter();
-    var target = document.getElementById('grid');
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // No scrolling: the style tabs now sit directly above the grid (Oct 2026). The old tiles
+    // were tall, so a click used to scroll the products into view.
   });
 
   function sortBy(val) {
