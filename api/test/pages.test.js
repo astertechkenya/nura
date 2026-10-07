@@ -167,7 +167,7 @@ describe('you may also like', () => {
         'product-card__body', 'product-card__brand', 'product-card__name', 'card-name-link', 'product-card__price']) {
         expect(card, part).toMatch(new RegExp(`class="([^"]* )?${part}( [^"]*)?"`));
       }
-      expect(card).toMatch(/data-action="add-to-cart" aria-label="Add [^"]+ to cart">Add to cart<\/button>/);
+      expect(card).toMatch(/data-action="add-to-cart" aria-label="Add [^"]+ to cart"><span class="card-add__label">Add to cart<\/span><svg class="card-add__icon"/);
       expect(card).toContain('tabindex="-1" aria-hidden="true"');      // the photo link stays out of the tab order
       expect(card).not.toMatch(/<a[^>]*>(?:(?!<\/a>)[\s\S])*<button/);  // never a button inside a link
     }

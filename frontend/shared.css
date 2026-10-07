@@ -189,7 +189,24 @@ to{right:0}
 .mob-avatar{width:28px;height:28px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .mob-username{font-family:var(--sans);font-size:16px;font-weight:500;letter-spacing:0.5px;text-transform:none;color:var(--black);display:block;line-height:1.1;}
 .mob-signout{background:none;border:none;font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--red-sale);cursor:none;padding:0;display:block;margin-top:2px;}
-@media(max-width:960px){.nav__wish-wrap{display:none;}.nav__account-wrap{display:none;}.cart-text{display:none;}}
+@media(max-width:960px){.cart-text{display:none;}}   /* the account icon now stays on phones too: the menu that held "Sign in" is gone */
+/* Phones (Oct 2026): the wishlist heart stays in the top bar, with its count, next to the cart.
+   It used to be hidden here and only reachable through the menu. There was room for it: at
+   360 px the gap between the logo and the icons was 89 px. Each icon also gets a 40 px tap
+   area (search and the menu were 26 px and 30x21), with the gaps cut from 16 px to 4 px so
+   the row ends up no wider than before. (.nav .x outranks each page's own .x rule.) */
+@media(max-width:960px){
+  .nav .nav__actions{gap:4px;}
+  .nav .nav__icon{width:40px;height:40px;padding:0;justify-content:center;}
+  .nav .nav__toggle{width:40px;height:40px;padding:0;align-items:center;justify-content:center;}
+  .nav .wishlist-badge{top:2px;right:0;}   /* on the 40 px button's corner, not off it */
+}
+/* The header heart: for 1.5 s after something new is saved (wishlist.js adds .pop), it fills
+   purple and pops, like the cart button's "Added". All pages, all widths. */
+.nav__wish-wrap.pop svg{fill:var(--purple);stroke:var(--purple);}
+.nav__wish-wrap.pop svg{animation:wishPop .45s ease;}
+@keyframes wishPop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
+@media(prefers-reduced-motion:reduce){.nav__wish-wrap.pop svg{animation:none;}}
 .mobile-menu{display:none;}
 @media(max-width:960px){.mobile-menu{display:none;flex-direction:column;position:fixed;top:0;right:0;bottom:0;width:80vw;max-width:320px;background:var(--bg);z-index:200;padding:28px 28px 40px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.12);}.mobile-menu.open{display:flex;}}
 
@@ -245,6 +262,41 @@ button.product-card__overlay,button.product__overlay{border:0;width:100%;font-fa
 /* Phones and tablets can't hover, so the button would never appear there. Always show it. */
 /* (.product-card .x is more specific than the pages' own .x rule, so it wins wherever the pages load it.) */
 @media (hover:none){.product-card .product-card__overlay,.product .product__overlay{transform:translateY(0);padding:11px 8px;}}
+/* ── Card hearts (Oct 2026): just the heart, in black, a little thicker. The old light-grey
+   outline vanished on pale photos. The button stays 34px square around it, so it's still easy
+   to tap. (.product-card .x outranks each page's own .x rule; the pages' :hover purple wins.) */
+.product-card .product-card__wish,.product .product__wish{
+  top:10px;right:10px;width:34px;height:34px;justify-content:center;color:var(--black);
+}
+.product-card__wish svg,.product__wish svg{stroke-width:2;}
+.product-card__wish:focus-visible,.product__wish:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+/* ── "Add to cart" on phones (Oct 2026): not a black bar across every photo, but just a
+   bag (the nav's cart icon) in the photo's bottom-right corner, bare like the heart above it.
+   Once that product is in the cart, the bag is filled black (cart.js adds .in-cart). The words
+   are still in the button (hidden), so a screen reader says "Add to cart". Desktops keep the
+   bar that slides up on hover. ── */
+.card-add__icon{display:none;}
+@media (hover:none){
+  /* :hover listed too: a phone keeps :hover on whatever was last tapped, and each page's
+     own ".overlay:hover" would otherwise paint a purple block behind the icon. */
+  .product-card .product-card__overlay:not([data-sold-out]),.product .product__overlay:not([data-sold-out]),
+  .product-card .product-card__overlay:not([data-sold-out]):hover,.product .product__overlay:not([data-sold-out]):hover{
+    left:auto;right:6px;bottom:6px;width:40px;height:40px;padding:0;   /* 40px to tap; the icon is 20 */
+    display:grid;place-items:center;background:none;color:var(--black);outline-offset:-2px;
+  }
+  .product-card__overlay .card-add__label,.product__overlay .card-add__label{
+    position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;
+  }
+  .card-add__icon{display:block;}
+  /* In the cart: inverted. Black inside, and every line (outline, rim, handle) white. */
+  .in-cart .card-add__icon .bag-body{fill:var(--black);stroke:var(--white);}
+  .in-cart .card-add__icon .bag-line{stroke:var(--white);}
+  /* Sold out: a small label in the same corner, not a button-shaped circle. */
+  .product-card .product-card__overlay[data-sold-out],.product .product__overlay[data-sold-out]{
+    left:auto;right:10px;bottom:10px;width:auto;padding:7px 12px;border-radius:999px;font-size:9px;
+  }
+}
 /* While sizes are showing, hide the button underneath them. */
 .is-picking .product-card__overlay,.is-picking .product__overlay{visibility:hidden;}
 
@@ -294,3 +346,37 @@ button.product-card__overlay,button.product__overlay{border:0;width:100%;font-fa
 .card-name-link{color:inherit;}
 .card-name-link:hover,.card-name-link:focus-visible{text-decoration:underline;text-underline-offset:3px;}
 .card-name-link:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+/* ── Phones (Oct 2026): the tab bar. The shop's four sections in a see-through bar along the
+   bottom of the screen, where thumbs reach. It slides up while you scroll and tucks away
+   after 2 s of stillness. It replaced the slide-out menu: the logo goes
+   home, and sign-in / account sit in the top bar. The page you're on is marked with
+   aria-current="page" and underlined. ── */
+.tabbar{display:none;}
+@media(max-width:960px){
+  .tabbar{
+    position:fixed;z-index:150;   /* over the page, under every drawer and dialog (199+) */
+    left:0;right:0;bottom:0;   /* flush with the screen's edges, like the purple strip at the top */
+    display:flex;justify-content:space-around;align-items:center;
+    padding:0 6px env(safe-area-inset-bottom,0px);   /* the iPhone home bar sits inside it, under the links */
+    background:rgba(10,10,10,.82);border-radius:0;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    /* Hidden below the screen until you scroll (js/ui.js adds .is-shown, and takes it away
+       after 2 s without scrolling). */
+    transform:translateY(100%);transition:transform .3s ease;
+  }
+  .tabbar.is-shown{transform:none;}
+  .tabbar a{
+    position:relative;display:flex;align-items:center;height:48px;padding:0 8px;   /* the whole height is tappable */
+    font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+    color:rgba(255,255,255,.78);   /* about 9:1 on the bar */
+  }
+  .tabbar a::after{content:"";position:absolute;left:8px;right:8px;bottom:12px;height:2px;background:var(--purple);transform:scaleX(0);transform-origin:left;}
+  .tabbar a[aria-current="page"]{color:var(--white);}
+  .tabbar a[aria-current="page"]::after{transform:scaleX(1);}
+  .tabbar a:focus-visible{outline:2px solid var(--white);outline-offset:-6px;}
+  /* Room at the end of every page, so the bar never covers the last of the footer. */
+  body:has(.tabbar){padding-bottom:calc(48px + env(safe-area-inset-bottom,0px));}   /* the end of the page clears the bar; only pages that have it */
+}
+@media(max-width:600px){body:has(.tabbar) .nura-toast{bottom:calc(64px + env(safe-area-inset-bottom,0px));}}   /* messages pop up above the bar */
+@media(prefers-reduced-motion:reduce){.tabbar{transition:none;}}

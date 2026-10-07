@@ -52,8 +52,6 @@ body.cursor-hover
 .nav__icon:hover{color:var(--black);}
 .nav__cart{display:flex;align-items:center;gap:8px;background:var(--black);color:var(--white);padding:9px 20px;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;transition:background var(--transition);}
 .nav__cart:hover{background:var(--purple);}
-.nav__toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;padding:4px;}
-.nav__toggle span{display:block;width:22px;height:1px;background:var(--black);}
 .page-header{background:var(--black);padding:48px 40px;position:relative;overflow:hidden;border-bottom:1px solid #1a1a1a;}
 .page-header::before{content:'NEW IN';font-family:var(--display);font-size:160px;color:rgba(181,123,255,0.05);position:absolute;bottom:-20px;right:-10px;letter-spacing:-2px;line-height:1;pointer-events:none;}
 .page-header__eyebrow{font-size:9px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:var(--purple);margin-bottom:10px;animation:fadeUp .7s ease .1s both;}
@@ -109,7 +107,6 @@ body.cursor-hover
 .swatch:hover,.swatch.active{border-color:var(--black);}
 @media(max-width:960px){.nav{padding:0 24px;}
       .nav__links{display:none;}
-      .nav__toggle{display:flex;}
       .sort-bar{padding:12px 24px;}
       .shop-layout{width:100%;}
       .filters{position:fixed;left:0;top:0;bottom:0;width:300px;z-index:150;transform:translateX(-100%);transition:transform .35s ease;height:100vh;border-right:1px solid var(--light);}
@@ -209,7 +206,7 @@ body.cursor-hover
     </div>
     <div class="wishlist-drawer__body"><div id="wishlistItems"></div></div>
     <div class="wishlist-drawer__footer" id="wishlistFooter" style="display:none;">
-      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Add all to cart &rarr;</button>
+      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Move all to cart &rarr;</button>
       <button class="wishlist-drawer__clear" data-action="clear-wishlist">Clear wishlist</button>
     </div>
   </div>
@@ -250,9 +247,6 @@ body.cursor-hover
       </button>
         <span class="cart-badge" id="cartBadge" style="position:absolute;top:-6px;right:-8px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:none;align-items:center;justify-content:center;line-height:1;"></span>
       </div>
-      <button class="nav__toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </nav>
   <div class="marquee" aria-label="Promotions">
@@ -296,36 +290,14 @@ body.cursor-hover
       <button class="cart-clear-btn" id="cartClear">Clear cart</button>
     </div>
   </div>
-  <div class="mob-menu-overlay" id="mobMenuOverlay" data-action="close-menu"></div>
-  <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Navigation menu">
-    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:20px;">
-      <p style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin:0;">Menu</p>
-      <button class="mobile-menu__close" id="menuClose" aria-label="Close menu">&times;</button>
-    </div>
-    <a href="index.html" data-action="close-menu">Home</a>
-    <a href="new-in.html" class="active" data-action="close-menu">New In</a>
-    <a href="women.html" data-action="close-menu">Women</a>
-    <a href="men.html" data-action="close-menu">Men</a>
-    <a href="sale.html" class="sale-link" data-action="close-menu">Sale</a>
-    <div class="mobile-menu__divider"></div>
-    <button class="mobile-menu__action" data-action="open-wishlist close-menu" aria-label="Wishlist">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      <span class="mob-action-text">Wishlist</span>
-      <span class="mob-badge" id="mobWLBadge"></span>
-    </button>
-    <div id="mobileSignIn">
-      <button class="mobile-menu__action mobile-menu__action--solid" data-action="open-auth close-menu" data-tab="login"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="mob-action-text">Sign In</span></button>
-    </div>
-    <div id="mobileUserSection" style="display:none;">
-      <div class="mobile-menu__user-row">
-        <div class="mob-avatar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-        <div>
-          <span class="mob-username" id="mobileUserName"></span>
-          <button class="mob-signout" data-action="open-signout">Sign out</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Phones: the shop's four sections, fixed to the bottom of the screen. It replaced the
+       slide-out menu (Oct 2026); the logo is the way home, and sign-in moved to the top bar. -->
+  <nav class="tabbar" aria-label="Shop sections">
+    <a href="new-in.html" aria-current="page">New In</a>
+    <a href="women.html">Women</a>
+    <a href="men.html">Men</a>
+    <a href="sale.html">Sale</a>
+  </nav>
 
 
   <div class="search-overlay" id="searchOverlay" role="dialog" aria-modal="true" aria-label="Search">

@@ -15,6 +15,7 @@ import { slugify } from '../lib/slug.js';
 import { verifiedImageUrl } from './cloudinary.js';
 import { httpError } from '../middleware/errors.js';
 import { ADMIN_NEXT, REJECTED, assertTransition, canTransitionPayment, sideEffects } from './orderStates.js';
+import { saleIsOn } from '../lib/salePrice.js';
 
 /* ── Audit ──────────────────────────────────────────────────────────────────────── */
 
@@ -257,6 +258,7 @@ export async function listProducts() {
     id: p.id, sku: p.sku, name: p.name, brand: p.brand.name, department: p.department, style: p.style,
     priceKes: p.priceKes, compareAtKes: p.compareAtKes, isActive: p.isActive, imageUrl: p.imageUrl, cardBg: p.cardBg,
     imageFocus: p.imageFocus, description: p.description, slug: p.slug,
+    saleStartsAt: p.saleStartsAt, saleEndsAt: p.saleEndsAt, saleOn: saleIsOn(p),
     variants: [...p.variants].sort((a, b) => order.indexOf(a.size) - order.indexOf(b.size))
       .map((v) => ({ id: v.id, size: v.size, stock: v.stock })),
   }));
@@ -268,9 +270,17 @@ export async function updateProduct(admin, id, changes) {
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(products).where(eq(products.id, id)).for('update');
     if (!before) throw httpError(404, 'Product not found.');
-    const next = { ...pick(before, ['priceKes', 'compareAtKes', 'isActive']), ...changes };
+    const next = { ...pick(before, ['priceKes', 'compareAtKes', 'isActive', 'saleStartsAt', 'saleEndsAt']), ...changes };
     if (next.compareAtKes !== null && next.compareAtKes <= next.priceKes) {
       throw httpError(400, 'The “was” price must be higher than the price, or empty for no sale.');
+    }
+    // Sale dates only mean something with a "was" price. Removing the sale clears them too.
+    if (changes.compareAtKes === null) { changes.saleStartsAt = null; changes.saleEndsAt = null; }
+    else if ((changes.saleStartsAt || changes.saleEndsAt) && next.compareAtKes === null) {
+      throw httpError(400, 'Set a “was” price first: the dates say when that sale runs.');
+    }
+    if (next.saleStartsAt && next.saleEndsAt && next.saleEndsAt <= next.saleStartsAt) {
+      throw httpError(400, 'The sale has to end after it starts.');
     }
     await tx.update(products).set({ ...changes, updatedAt: new Date() }).where(eq(products.id, id));
     await audited(tx, admin, 'product.update', 'product', id,
@@ -348,6 +358,55 @@ export async function setStock(admin, variantId, stock) {
     await tx.update(productVariants).set({ stock }).where(eq(productVariants.id, variantId));
     await audited(tx, admin, 'stock.set', 'variant', variantId, { sku: v.sku, size: v.size, stock: v.stock }, { stock });
   });
+}
+
+/* ── Bulk stock (Oct 2026) ─────────────────────────────────────────────────────────
+   A stock count done in a spreadsheet: download every size's stock as CSV, change the numbers,
+   upload it back. Two steps on purpose: the upload is first CHECKED (apply = false) and the
+   admin sees exactly what will change; only then is it applied, all or nothing, in one
+   transaction, with one audit entry per size changed (the same entry a single edit makes). */
+
+/** Every size of every product, for the spreadsheet: sku, name, size, stock. */
+export async function stockSheet() {
+  const rows = (await db.execute(sql`
+    select p.sku, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
+    order by substring(p.sku from '[0-9]+$')::int nulls last, p.sku,
+             array_position(ARRAY[${sql.join(SIZES.map((z) => sql`${z}`), sql`, `)}]::text[], v.size)`)).rows;   // sizes in shop order: S before M before L
+  return [['sku', 'name', 'size', 'stock'], ...rows.map((r) => [r.sku, r.name, r.size, r.stock])]
+    .map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+
+/**
+ * rows: [{ sku, size, stock }] from the uploaded sheet (already shape-checked by the route).
+ * Returns { changes: [{ sku, name, size, from, to }], unchanged, errors: [text] }. With
+ * apply = true and no errors, writes the changes.
+ */
+export async function bulkStock(admin, rows, apply) {
+  const run = async (tx) => {
+    const current = (await tx.execute(sql`
+      select v.id, p.sku, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
+      ${apply ? sql`for update of v` : sql``}`)).rows;
+    const byKey = new Map(current.map((v) => [`${v.sku}|${v.size}`, v]));
+    const seen = new Set(), errors = [], changes = [];
+    let unchanged = 0;
+    rows.forEach((r, i) => {
+      const key = `${r.sku}|${r.size}`, line = `Row ${i + 2}`;   // row 1 is the header
+      const v = byKey.get(key);
+      if (!v) return errors.push(`${line}: no size “${r.size}” for “${r.sku}”.`);
+      if (seen.has(key)) return errors.push(`${line}: ${r.sku} ${r.size} appears twice.`);
+      seen.add(key);
+      if (v.stock === r.stock) unchanged++;
+      else changes.push({ id: v.id, sku: v.sku, name: v.name, size: v.size, from: v.stock, to: r.stock });
+    });
+    if (apply && !errors.length) {
+      for (const c of changes) {
+        await tx.update(productVariants).set({ stock: c.to }).where(eq(productVariants.id, c.id));
+        await audited(tx, admin, 'stock.set', 'variant', c.id, { sku: c.sku, size: c.size, stock: c.from }, { stock: c.to, bulk: true });
+      }
+    }
+    return { changes: changes.map(({ id, ...c }) => c), unchanged, errors, applied: apply && !errors.length };
+  };
+  return apply ? db.transaction(run) : run(db);
 }
 
 /* ── Customers and the newsletter ──────────────────────────────────────────────── */

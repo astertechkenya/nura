@@ -23,10 +23,25 @@
   function saveLocal(list) { NURA.store.set(KEY, list); }
 
   /* ── State → screen ────────────────────────────────────────────────────────────── */
+  var lastCount = null;   // null until the first count: the saved list loading isn't "new"
   function syncBadge() {
     var n = skus.length;
     var b = byId('wishlistBadge');
     if (b) { b.textContent = n; b.style.display = n > 0 ? 'flex' : 'none'; }
+    // When something new is saved, the header heart fills purple and pops for a moment, then
+    // goes back to an outline: the same 1.5 s as the cart button's "Added".
+    if (lastCount !== null && n > lastCount) {
+      document.querySelectorAll('.nav__wish-wrap').forEach(function (wrap) {
+        wrap.classList.remove('pop'); void wrap.offsetWidth; wrap.classList.add('pop');   // restart if already showing
+        clearTimeout(wrap._popTimer);
+        wrap._popTimer = setTimeout(function () { wrap.classList.remove('pop'); }, 1500);
+      });
+    }
+    lastCount = n;
+    // The header heart says its count too ("Wishlist, 2 items"): the badge is only a picture of it.
+    document.querySelectorAll('.nav__wish-wrap [data-action="open-wishlist"]').forEach(function (btn) {
+      btn.setAttribute('aria-label', n ? 'Wishlist, ' + n + ' item' + (n !== 1 ? 's' : '') : 'Wishlist');
+    });
     var mb = byId('mobWLBadge');
     if (mb) { mb.textContent = n; mb.className = 'mob-badge' + (n > 0 ? ' visible' : ''); }
     var dc = byId('drawerCount');
@@ -94,7 +109,7 @@
   function remove(sku) {
     if (user) return fromServer(NURA.api('/wishlist/' + encodeURIComponent(sku), { method: 'DELETE' })).catch(function () {});
     saveLocal(localSkus().filter(function (s) { return s !== sku; }));
-    showLocal();
+    return showLocal();
   }
   function clearAll() {
     if (user) return fromServer(NURA.api('/wishlist', { method: 'DELETE' })).catch(function () {});
@@ -117,8 +132,8 @@
       return;
     }
     if (footer) footer.style.display = 'block';
-    // "Add all" only makes sense when there are no sizes to choose; otherwise each row has its own button.
-    if (addAll) addAll.hidden = !items.every(function (p) { return oneSize(p) && !soldOut(p); });
+    // "Move all to cart": there whenever anything saved can still be bought (see the handler).
+    if (addAll) addAll.hidden = !items.some(function (p) { return !soldOut(p); });
     list.innerHTML = items.map(function (p) {
       var bg = esc(p.cardBg || '#efefed');
       // data-wl-sku, not data-sku: [data-sku] means "a product card" to the rest of the site
@@ -168,20 +183,45 @@
     var p = items.filter(function (x) { return x.sku === row.dataset.wlSku; })[0];
     if (p) NURA.addToCart(p, btn, row, true, function () { NURA.toast('Added to your cart'); });
   });
-  // Shown only when every saved item is one size and in stock (see render).
+  /* "Move all to cart" (Oct 2026): every saved piece that can go straight in, goes in, and
+     leaves the wishlist (that's what "move" means). A piece with sizes can't: we won't guess
+     someone's size. So their sizes open one at a time, right there in the row; each one moves
+     when a size is picked, then the next opens. Sold-out pieces stay saved, in case they
+     come back. One request at a time, so a
+     piece that has just sold out fails on its own, with its name in the message. */
   NURA.on('wishlist-add-all', function (btn) {
+    var ready = items.filter(function (p) { return oneSize(p) && !soldOut(p); });
+    var sized = items.filter(function (p) { return !oneSize(p) && !soldOut(p); });
+    var moved = 0;
     btn.disabled = true;
-    items.reduce(function (chain, p) {
+    ready.reduce(function (chain, p) {
       return chain.then(function () {
         return NURA.api('/cart/items', { method: 'POST', body: { variantId: p.variants[0].id, qty: 1 } })
+          .then(function () { moved++; return remove(p.sku); })
           .catch(function (err) { NURA.toast(p.name + ': ' + err.message); });
       });
     }, Promise.resolve()).then(function () {
       btn.disabled = false;
-      close();
-      NURA.cart.reload().then(NURA.cart.open, NURA.cart.open);
+      NURA.cart.reload().catch(function () {});
+      if (!sized.length) {                       // everything went: show them the cart
+        close();
+        NURA.cart.open();
+        return;
+      }
+      NURA.toast((moved ? 'Moved ' + moved + ' to your cart. ' : '') + 'Choose a size for ' + (sized.length === 1 ? 'this one' : 'each of the rest') + '.');
+      askSize(sized);
     });
   });
+  // Open the sizes of the first piece in its row; when one is picked, move it and go on.
+  function askSize(list) {
+    if (!list.length) { close(); NURA.cart.open(); return; }
+    var p = list[0];
+    var row = document.querySelector('.wishlist-item[data-wl-sku="' + p.sku + '"]');
+    if (!row) return askSize(list.slice(1));
+    NURA.addToCart(p, row.querySelector('[data-action="wishlist-add"]'), row, true, function () {
+      Promise.resolve(remove(p.sku)).then(function () { askSize(list.slice(1)); }, function () {});
+    });
+  }
   NURA.onEscape(close);
 
   // Who's signed in decides where the list lives.

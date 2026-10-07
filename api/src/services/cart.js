@@ -12,6 +12,7 @@ import { and, asc, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { brands, carts, cartItems, productVariants, products } from '../db/schema.js';
 import { config } from '../config.js';
+import { livePrice } from '../lib/salePrice.js';
 import { shippingFor } from './pricing.js';
 
 export const GUEST_COOKIE = 'nura.guest';
@@ -92,6 +93,7 @@ export async function loadCart(cartId) {
       variantId: productVariants.id, size: productVariants.size, stock: productVariants.stock,
       sku: products.sku, slug: products.slug, name: products.name, isActive: products.isActive,
       priceKes: products.priceKes, compareAtKes: products.compareAtKes,
+      saleStartsAt: products.saleStartsAt, saleEndsAt: products.saleEndsAt,
       imageUrl: products.imageUrl, cardBg: products.cardBg, brand: brands.name,
     })
     .from(cartItems)
@@ -102,7 +104,9 @@ export async function loadCart(cartId) {
     .orderBy(asc(products.name), asc(productVariants.size))   // stable: lines don't jump around
     : [];
 
+  const now = new Date();
   const items = rows.map((r) => {
+    const price = livePrice(r, now);   // a sale outside its dates costs the regular price
     const problem = !r.isActive ? 'No longer available.'
       : r.stock === 0 ? 'Sold out in this size.'
       : r.qty > r.stock ? `Only ${r.stock} left in this size.`
@@ -114,9 +118,9 @@ export async function loadCart(cartId) {
       variant: { id: r.variantId, size: r.size, stock: r.stock },
       product: {
         sku: r.sku, slug: r.slug, name: r.name, brand: r.brand,
-        priceKes: r.priceKes, compareAtKes: r.compareAtKes, imageUrl: r.imageUrl, cardBg: r.cardBg,
+        priceKes: price.priceKes, compareAtKes: price.compareAtKes, imageUrl: r.imageUrl, cardBg: r.cardBg,
       },
-      lineTotalKes: buyable ? r.priceKes * r.qty : 0,
+      lineTotalKes: buyable ? price.priceKes * r.qty : 0,
       problem,
     };
   });

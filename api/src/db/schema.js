@@ -95,6 +95,10 @@ export const products = pgTable('products', {
   description: text('description'),
   priceKes: integer('price_kes').notNull(),
   compareAtKes: integer('compare_at_kes'),         // set => on sale; the crossed-out "was" price
+  // Optional sale window (Oct 2026). Outside it, the product sells at its "was" price and shows
+  // no sale (lib/salePrice.js). Null = no limit on that side, so no dates = on sale until changed.
+  saleStartsAt: timestamp('sale_starts_at', { withTimezone: true }),
+  saleEndsAt: timestamp('sale_ends_at', { withTimezone: true }),
   imageUrl: text('image_url').notNull(),
   imageFocus: text('image_focus').notNull().default('50% 50%'), // CSS object-position you tuned per card
   cardBg: text('card_bg').notNull().default('#efefed'),          // placeholder colour behind the image
@@ -106,6 +110,7 @@ export const products = pgTable('products', {
   check('products_price_positive', sql`${t.priceKes} > 0`),
   // A "was" price lower than the price would be a lie on the Sale page.
   check('products_compare_at_above_price', sql`${t.compareAtKes} IS NULL OR ${t.compareAtKes} > ${t.priceKes}`),
+  check('products_sale_window_order', sql`${t.saleStartsAt} IS NULL OR ${t.saleEndsAt} IS NULL OR ${t.saleEndsAt} > ${t.saleStartsAt}`),
   index('products_department_idx').on(t.department),
 ]);
 

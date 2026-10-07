@@ -233,6 +233,8 @@ export function recommend(p, all, count = RECOMMEND_COUNT) {
 // Two differences from grid.js, both for screen readers: each button names its product (four
 // identical "Add to cart" buttons in a row can't be told apart), and the heart's label does too.
 const CARD_HEART = HEART.replace('width="20" height="20"', 'width="17" height="17"');   // the grid's size
+// The bag (as in the nav): the phone version of "Add to cart" (frontend/shared.css). Keep in step with ADD_ICON in frontend/js/grid.js.
+const ADD_ICON = '<svg class="card-add__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="bag-body" d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line class="bag-line" x1="3" y1="6" x2="21" y2="6"/><path class="bag-line" d="M16 10a4 4 0 0 1-8 0"/></svg>';
 const LOW_STOCK = 3;
 
 function recCardHtml(o) {
@@ -246,7 +248,7 @@ function recCardHtml(o) {
             <a class="card-photo-link" href="${url}" tabindex="-1" aria-hidden="true"><img class="nura-card-img" ${sized(o.imageUrl, 400, '(min-width: 1180px) 290px, (min-width: 541px) 50vw, 50vw')} alt="" loading="lazy" style="object-position:${safeFocus(o.imageFocus)}"></a>
             <button class="product__wish product-card__wish" data-wishlist-id="${esc(o.sku)}" data-wishlist-name="${esc(o.name)}" aria-label="Add ${esc(o.name)} to wishlist" aria-pressed="false" data-action="wishlist">${CARD_HEART}</button>
             ${o.totalStock > 0
-              ? `<button type="button" class="product-card__overlay" data-action="add-to-cart" aria-label="Add ${esc(o.name)} to cart">Add to cart</button>`
+              ? `<button type="button" class="product-card__overlay" data-action="add-to-cart" aria-label="Add ${esc(o.name)} to cart"><span class="card-add__label">Add to cart</span>${ADD_ICON}</button>`
               : '<button type="button" class="product-card__overlay" data-sold-out aria-disabled="true">Sold out</button>'}
           </div>
           <div class="product-card__body">

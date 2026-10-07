@@ -17,6 +17,7 @@ import { httpError } from '../middleware/errors.js';
 import { priceOrder } from './pricing.js';
 import { MAX_STK_ATTEMPTS, REJECTED, assertTransition, sideEffects } from './orderStates.js';
 import { amountToRequest } from './daraja.js';
+import { livePrice } from '../lib/salePrice.js';
 import { paymentSummary } from './payments.js';
 
 /** Payment methods that can take orders: M-Pesa once Daraja is configured, cards once Paystack is. */
@@ -41,17 +42,22 @@ const isUniqueViolation = (err, constraint) =>
 export async function placeOrder({ cartId, userId, details }) {
   try {
     return await db.transaction(async (tx) => {
-      const lines = cartId ? await tx
+      const rows = cartId ? await tx
         .select({
           variantId: productVariants.id, size: productVariants.size, qty: cartItems.qty,
           productId: products.id, sku: products.sku, name: products.name,
-          priceKes: products.priceKes, isActive: products.isActive,
+          priceKes: products.priceKes, compareAtKes: products.compareAtKes,
+          saleStartsAt: products.saleStartsAt, saleEndsAt: products.saleEndsAt, isActive: products.isActive,
         })
         .from(cartItems)
         .innerJoin(productVariants, eq(cartItems.variantId, productVariants.id))
         .innerJoin(products, eq(productVariants.productId, products.id))
         .where(eq(cartItems.cartId, cartId))
         .orderBy(asc(products.name), asc(productVariants.size)) : [];
+      // The price as of this moment (a sale outside its dates costs the regular price): the same
+      // rule the cart and the catalogue use, so checkout charges what the shopper was shown.
+      const now = new Date();
+      const lines = rows.map((r) => ({ ...r, priceKes: livePrice(r, now).priceKes }));
       if (!lines.length) throw httpError(400, 'Your cart is empty.');
 
       const gone = lines.filter((l) => !l.isActive);

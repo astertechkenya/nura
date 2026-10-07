@@ -23,6 +23,9 @@
   var domReady = false;
   document.addEventListener('DOMContentLoaded', function () { domReady = true; });
 
+  // The bag (the same one as the nav's cart): what "Add to cart" becomes on phones
+  // (shared.css), where the button shrinks to an icon in the photo's corner. On a desktop the words show and this hides.
+  var ADD_ICON = '<svg class="card-add__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="bag-body" d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line class="bag-line" x1="3" y1="6" x2="21" y2="6"/><path class="bag-line" d="M16 10a4 4 0 0 1-8 0"/></svg>';
   var HEART = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
   /** One card. The home page uses .product / .product__*; category pages use .product-card /
@@ -34,7 +37,7 @@
     var soldOut = p.totalStock === 0;
     var overlay = soldOut
       ? '<button type="button" class="' + tag + '__overlay" data-sold-out aria-disabled="true">Sold out</button>'
-      : '<button type="button" class="' + tag + '__overlay" data-action="add-to-cart">Add to cart</button>';
+      : '<button type="button" class="' + tag + '__overlay" data-action="add-to-cart"><span class="card-add__label">Add to cart</span>' + ADD_ICON + '</button>';
     var low = p.totalStock > 0 && p.totalStock <= LOW_STOCK;
     var url = NURA.productUrl(p);
 

@@ -1,23 +1,24 @@
 /* NURA hero.js: the homepage slideshow (Oct 2026).
 
-   - It moves on every 7 s.
+   - It moves on every 5 s.
    - A click or tap anywhere on it (except its links) pauses it, and a play symbol appears
      bottom-right; another click anywhere (the symbol included) carries on. It
      also waits, without counting as paused, while it is scrolled out of view and while the
      browser tab is in the background.
    - It never moves focus. Hidden slides are visibility:hidden (CSS), so their links are out
      of the Tab order and out of the screen reader's way.
-   - Reduced motion: it still rotates (there is no other way to reach slides 2-4), but the
-     slides swap with no fade, zoom or slide-in (CSS).
+   - Slides move right to left: the next one comes in from the right (CSS, .is-leaving here).
+   - Reduced motion: it still rotates (there is no other way to reach slides 2-3), but the
+     slides swap with no sliding, zoom or slide-in of the text (CSS).
    - No pause button and no pause on hover: the owner's decision (Oct 2026). Click/tap to
      pause covers mouse and touch users for WCAG 2.2.2 (a way to pause anything that moves by
      itself for more than 5 s), but not keyboard users: the hero itself can't be tabbed to.
      A visible button that calls togglePause() would close that gap.
 
-   Which slide is up shows in the main nav (desktop): New In, Women, Men or Sale gets an
-   underline that fills across in 7 s, while the hero is on screen.
+   Which slide is up shows in the main nav (desktop): New In, Women or Men gets an
+   underline that fills across in 5 s, while the hero is on screen.
 
-   The timing comes from CSS: an invisible clock element in the hero runs a 7 s animation, and
+   The timing comes from CSS: an invisible clock element in the hero runs a 5 s animation, and
    its animationend moves the slideshow on. Pausing it (animation-play-state) pauses the
    slideshow at exactly the same point, with no setTimeout to keep in sync. The nav underline
    is a second animation of the same length, started and paused at the same moments. (The
@@ -31,15 +32,26 @@
   var slides = Array.prototype.slice.call(hero.querySelectorAll('.hero__slide'));
   var clock = hero.querySelector('.hero__clock');
   var playBtn = hero.querySelector('.hero__play');
-  var navList = document.querySelector('.nav__links');
+  var navLists = Array.prototype.slice.call(document.querySelectorAll('.nav__links'));
+  // The desktop nav's links underline the section that matches the slide on screen. (Not the
+  // phone tab bar: it marks the page you're on, and the homepage is none of its four.)
   var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav__links [data-hero-slide]'));
   var current = 0;
   var paused = false;     // by the visitor: a click or tap
   var onScreen = true;
 
   // ---- Showing a slide ----------------------------------------------------------------
+  var leaveTimer;
   function show(i) {
+    var previous = current;
     current = (i + slides.length) % slides.length;
+    // The old slide slides out to the left (.is-leaving), then waits off-screen to the right.
+    slides.forEach(function (s) { s.classList.remove('is-leaving'); });
+    if (previous !== current && slides[previous]) slides[previous].classList.add('is-leaving');
+    clearTimeout(leaveTimer);
+    leaveTimer = setTimeout(function () {
+      slides.forEach(function (s) { s.classList.remove('is-leaving'); });
+    }, 800);   // the length of the slide in index.html
     slides.forEach(function (s, n) { s.classList.toggle('is-current', n === current); });
     updateNav();
     restartTimer();
@@ -56,10 +68,10 @@
   // Restarting both animations: remove the class, force a style flush, add it back.
   function restartTimer() {
     hero.classList.remove('is-playing');
-    if (navList) navList.classList.remove('hero-playing');
+    navLists.forEach(function (l) { l.classList.remove('hero-playing'); });
     void hero.offsetWidth;   // reading layout makes the browser apply the removal first
     hero.classList.add('is-playing');
-    if (navList) navList.classList.add('hero-playing');
+    navLists.forEach(function (l) { l.classList.add('hero-playing'); });
   }
 
   // ---- Holding ------------------------------------------------------------------------
@@ -67,7 +79,7 @@
   function updateHold() {
     var held = paused || !onScreen || document.hidden;
     hero.classList.toggle('is-held', held);
-    if (navList) navList.classList.toggle('hero-held', held);
+    navLists.forEach(function (l) { l.classList.toggle('hero-held', held); });
   }
 
   clock.addEventListener('animationend', function (e) {
@@ -104,36 +116,6 @@
   }
   if (document.readyState === 'complete') loadOtherPhotos();
   else window.addEventListener('load', loadOtherPhotos);
-
-  // ---- The sale slide's number: the real biggest discount in the catalogue ---------------
-  // Until the catalogue arrives (or if it can't), the "40" written in the page stands; it is
-  // true today. If nothing is on sale at all, the sale slide is dropped from the rotation.
-  if (window.NURA && NURA.products) {
-    NURA.products().then(function (data) {
-      var maxOff = 0;
-      data.products.forEach(function (p) {
-        if (p.onSale && p.compareAtKes > p.priceKes) {
-          maxOff = Math.max(maxOff, Math.floor((1 - p.priceKes / p.compareAtKes) * 100));
-        }
-      });
-      if (maxOff > 0) {
-        hero.querySelectorAll('[data-hero-off]').forEach(function (el) { el.textContent = maxOff; });
-      } else {
-        dropSaleSlide();
-      }
-    }, function () { /* keep the page's own number */ });
-  }
-
-  function dropSaleSlide() {
-    var i = slides.length - 1;
-    if (current === i) show(0);
-    slides[i].remove(); slides.splice(i, 1);
-    navLinks = navLinks.filter(function (a) {
-      if (+a.dataset.heroSlide !== i) return true;
-      a.classList.remove('nav-hero-current'); return false;
-    });
-    slides.forEach(function (s, n) { s.setAttribute('aria-label', (n + 1) + ' of ' + slides.length); });
-  }
 
   // ---- Start ---------------------------------------------------------------------------
   show(0);

@@ -18,6 +18,7 @@ import { brands, products } from '../db/schema.js';
 import { config } from '../config.js';
 import { validate } from '../middleware/validate.js';
 import { httpError } from '../middleware/errors.js';
+import { livePrice } from '../lib/salePrice.js';
 
 export const productsRouter = Router();
 
@@ -41,9 +42,8 @@ export function toPublicProduct(p, now = new Date()) {
     brand: { name: p.brand.name, slug: p.brand.slug },
     department: p.department,
     style: p.style,
-    priceKes: p.priceKes,
-    compareAtKes: p.compareAtKes,
-    onSale: p.compareAtKes !== null,
+    // The price as of now: a sale outside its dates shows (and charges) the regular price.
+    ...livePrice(p, now),
     isNew: p.arrivedAt.getTime() >= newSince,
     arrivedAt: p.arrivedAt.toISOString(),   // New In sorts newest first in the browser
     imageUrl: p.imageUrl,
@@ -88,6 +88,8 @@ productsRouter.get('/', validate(listQuery, 'query'), async (req, res) => {
   const conditions = [eq(products.isActive, true)];
 
   if (f.department) conditions.push(eq(products.department, f.department));
+  // ?sale: only products with a sale set up here; whether it's ON right now (its dates) is
+  // decided below, per product, by the same rule that prices it.
   if (f.sale) conditions.push(isNotNull(products.compareAtKes));
   if (f.new) conditions.push(gte(products.arrivedAt, new Date(Date.now() - config.NEW_IN_DAYS * DAY_MS)));
   if (f.brand) {
@@ -106,11 +108,13 @@ productsRouter.get('/', validate(listQuery, 'query'), async (req, res) => {
     with: { brand: true, variants: true },
     // Newest first when browsing New In; otherwise the stable catalogue order.
     orderBy: (p, { asc, desc }) => (f.new ? [desc(p.arrivedAt)] : [asc(p.sku)]),
-    limit: f.limit,
+    limit: f.sale ? undefined : f.limit,   // ?sale: the limit applies after the date check below
   });
 
+  let list = rows.map((r) => toPublicProduct(r));
+  if (f.sale) list = list.filter((p) => p.onSale).slice(0, f.limit);
   cacheBriefly(res);
-  res.json({ count: rows.length, products: rows.map((r) => toPublicProduct(r)) });
+  res.json({ count: list.length, products: list });
 });
 
 const slugParams = z.strictObject({ slug: z.string().regex(/^[a-z0-9-]{1,100}$/) });

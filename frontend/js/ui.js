@@ -165,4 +165,31 @@
     closeMenu();
   });
   NURA.onEscape(closeSignout);
+
+  /* ── Phones: the tab bar (Oct 2026) ──
+     Shows when the page opens and whenever you scroll down, then slides away after 2 s
+     without scrolling, so it's there when you're moving around and out of the way while
+     you look. It stays while your finger or keyboard focus is on it. */
+  var tabbar = document.querySelector('.tabbar');
+  if (tabbar) {
+    var hideTimer, lastY = window.scrollY, holding = false;
+    var show = function () {
+      tabbar.classList.add('is-shown');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function () { if (!holding) tabbar.classList.remove('is-shown'); }, 2000);
+    };
+    window.addEventListener('scroll', function () {
+      var y = window.scrollY;
+      if (y > lastY) show();          // scrolling down
+      lastY = y;
+    }, { passive: true });
+    // A finger on the bar, or keyboard focus in it: keep it up until they leave.
+    var hold = function () { holding = true; tabbar.classList.add('is-shown'); clearTimeout(hideTimer); };
+    var release = function () { holding = false; show(); };
+    tabbar.addEventListener('touchstart', hold, { passive: true });
+    tabbar.addEventListener('touchend', release);
+    tabbar.addEventListener('focusin', hold);
+    tabbar.addEventListener('focusout', function (e) { if (!tabbar.contains(e.relatedTarget)) release(); });
+    show();                            // on arrival, so shoppers learn it's there
+  }
 })();

@@ -143,11 +143,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       transition: background var(--transition);
     }
 .nav__cart:hover { background: var(--purple); }
-.nav__toggle {
-      display: none; flex-direction: column; gap: 5px;
-      background: none; border: none; padding: 4px;
-    }
-.nav__toggle span { display: block; width: 22px; height: 1px; background: var(--black); transition: var(--transition); }
 .mobile-menu__label {
       font-size: 9px; font-weight: 700; letter-spacing: 3px;
       text-transform: uppercase; color: var(--muted); margin-bottom: 20px;
@@ -173,21 +168,31 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 /* The slides sit on top of each other in one grid cell, so the hero is as tall as the tallest
    slide (never a fixed height that a long headline could overflow), and cross-fade. */
 .hero__slides, .hero__slide { display: grid; grid-area: 1 / 1; }
+/* The slides move right to left (Oct 2026): the next one slides in from the right while the
+   current one slides out to the left. A slide has three places:
+     waiting   off-screen to the right, hidden. No transition, so a slide that has just left
+               jumps back here unseen, instead of sweeping across the hero.
+     current   on screen.
+     leaving   sliding off to the left (hero.js adds .is-leaving for the length of the move).
+   Hidden slides are visibility:hidden, which also takes their links out of the Tab order and
+   out of the screen reader's way. .hero has overflow:hidden, so nothing shows outside it. */
 .hero__slide {
       position: relative; display: flex; align-items: center;
-      opacity: 0; visibility: hidden;
-      /* visibility waits for the fade to finish, then hides the old slide from screen readers
-         and the Tab key: a hidden slide's link must never take focus. */
-      transition: opacity .8s ease, visibility 0s linear .8s;
+      transform: translateX(100%); visibility: hidden; transition: none;
     }
-.hero__slide.is-current { opacity: 1; visibility: visible; z-index: 1; transition: opacity .8s ease; }
+.hero__slide.is-current { transform: none; visibility: visible; z-index: 1; transition: transform .8s cubic-bezier(.65, 0, .35, 1); }
+.hero__slide.is-leaving { transform: translateX(-100%); visibility: visible; transition: transform .8s cubic-bezier(.65, 0, .35, 1); }
 .hero__photo {
       position: absolute; inset: 0; width: 100%; height: 100%;
       object-fit: cover; object-position: 70% 30%;
     }
 /* The zoom and the text's slide-in replay each time a slide comes round: they are tied to
    .is-current, and an animation restarts whenever its rule starts to apply. */
-.hero__slide.is-current .hero__photo { animation: heroZoom 10s ease-out forwards; }
+/* The leaving slide keeps its zoom while it slides away. Tied to .is-current alone, the zoom
+   was dropped the moment a slide stopped being current, so its photo snapped from 107% back
+   to 100% just as it started to move: a visible "zoom out". Same animation name on both
+   rules, so the browser carries on the running animation instead of restarting it. */
+.hero__slide.is-current .hero__photo, .hero__slide.is-leaving .hero__photo { animation: heroZoom 10s ease-out forwards; }
 .hero__slide::after {         /* the fade: dark behind the text, clear over the group */
       content: ""; position: absolute; inset: 0; pointer-events: none;
       background: linear-gradient(to right, rgba(10,10,10,.92) 0%, rgba(10,10,10,.75) 28%, rgba(10,10,10,0) 55%);
@@ -269,65 +274,41 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       .hero__slide { align-items: flex-end; }
       .hero__photo { object-position: 52% 30%; }
       .hero__slide::after { background: linear-gradient(to top, rgba(10,10,10,.92) 0%, rgba(10,10,10,.6) 40%, rgba(10,10,10,0) 70%); }
-      .hero__text { padding: 32px 24px 40px; }
+      .hero__text { padding: 32px 24px 88px; }   /* 88: clear of the tab bar fixed along the bottom of the screen */
     }
 /* Some people get dizzy from motion: no zoom, no slide-in. */
 @media (prefers-reduced-motion: reduce) {
-      .hero .hero__slide.is-current * { animation: none; }   /* outranks the .is-current animation rules above */
-      .hero__slide, .hero__slide.is-current { transition: none; }   /* slides swap, no fade */
-      /* Still rotates (there is no other way to reach slides 2-4), but as plain swaps: no fade,
+      .hero .hero__slide.is-current *, .hero .hero__slide.is-leaving * { animation: none; }   /* outranks the animation rules above */
+      .hero__slide, .hero__slide.is-current, .hero__slide.is-leaving { transition: none; }   /* slides swap, no sliding */
+      /* Still rotates (there is no other way to reach slides 2-3), but as plain swaps: no fade,
          no zoom, no slide-in. The nav underline still fills: slow, thin, and nothing moves. */
     }
-/* ---- Slides 2-4 use slide 1's frame exactly: the same black strip, the same photo edge and the
+/* ---- Slides 2-3 use slide 1's frame exactly: the same black strip, the same photo edge and the
    same fade, so the left side never jumps as the slides change. Only object-position differs,
    which picks the part of each photo that shows inside that frame (0% keeps its left side,
    100% its right), so each one's people land in the clear part. ---- */
 .hero .hero__photo--women { object-position: 62% 30%; }   /* desktop: her at about 3/4 across; phone: her, centred */
 .hero .hero__photo--men   { object-position: 55% 30%; }   /* desktop: the group clear of the fade; phone: the man in grey at the front */
-.hero .hero__photo--sale  { object-position: 50% 50%; }
 /* Same black strip, longer fade. Slide 1's photo happens to start on a dark doorway, so its
    short fade melts in; these photos start on sunlit street and stone, and the same fade
    leaves a visible edge at 30%. So their fade runs further (to 60% instead of 55%) and stays
    darker for longer, which makes the black read the same width on every slide. */
 @media (min-width: 1200px) {
-      .hero .hero__slide--women::after, .hero .hero__slide--men::after, .hero .hero__slide--sale::after {
+      .hero .hero__slide--women::after, .hero .hero__slide--men::after {
         background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 30%, rgba(10,10,10,.88) 36%, rgba(10,10,10,.6) 44%, rgba(10,10,10,.25) 52%, rgba(10,10,10,0) 60%);
       }
     }
 @media (min-width: 861px) and (max-width: 1199px) {
-      .hero .hero__slide--women::after, .hero .hero__slide--men::after, .hero .hero__slide--sale::after {
+      .hero .hero__slide--women::after, .hero .hero__slide--men::after {
         background: linear-gradient(to right, #0a0a0a 0%, #0a0a0a 20%, rgba(10,10,10,.88) 26%, rgba(10,10,10,.6) 34%, rgba(10,10,10,.25) 43%, rgba(10,10,10,0) 52%);
       }
     }
-/* ---- Slide 4: the sale. The shop photo is dimmed so the outlined number reads over it. ---- */
-.hero__photo--sale { filter: brightness(.70) saturate(.9); }   /* was .55: 15 points less darkening, Oct 2026 */
-/* The sale slide speaks in the sale page's red, not the brand purple, so it reads as "sale"
-   at a glance and matches the page the button leads to. */
-.hero__slide--sale .hero__title span { color: var(--red-sale); }
-.hero__slide--sale .hero__cta { background: var(--red-sale); }               /* white on #cc1111: 5.7:1 */
-.hero__slide--sale .hero__cta:hover { background: #a30d0d; }
-/* The small label is 9-12 px: #cc1111 on black is only 3.4:1, under the 4.5:1 small text
-   needs, so it gets a lighter red from the same family (6.5:1). The big headline is fine at 3.4:1 (large text needs 3:1). */
-.hero__slide--sale .hero__season { color: #ff5a5a; }
-.hero__sale-mark {
-      position: absolute; z-index: 1; right: 4vw; top: 50%; transform: translateY(-50%);
-      font-family: var(--display); line-height: .8; letter-spacing: 2px;
-      font-size: min(34vw, 62vh);
-      color: rgba(181,123,255,.14);                          /* a faint purple fill, so the shape holds on a busy photo */
-      -webkit-text-stroke: 3px var(--purple);                /* the brand purple, kept on purpose next to the red text */
-      text-shadow: 0 0 40px rgba(10,10,10,.45);
-      pointer-events: none; user-select: none;
-    }
-@media (max-width: 860px) {
-      /* Phone: the number sits in the top half, above the text at the bottom. */
-      .hero__sale-mark { top: 15%; right: 50%; transform: translateX(50%); font-size: min(58vw, 34vh); -webkit-text-stroke-width: 2px; }
-    }
-/* ---- The slide clock: an invisible element whose 7 s animation ends each slide (hero.js
+/* ---- The slide clock: an invisible element whose 5 s animation ends each slide (hero.js
    listens for its animationend). Pausing the animation (hover, focus, scrolled away) pauses
    the slideshow exactly where it was. It must stay displayed, if invisible: an element with
    display:none never runs its animation, so the slideshow would stop. ---- */
 .hero__clock { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.hero.is-playing .hero__clock { animation: heroTimer var(--hero-interval, 7s) linear; }
+.hero.is-playing .hero__clock { animation: heroTimer var(--hero-interval, 5s) linear; }
 .hero.is-held .hero__clock { animation-play-state: paused; }
 @keyframes heroTimer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 /* ---- The play symbol: appears bottom-right while the visitor has paused the hero. ---- */
@@ -342,14 +323,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 .hero__play:hover { background: var(--purple); }
 .hero__play:focus-visible { outline: 2px solid var(--white); outline-offset: 3px; }
 @keyframes heroPlayIn { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
-@media (max-width: 860px) { .hero__play { right: 20px; bottom: 24px; } }
+@media (max-width: 860px) { .hero__play { right: 20px; bottom: 76px; } }   /* above the tab bar */
 @media (prefers-reduced-motion: reduce) { .hero__play { animation: none; } }
 /* ---- The main nav shows which slide is up, while the hero is on screen: New In for the
    collection, then Women, Men, Sale. The link's own hover underline fills across in time with
-   the clock (same 7 s, started and paused together). Same 2 px line as the hover. ---- */
+   the clock (same 5 s, started and paused together). Same 2 px line as the hover. ---- */
 .nav__links a.nav-hero-current { color: var(--black); }
 .nav__links a.nav-hero-current::after { width: 100%; transition: none; }
-.hero-playing a.nav-hero-current::after { animation: heroUnderline var(--hero-interval, 7s) linear; }
+.hero-playing a.nav-hero-current::after { animation: heroUnderline var(--hero-interval, 5s) linear; }
 .hero-held a.nav-hero-current::after { animation-play-state: paused; }
 @keyframes heroUnderline { from { width: 0; } to { width: 100%; } }
 .img-ph { background: var(--muted); border-radius: 1px; }
@@ -366,35 +347,37 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       padding: 9px 20px; transition: background var(--transition);
     }
 .section-header__link:hover { background: var(--purple); }
-.categories {
-      display: grid; grid-template-columns: repeat(4,1fr);
-      gap: 2px; background: var(--muted);
-      margin: 0 40px 8px;
+/* ---- Trusted by brands (Oct 2026): the logos run past endlessly, right to left. The strip
+   holds the four logos three times over, twice: wide enough to fill a 2560 px screen, and the
+   second half is an exact copy of the first, so sliding by exactly half (-50%) and starting
+   again is seamless. Hovering stops it; reduced motion keeps it still. ---- */
+.brands {
+      margin: 0 40px 8px; overflow: hidden;
+      /* the logos fade in and out at the edges instead of being cut off */
+      -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+              mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
     }
-.category {
-      background: var(--white); padding: 24px 20px;
-      cursor: none; position: relative; overflow: hidden;
-      transition: background 0.3s ease;
-      display: flex; flex-direction: column; align-items: center;
-      min-height: 160px;
+.brands__track {
+      display: flex; gap: 2px; width: max-content; list-style: none; margin: 0; padding: 0;
+      animation: brandsScroll 36s linear infinite;
     }
-.category::before {
-      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-      height: 0; background: rgba(181,123,255,0.88); transition: height 0.35s ease; z-index: 0;
+.brands:hover .brands__track { animation-play-state: paused; }
+@keyframes brandsScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.brand {
+      flex: none; width: 240px; height: 160px; background: var(--white);
+      display: flex; align-items: center; justify-content: center; padding: 24px 20px;
     }
-.category:hover::before { height: 100%; }
-.category__name {
-      font-size: 9px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
-      color: var(--mid); margin-bottom: 3px; position: relative; z-index: 1;
-      transition: color var(--transition);
+.brand img { max-height: 70px; max-width: 160px; width: 100%; object-fit: contain; mix-blend-mode: multiply; }
+.brand--zara img { max-height: 120px; max-width: 200px; }
+.brand--lv img   { max-height: 95px; max-width: 200px; }
+@media (max-width: 860px) {
+      .brands { margin: 0 0 8px; }
+      .brand { width: 160px; height: 110px; padding: 16px; }
+      .brand img { max-height: 48px; max-width: 110px; }
+      .brand--zara img { max-height: 80px; max-width: 130px; }
+      .brand--lv img   { max-height: 64px; max-width: 130px; }
     }
-.category__count {
-      font-size: 9px; color: var(--muted); letter-spacing: 1px;
-      position: relative; z-index: 1; transition: color var(--transition);
-      align-self: flex-start;
-    }
-.category:hover .category__name  { color: var(--white); }
-.category:hover .category__count { color: rgba(255,255,255,0.35); }
+@media (prefers-reduced-motion: reduce) { .brands__track { animation: none; } }
 .products {
       display: grid; grid-template-columns: repeat(4,1fr);
       gap: 2px; background: var(--muted);
@@ -409,7 +392,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     }
 .product:hover .product__img { background: var(--bg-mid); }
 @keyframes heroZoom { from { transform: scale(1); } to { transform: scale(1.07); } }
-.feature__img img { animation: heroZoom 10s ease-out forwards; }
 .product__img img { width:100%; height:100%; transition: transform 0.6s ease; }
 .product:hover .product__img img { transform: scale(1.05); }
 .product__overlay { position:absolute; bottom:0; left:0; right:0; background:var(--black); color:var(--white); padding:12px; text-align:center; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; transform:translateY(100%); transition:transform .3s ease; cursor:none; }
@@ -456,47 +438,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     }
 .product:hover .product__add { border-color: var(--black); color: var(--black); }
 .product__add.added { background: var(--purple); color: var(--white); border-color: var(--purple); }
-.feature {
-      margin: 40px 0 0; padding: 72px 40px;
-      background: var(--purple);
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 48px; align-items: center;
-      position: relative; overflow: hidden;
-    }
-.feature::before {
-      content: ''; position: absolute; inset: 0;
-      background: var(--ruled-purple); pointer-events: none;
-    }
-.feature__label {
-      font-size: 9px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase;
-      color: rgba(255,255,255,0.5); margin-bottom: 14px; position: relative; z-index: 1;
-    }
-.feature__title {
-      font-family: var(--display);
-      font-size: clamp(48px, 5vw, 72px); line-height: 0.92;
-      letter-spacing: 2px; color: var(--white); margin-bottom: 20px;
-      position: relative; z-index: 1;
-    }
-.feature__body {
-      font-size: 14px; font-weight: 300; color: rgba(255,255,255,0.75);
-      line-height: 1.85; margin-bottom: 28px; position: relative; z-index: 1;
-    }
-.feature__cta {
-      display: inline-block; background: var(--white); color: var(--purple);
-      padding: 14px 32px; font-size: 10px; font-weight: 700;
-      letter-spacing: 3px; text-transform: uppercase;
-      position: relative; z-index: 1;
-      transition: background var(--transition), color var(--transition);
-    }
-.feature__cta:hover { background: var(--black); color: var(--white); }
-.feature__images {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 10px; position: relative; z-index: 1;
-    }
-.feature__img {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.15);
-    }
 .newsletter {
       padding: 80px 40px; text-align: center;
       position: relative; overflow: hidden;
@@ -551,28 +492,19 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 @media (max-width: 960px) {
       .nav { padding: 0 24px; }
       .nav__links { display: none; }
-      .nav__toggle { display: flex; }
 
-      .categories { margin: 0 24px 8px; grid-template-columns: 1fr 1fr; }
       .section-header { padding: 24px 24px 14px; }
       .products { margin: 0 24px; grid-template-columns: 1fr 1fr; }
-      .feature { grid-template-columns: 1fr; padding: 48px 24px; gap: 28px; }
       .newsletter { padding: 56px 24px; }
       .footer { padding: 40px 24px 0; }
     }
 @media (max-width: 540px) {
-      .categories { grid-template-columns: 1fr 1fr; }
       .products { grid-template-columns: 1fr; }
       .newsletter__form { flex-direction: column; }
       .newsletter__btn { padding: 14px; }
     }
 .search-overlay__label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:12px;}
 .search-overlay__hint{margin-top:16px;font-size:10px;color:#333;letter-spacing:1px;text-align:center;}
-.category__logo { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; margin: 0; }
-.category__logo img { max-height: 70px; max-width: 160px; width: 100%; object-fit: contain; mix-blend-mode: multiply; transition: filter 0.35s ease, mix-blend-mode 0s; }
-.category:hover .category__logo img { mix-blend-mode: normal; filter: brightness(0) invert(1); }
-.category__logo--zara img { max-height: 120px; max-width: 200px; }
-.category__logo--lv img   { max-height: 95px; max-width: 200px; }
 </style>
 </head>
 <body>
@@ -582,39 +514,14 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   <div class="cursor-ring" id="cursorRing"></div>
 
   <!-- Mobile menu -->
-  <div class="mob-menu-overlay" id="mobMenuOverlay" data-action="close-menu"></div>
-  <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Navigation menu">
-    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:20px;">
-      <p style="font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin:0;">Menu</p>
-      <button class="mobile-menu__close" id="menuClose" aria-label="Close menu">&times;</button>
-    </div>
-    <a href="index.html" class="active" data-action="close-menu">Home</a>
-    <a href="new-in.html" data-action="close-menu">New In</a>
-    <a href="women.html" data-action="close-menu">Women</a>
-    <a href="men.html" data-action="close-menu">Men</a>
-    <a href="sale.html" class="sale-link" data-action="close-menu">Sale</a>
-    <div class="mobile-menu__divider"></div>
-    <button class="mobile-menu__action" data-action="open-wishlist close-menu" aria-label="Wishlist">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      <span class="mob-action-text">Wishlist</span>
-      <span class="mob-badge" id="mobWLBadge"></span>
-    </button>
-    <div id="mobileSignIn">
-      <button class="mobile-menu__action mobile-menu__action--solid" data-action="open-auth close-menu" data-tab="login">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span class="mob-action-text">Sign In</span>
-      </button>
-    </div>
-    <div id="mobileUserSection" style="display:none;">
-      <div class="mobile-menu__user-row">
-        <div class="mob-avatar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-        <div>
-          <span class="mob-username" id="mobileUserName"></span>
-          <button class="mob-signout" data-action="open-signout">Sign out</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Phones: the shop's four sections, fixed to the bottom of the screen. It replaced the
+       slide-out menu (Oct 2026); the logo is the way home, and sign-in moved to the top bar. -->
+  <nav class="tabbar" aria-label="Shop sections">
+    <a href="new-in.html">New In</a>
+    <a href="women.html">Women</a>
+    <a href="men.html">Men</a>
+    <a href="sale.html">Sale</a>
+  </nav>
 
   <!-- Marquee -->
   <!-- Nav -->
@@ -625,7 +532,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       <li><a href="new-in.html" data-hero-slide="0">New In</a></li>
       <li><a href="women.html" data-hero-slide="1">Women</a></li>
       <li><a href="men.html" data-hero-slide="2">Men</a></li>
-      <li><a href="sale.html" data-hero-slide="3">Sale</a></li>
+      <li><a href="sale.html">Sale</a></li>
     </ul>
     <div class="nav__actions">
       <button class="nav__icon" aria-label="Search" data-action="open-search">
@@ -651,9 +558,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       </button>
         <span class="cart-badge" id="cartBadge" style="position:absolute;top:-6px;right:-8px;background:var(--purple);color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:none;align-items:center;justify-content:center;line-height:1;"></span>
       </div>
-      <button class="nav__toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
     </div>
   </nav>
   <div class="marquee" aria-label="Promotions">
@@ -689,7 +593,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
     </div>
     <div class="wishlist-drawer__body"><div id="wishlistItems"></div></div>
     <div class="wishlist-drawer__footer" id="wishlistFooter" style="display:none;">
-      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Add all to cart &rarr;</button>
+      <button type="button" class="wishlist-drawer__cta" data-action="wishlist-add-all">Move all to cart &rarr;</button>
       <button class="wishlist-drawer__clear" data-action="clear-wishlist">Clear wishlist</button>
     </div>
   </div>
@@ -789,7 +693,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
   </div>
   <main>
 
-    <!-- Hero: a slideshow of four (Oct 2026). A click or tap on it pauses it, another one
+    <!-- Hero: a slideshow of three (Oct 2026). A click or tap on it pauses it, another one
          carries on; it also waits while it's scrolled away. The main nav underlines the slide
          that's up. No pause button, by choice (see hero.js). hero.js runs it; without JavaScript the first
          slide simply shows, like the old single hero. -->
@@ -805,10 +709,10 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1l8 5-8 5z"/></svg>
       </button>
 
-      <!-- aria-live "off": announcing every change would talk over the page every 7 s. -->
+      <!-- aria-live "off": announcing every change would talk over the page every 5 s. -->
       <div class="hero__slides" aria-live="off">
 
-        <div class="hero__slide is-current" role="group" aria-roledescription="slide" aria-label="1 of 4">
+        <div class="hero__slide is-current" role="group" aria-roledescription="slide" aria-label="1 of 3">
           <!-- The original was 1376 px; these copies come from a 2x Real-ESRGAN upscale (2752 px). -->
           <img class="hero__photo" src="images/hero-street-1600.webp"
                srcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w"
@@ -829,11 +733,11 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
           </div>
         </div>
 
-        <!-- Slides 2-4 carry their photos in data-srcset: hero.js loads them after the page
+        <!-- Slides 2-3 carry their photos in data-srcset: hero.js loads them after the page
              has loaded, so they never compete with the first photo (the page's LCP). -->
         <!-- All three: 2x Real-ESRGAN upscales, like the street photo. sizes: these photos are
              wider than the screen's shape, so they are drawn by height (about 2.4x the hero's height). -->
-        <div class="hero__slide hero__slide--women" role="group" aria-roledescription="slide" aria-label="2 of 4">
+        <div class="hero__slide hero__slide--women" role="group" aria-roledescription="slide" aria-label="2 of 3">
           <img class="hero__photo hero__photo--women" data-srcset="images/hero-women-800.webp 800w, images/hero-women-1600.webp 1600w, images/hero-women-2400.webp 2400w, images/hero-women-3168.webp 3168w"
                sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
                alt="A woman in a wide black hat and sunglasses, a red and green print bustier and a black blazer over her shoulders, on a sunny city street"
@@ -849,7 +753,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
           </div>
         </div>
 
-        <div class="hero__slide hero__slide--men" role="group" aria-roledescription="slide" aria-label="3 of 4">
+        <div class="hero__slide hero__slide--men" role="group" aria-roledescription="slide" aria-label="3 of 3">
           <img class="hero__photo hero__photo--men" data-srcset="images/hero-men-800.webp 800w, images/hero-men-1600.webp 1600w, images/hero-men-2400.webp 2400w, images/hero-men-3168.webp 3168w"
                sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
                alt="Six bearded men in tailored suits, waistcoats and hats on the steps of a brownstone"
@@ -865,50 +769,42 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
           </div>
         </div>
 
-        <!-- The number is the picture; the shop behind it is atmosphere (alt="": it says nothing
-             the headline doesn't). hero.js swaps in the real biggest discount from the catalogue,
-             so the claim can never outlive the sale (40% is true today). -->
-        <div class="hero__slide hero__slide--sale" role="group" aria-roledescription="slide" aria-label="4 of 4">
-          <img class="hero__photo hero__photo--sale" data-srcset="images/hero-sale-800.webp 800w, images/hero-sale-1600.webp 1600w, images/hero-sale-2400.webp 2400w, images/hero-sale-2816.webp 2816w"
-               sizes="(max-aspect-ratio: 16/9) 180vh, 100vw" alt=""
-               width="2816" height="1536" decoding="async">
-          <p class="hero__sale-mark" aria-hidden="true"><span data-hero-off>40</span>%</p>
-          <div class="hero__text">
-            <p class="hero__season">The Sale · Limited stock</p>
-            <h2 class="hero__title">UP TO<br><span><span data-hero-off>40</span>% OFF</span><br>RIGHT NOW</h2>
-            <p class="hero__sub">Real reductions on pieces from this season. When a size is gone, it’s gone.</p>
-            <a href="sale.html" class="hero__cta">
-              Shop the sale
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
-          </div>
-        </div>
-
       </div>
     </section>
 
-    <!-- Categories -->
+    <!-- Brands: a strip of logos that runs past endlessly (Oct 2026). Only the first four are
+         read out; the copies that make the loop seamless are hidden from screen readers. -->
     <section aria-labelledby="brand-heading">
       <div class="section-header reveal">
-        <h2 class="section-header__title" id="brand-heading">Shop by <span>Brand</span></h2>
+        <h2 class="section-header__title" id="brand-heading">Trusted <span>Brands</span></h2>
       </div>
-      <div class="categories reveal-stagger">
-        <div class="category" role="link" tabindex="0" aria-label="Shop Nike">
-          <div class="category__logo"><img src="images/nike.webp" alt="Nike"></div>
-          <div class="category__count">86 items</div>
-        </div>
-        <div class="category" role="link" tabindex="0" aria-label="Shop Chanel">
-          <div class="category__logo"><img src="images/Chanel.webp" alt="Chanel"></div>
-          <div class="category__count">42 items</div>
-        </div>
-        <div class="category" role="link" tabindex="0" aria-label="Shop Zara">
-          <div class="category__logo category__logo--zara"><img src="images/Zara.webp" alt="Zara"></div>
-          <div class="category__count">124 items</div>
-        </div>
-        <div class="category" role="link" tabindex="0" aria-label="Shop Louis Vuitton">
-          <div class="category__logo category__logo--lv"><img src="images/louis_v.webp" alt="Louis Vuitton"></div>
-          <div class="category__count">38 items</div>
-        </div>
+      <div class="brands">
+        <ul class="brands__track">
+          <li class="brand"><img src="images/nike.webp" alt="Nike"></li>
+          <li class="brand"><img src="images/Chanel.webp" alt="Chanel"></li>
+          <li class="brand brand--zara"><img src="images/Zara.webp" alt="Zara"></li>
+          <li class="brand brand--lv"><img src="images/louis_v.webp" alt="Louis Vuitton"></li>
+          <li class="brand" aria-hidden="true"><img src="images/nike.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/Chanel.webp" alt=""></li>
+          <li class="brand brand--zara" aria-hidden="true"><img src="images/Zara.webp" alt=""></li>
+          <li class="brand brand--lv" aria-hidden="true"><img src="images/louis_v.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/nike.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/Chanel.webp" alt=""></li>
+          <li class="brand brand--zara" aria-hidden="true"><img src="images/Zara.webp" alt=""></li>
+          <li class="brand brand--lv" aria-hidden="true"><img src="images/louis_v.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/nike.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/Chanel.webp" alt=""></li>
+          <li class="brand brand--zara" aria-hidden="true"><img src="images/Zara.webp" alt=""></li>
+          <li class="brand brand--lv" aria-hidden="true"><img src="images/louis_v.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/nike.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/Chanel.webp" alt=""></li>
+          <li class="brand brand--zara" aria-hidden="true"><img src="images/Zara.webp" alt=""></li>
+          <li class="brand brand--lv" aria-hidden="true"><img src="images/louis_v.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/nike.webp" alt=""></li>
+          <li class="brand" aria-hidden="true"><img src="images/Chanel.webp" alt=""></li>
+          <li class="brand brand--zara" aria-hidden="true"><img src="images/Zara.webp" alt=""></li>
+          <li class="brand brand--lv" aria-hidden="true"><img src="images/louis_v.webp" alt=""></li>
+        </ul>
       </div>
     </section>
 
@@ -981,27 +877,6 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 
 
 
-      </div>
-    </section>
-
-    <!-- Feature band -->
-    <section class="feature reveal" aria-labelledby="feature-heading">
-      <div>
-        <p class="feature__label">Limited drop</p>
-        <h2 class="feature__title" id="feature-heading">THE NAIROBI EDIT</h2>
-        <p class="feature__body">
-          Hand-picked from Kenya's best designers. Exclusive pieces
-          you won't find anywhere else. Once it's gone, it's gone.
-        </p>
-        <a href="#" class="feature__cta">Shop the edit →</a>
-      </div>
-      <div class="feature__images">
-        <div class="feature__img" style="height:200px;overflow:hidden;"><img src="images/nai0.webp" alt="Nairobi fashion" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:50% 15%;display:block;"></div>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div class="feature__img" style="height:95px;overflow:hidden;"><img src="images/nai1.webp" alt="Nairobi fashion" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:50% 0%;display:block;"></div>
-          <div class="feature__img" style="height:95px;overflow:hidden;"><img src="images/nai2.webp" alt="Nairobi fashion" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:60% 10%;display:block;"></div>
-        </div>
-        <div class="feature__img" style="height:200px;grid-column:1/-1;overflow:hidden;"><img src="images/nai3.webp" alt="Nairobi fashion" loading="lazy" style="width:100%;height:100%;object-fit:cover;object-position:70% 0%;display:block;"></div>
       </div>
     </section>
 

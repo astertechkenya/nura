@@ -294,19 +294,79 @@
     });
   }
 
-  function products() {
+  var productQuery = {};
+  function products(query) {
     setTab('products');
+    productQuery = query || {};
     api('/products').then(function (d) { drawProducts(d.products); }, failed);
   }
 
+  /* Sale dates are Nairobi time, which is UTC+3 all year (Kenya has no daylight saving), so
+     the conversion is a fixed 3 hours whatever timezone the admin's own device is set to. */
+  var EAT = 3 * 3600 * 1000;
+  var toInput = function (iso) { return iso ? new Date(new Date(iso).getTime() + EAT).toISOString().slice(0, 16) : ''; };
+  var fromInput = function (v) { return v ? v + ':00+03:00' : null; };
+  var day = function (iso) { return new Date(iso).toLocaleString('en-KE', { timeZone: 'Africa/Nairobi', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+  // What the shop is doing with this product's sale right now, in words.
+  function saleState(p) {
+    if (!p.compareAtKes) return '';
+    if (p.saleOn) return '<span class="adm-pill adm-pill--DELIVERED">Sale on' + (p.saleEndsAt ? ' until ' + esc(day(p.saleEndsAt)) : '') + '</span>';
+    if (p.saleStartsAt && new Date(p.saleStartsAt) > new Date()) return '<span class="adm-pill adm-pill--PROCESSING">Sale starts ' + esc(day(p.saleStartsAt)) + '</span>';
+    return '<span class="adm-pill adm-pill--CANCELLED">Sale ended: selling at ' + esc(ksh(p.compareAtKes)) + '</span>';
+  }
+
+  var DEPTS = [['WOMEN', 'Women'], ['MEN', 'Men'], ['UNISEX', 'Unisex']];
+
   function drawProducts(list) {
     var off = me.masked ? ' disabled' : '';
+    var count = function (d) { return list.filter(function (p) { return p.department === d; }).length; };
     main.innerHTML = '<div class="adm-titlebar"><h1 class="adm-h1">Products</h1>'
-      + (me.masked ? '' : '<a class="adm-btn adm-btn--small" href="#product/new">+ Add a product</a>') + '</div>'
+      + '<span class="adm-titlebar__actions"><a class="adm-btn adm-btn--quiet adm-btn--small" href="#stock">Bulk stock</a>'
+      + (me.masked ? '' : ' <a class="adm-btn adm-btn--small" href="#product/new">+ Add a product</a>') + '</span></div>'
       + (me.masked ? '<p class="adm-notice">Demo: you can look, but prices and stock can’t be changed.</p>'
-                   : '<p class="adm-muted" style="margin-bottom:14px;">Stock saves as soon as you leave the box. Prices save with the button.</p>')
-      + list.map(function (p) {
-        return '<article class="adm-product' + (p.isActive ? '' : ' is-hidden') + '" data-id="' + esc(p.id) + '">'
+                   : '<p class="adm-muted" style="margin-bottom:14px;">Stock saves as soon as you leave the box. Prices and sale dates save with the button.</p>')
+      // Search and department chips filter the list in place (no reload, nothing sent anywhere).
+      + '<div class="adm-search" role="search"><input class="auth-input" type="search" id="admPQ" placeholder="Search name, brand or code (nura-012)" aria-label="Search products" value="' + esc(productQuery.q || '') + '"></div>'
+      + '<div class="adm-filters" role="group" aria-label="Department">'
+      + [['', 'All', list.length]].concat(DEPTS.map(function (d) { return [d[0], d[1], count(d[0])]; })).map(function (c) {
+          return '<button type="button" class="adm-chip" data-dept="' + c[0] + '" aria-pressed="' + ((productQuery.dept || '') === c[0]) + '">' + c[1] + ' <span class="adm-muted">' + c[2] + '</span></button>';
+        }).join('') + '</div>'
+      + '<p class="adm-muted" id="admPNone" hidden>No products match.</p>'
+      + DEPTS.map(function (d) {
+        var group = list.filter(function (p) { return p.department === d[0]; });
+        if (!group.length) return '';
+        return '<section class="adm-pgroup" data-group="' + d[0] + '"><h2 class="adm-h2">' + d[1] + ' <span class="adm-muted" data-group-count></span></h2>'
+          + group.map(productCard).join('') + '</section>';
+      }).join('');
+
+    // Search + department: show matching cards, hide empty groups, say so when nothing matches.
+    var qInput = document.getElementById('admPQ');
+    function applyFilter() {
+      var q = qInput.value.trim().toLowerCase(), dept = productQuery.dept || '', shown = 0;
+      main.querySelectorAll('.adm-pgroup').forEach(function (g) {
+        var inGroup = 0;
+        g.querySelectorAll('.adm-product').forEach(function (card) {
+          var ok = (!dept || g.dataset.group === dept) && (!q || card.dataset.search.indexOf(q) > -1);
+          card.hidden = !ok; if (ok) inGroup++;
+        });
+        g.hidden = !inGroup; shown += inGroup;
+        g.querySelector('[data-group-count]').textContent = inGroup;
+      });
+      document.getElementById('admPNone').hidden = shown > 0;
+      main.querySelectorAll('[data-dept]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.dept === dept)); });
+    }
+    qInput.addEventListener('input', function () { productQuery.q = qInput.value; applyFilter(); });
+    main.querySelectorAll('[data-dept]').forEach(function (b) {
+      b.addEventListener('click', function () { productQuery.dept = b.dataset.dept; applyFilter(); });
+    });
+    applyFilter();
+    if (me.masked) return;
+    wireProducts();
+  }
+
+  function productCard(p) {
+    var off = me.masked ? ' disabled' : '';
+    return '<article class="adm-product' + (p.isActive ? '' : ' is-hidden') + '" data-id="' + esc(p.id) + '" data-search="' + esc((p.name + ' ' + p.brand + ' ' + p.sku).toLowerCase()) + '">'
           + '<div class="adm-product__head">' + (p.imageUrl ? '<img src="' + esc(imgSrc(p.imageUrl)) + '" alt="">' : '<span class="adm-ph"></span>')
           + '<div><p class="adm-product__name">' + esc(p.name) + '</p><p class="adm-muted">' + esc(p.brand) + ' · ' + esc(p.sku) + '</p></div>'
           + '<label class="adm-toggle"><input type="checkbox" data-visible' + (p.isActive ? ' checked' : '') + off + '> Shown in shop</label></div>'
@@ -316,8 +376,10 @@
           + '<form class="adm-prices" data-prices novalidate>'
           + '<label class="adm-field">Price (KSh)<input type="number" min="1" step="1" inputmode="numeric" name="price" value="' + Number(p.priceKes) + '"' + off + '></label>'
           + '<label class="adm-field">Was (KSh)<input type="number" min="1" step="1" inputmode="numeric" name="was" aria-describedby="wasHint-' + esc(p.id) + '" value="' + (p.compareAtKes || '') + '"' + off + '></label>'
+          + '<label class="adm-field">Sale starts<input type="datetime-local" name="starts" aria-describedby="wasHint-' + esc(p.id) + '" value="' + esc(toInput(p.saleStartsAt)) + '"' + off + '></label>'
+          + '<label class="adm-field">Sale ends<input type="datetime-local" name="ends" aria-describedby="wasHint-' + esc(p.id) + '" value="' + esc(toInput(p.saleEndsAt)) + '"' + off + '></label>'
           + '<button class="adm-btn" type="submit"' + off + '>Save</button>'
-          + '<span class="adm-hint" id="wasHint-' + esc(p.id) + '">Leave “Was” empty when it isn’t on sale.</span></form>'
+          + '<span class="adm-hint" id="wasHint-' + esc(p.id) + '">Leave “Was” empty when it isn’t on sale. Dates are optional (Nairobi time): outside them it sells at the “Was” price. ' + saleState(p) + '</span></form>'
           + '<div class="adm-stock">' + p.variants.map(function (v) {
             var cls = v.stock === 0 ? 'is-out' : v.stock <= 3 ? 'is-low' : '';
             return '<label>' + esc(v.size) + '<input type="number" min="0" max="9999" step="1" inputmode="numeric" class="' + cls + '" data-variant="' + esc(v.id)
@@ -330,9 +392,9 @@
           + (me.masked ? '' : '<button class="adm-btn adm-btn--small" type="submit">Save description</button>')
           + ' <a class="adm-muted" href="/p/' + encodeURIComponent(p.slug) + '" target="_blank" rel="noopener">View page ↗</a></form></details>'
           + '</article>';
-      }).join('');
-    if (me.masked) return;
+  }
 
+  function wireProducts() {
     main.querySelectorAll('[data-desc]').forEach(function (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -354,8 +416,18 @@
         var id = form.closest('[data-id]').dataset.id;
         var price = parseInt(form.price.value, 10), was = form.was.value.trim() ? parseInt(form.was.value, 10) : null;
         if (!(price > 0)) { toast('Enter a price in whole shillings.'); return; }
-        api('/products/' + id, { method: 'PATCH', body: { priceKes: price, compareAtKes: was } })
-          .then(function () { toast('Saved: ' + ksh(price) + (was ? ', was ' + ksh(was) : '')); }, failed);
+        var body = { priceKes: price, compareAtKes: was };
+        // Dates go only with a sale; removing the "Was" price removes them on the server too.
+        if (was) { body.saleStartsAt = fromInput(form.starts.value); body.saleEndsAt = fromInput(form.ends.value); }
+        api('/products/' + id, { method: 'PATCH', body: body })
+          .then(function (d) {
+            toast('Saved: ' + ksh(price) + (was ? ', was ' + ksh(was) : ''));
+            var fresh = d.products.filter(function (x) { return x.id === id; })[0];
+            if (fresh) {                                   // the sale's state in words, and cleared dates
+              form.querySelector('.adm-hint').innerHTML = 'Leave “Was” empty when it isn’t on sale. Dates are optional (Nairobi time): outside them it sells at the “Was” price. ' + saleState(fresh);
+              form.starts.value = toInput(fresh.saleStartsAt); form.ends.value = toInput(fresh.saleEndsAt);
+            }
+          }, failed);
       });
     });
     main.querySelectorAll('[data-visible]').forEach(function (box) {
@@ -374,7 +446,7 @@
         toast('Uploading photo…');
         uploadPhoto(file).then(function (publicId) {
           return api('/products/' + card.dataset.id + '/image', { method: 'PUT', body: { publicId: publicId } });
-        }).then(function (d) { drawProducts(d.products); toast('Photo changed'); }, function (err) { input.value = ''; failed(err); });
+        }).then(function (d) { productQuery.q = document.getElementById('admPQ').value; drawProducts(d.products); toast('Photo changed'); }, function (err) { input.value = ''; failed(err); });
       });
     });
     main.querySelectorAll('[data-focus]').forEach(function (sel) {
@@ -623,6 +695,176 @@
     }, failed);
   }
 
+  /* ── Insights (Oct 2026): read-only, from /api/admin/insights ─────────────────────
+     Charts are plain HTML (no chart library: the CSP allows only this site's own scripts,
+     and a library would outweigh the page). Colours: the three payment methods use the first
+     three slots of a palette checked for colour-blind separation; the legend names them, the
+     tooltip and the table carry every number, so colour is never the only way to tell. */
+  var METHODS = [['MPESA', 'M-Pesa'], ['CARD', 'Card'], ['COD', 'Cash on delivery']];
+
+  function insightsScreen() {
+    setTab('insights');
+    api('/insights').then(drawInsights, failed);
+  }
+
+  function drawInsights(s) {
+    var tile = function (v, label) { return '<div class="adm-tile"><strong>' + esc(v) + '</strong><span>' + esc(label) + '</span></div>'; };
+    var short = function (d) { return new Date(d + 'T12:00:00Z').toLocaleString('en-KE', { day: 'numeric', month: 'short', timeZone: 'UTC' }); };
+    var total = function (d) { return d.MPESA + d.CARD + d.COD; };
+    var max = Math.max.apply(null, s.daily.map(total));
+    // A clean top for the axis: 1, 2 or 5 × a power of ten, at or above the busiest day.
+    var step = Math.pow(10, Math.floor(Math.log10(Math.max(max, 1))));
+    var top = [1, 2, 5, 10].map(function (m) { return m * step; }).filter(function (t) { return t >= max; })[0] || step * 10;
+    var ticks = [0, top / 2, top];
+
+    var chart = '<div class="ins-legend">' + METHODS.map(function (m) {
+        return '<span><i class="ins-key ins-key--' + m[0] + '"></i>' + m[1] + '</span>';
+      }).join('') + '</div>'
+      + '<div class="ins-chart" role="img" aria-label="Takings per day for the last ' + s.days + ' days, by payment method. The table below has every figure.">'
+      + '<div class="ins-grid">' + ticks.slice().reverse().map(function (t) {
+          return '<div class="ins-tick"><span>' + (t >= 1000 ? (t / 1000) + 'k' : t) + '</span></div>';
+        }).join('') + '</div>'
+      + '<div class="ins-cols">' + s.daily.map(function (d, i) {
+          var t = total(d);
+          // Segments bottom-up: M-Pesa, card, cash. Heights are shares of the axis top.
+          var segs = METHODS.map(function (m) { return d[m[0]] ? '<i class="ins-seg ins-seg--' + m[0] + '" style="height:' + (d[m[0]] / top * 100) + '%"></i>' : ''; }).join('');
+          var label = i % 7 === 2 || i === s.daily.length - 1 ? '<span class="ins-x">' + esc(short(d.day)) + '</span>' : '';
+          return '<div class="ins-col" data-i="' + i + '"><div class="ins-stack">' + segs + '</div>' + label + '</div>';
+        }).join('') + '</div>'
+      + '<div class="ins-tip" id="insTip" hidden></div></div>'
+      + '<details class="adm-desc"><summary>Show as a table</summary><table class="ins-table"><thead><tr><th>Day</th>'
+      + METHODS.map(function (m) { return '<th>' + m[1] + '</th>'; }).join('') + '<th>Total</th></tr></thead><tbody>'
+      + s.daily.slice().reverse().map(function (d) {
+          return '<tr><td>' + esc(short(d.day)) + '</td>' + METHODS.map(function (m) { return '<td>' + esc(ksh(d[m[0]])) + '</td>'; }).join('') + '<td><strong>' + esc(ksh(total(d))) + '</strong></td></tr>';
+        }).join('') + '</tbody></table></details>';
+
+    var best = s.bestSellers.length ? (function () {
+      var most = s.bestSellers[0].units;
+      return s.bestSellers.map(function (b) {
+        return '<div class="ins-row"><div class="ins-row__name">' + esc(b.name) + '<small>' + esc(ksh(b.revenueKes)) + ' · ' + (b.stockLeft ? b.stockLeft + ' left' : '<strong class="ins-out">sold out</strong>') + '</small></div>'
+          + '<div class="ins-bar"><i style="width:' + (b.units / most * 100) + '%"></i></div><span class="ins-row__val">' + b.units + ' sold</span></div>';
+      }).join('');
+    })() : '<p class="adm-muted">No sales in the last ' + s.days + ' days yet.</p>';
+
+    var wanted = function (list, empty) {
+      return list.length ? list.map(function (w) {
+        return '<div class="adm-log">' + esc(w.name) + ' · <strong>' + w.wants + ' ♥</strong>'
+          + (w.stock ? ' <span class="adm-muted">(' + w.stock + ' in stock)</span>' : ' <span class="ins-out">sold out</span> · <a href="#products?q=' + encodeURIComponent(w.sku) + '">restock →</a>') + '</div>';
+      }).join('') : '<p class="adm-muted">' + empty + '</p>';
+    };
+
+    main.innerHTML = '<h1 class="adm-h1">Insights</h1><p class="adm-muted" style="margin-bottom:14px;">The last ' + s.days + ' days, Nairobi time.</p>'
+      + '<div class="adm-tiles adm-tiles--money">'
+      + tile(ksh(s.takingsKes), 'Taken') + tile(s.orderCount, 'Paid orders') + tile(ksh(s.averageOrderKes), 'Average order')
+      + tile(ksh(s.abandoned.valueKes), s.abandoned.carts + ' cart' + (s.abandoned.carts === 1 ? '' : 's') + ' left behind')
+      + '</div>'
+      + '<h2 class="adm-h2">Takings by day</h2><div class="adm-card">' + chart + '</div>'
+      + '<p class="adm-muted" style="margin:-4px 0 14px;">Money that is in: M-Pesa and card once paid, cash once delivered.</p>'
+      + '<h2 class="adm-h2">Best sellers</h2><div class="adm-card">' + best + '</div>'
+      + '<h2 class="adm-h2">Wanted but sold out</h2>'
+      + wanted(s.wantedSoldOut, 'Nothing anyone wants is sold out.')
+      + '<h2 class="adm-h2">Most wanted</h2>'
+      + wanted(s.mostWanted, 'No hearts yet.')
+      + '<p class="adm-muted" style="margin-top:8px;">Hearts from signed-in shoppers only: a guest’s wishlist stays in their own browser, so real demand is higher.</p>';
+
+    // Tooltip: hover with a mouse, tap on a phone. Each day's figures, in text tokens.
+    var tip = document.getElementById('insTip'), cols = main.querySelector('.ins-cols');
+    function showTip(col) {
+      var d = s.daily[+col.dataset.i];
+      tip.innerHTML = '<strong>' + esc(short(d.day)) + ': ' + esc(ksh(total(d))) + '</strong>'
+        + METHODS.map(function (m) { return '<span><i class="ins-key ins-key--' + m[0] + '"></i>' + m[1] + ' ' + esc(ksh(d[m[0]])) + '</span>'; }).join('');
+      tip.hidden = false;
+      var box = cols.getBoundingClientRect(), c = col.getBoundingClientRect();
+      var x = c.left - box.left + c.width / 2;
+      tip.style.left = Math.min(Math.max(x, 80), box.width - 80) + 'px';
+      cols.querySelectorAll('.ins-col.is-on').forEach(function (o) { o.classList.remove('is-on'); });
+      col.classList.add('is-on');
+    }
+    cols.addEventListener('pointerover', function (e) { var c = e.target.closest('.ins-col'); if (c) showTip(c); });
+    cols.addEventListener('click', function (e) { var c = e.target.closest('.ins-col'); if (c) showTip(c); });
+    cols.addEventListener('pointerleave', function (e) {
+      if (e.pointerType === 'mouse') { tip.hidden = true; cols.querySelectorAll('.is-on').forEach(function (o) { o.classList.remove('is-on'); }); }
+    });
+  }
+
+  /* ── Bulk stock (Oct 2026): download the sheet, change numbers, upload, check, apply ── */
+  function stockScreen() {
+    setTab('products');
+    main.innerHTML = '<a class="adm-back" href="#products">← Products</a><h1 class="adm-h1">Bulk stock</h1>'
+      + '<ol class="ins-steps">'
+      + '<li><a class="adm-btn adm-btn--quiet adm-btn--small" href="/api/admin/stock.csv" download>Download the stock sheet</a> <span class="adm-muted">every size of every product, as a spreadsheet</span></li>'
+      + '<li>Change the numbers in the <strong>stock</strong> column. You can delete rows you aren’t changing; leave the sku, size and stock columns as they are.</li>'
+      + '<li>' + (me.masked ? '<span class="adm-muted">Demo: uploading is switched off.</span>'
+          : '<label class="adm-btn adm-btn--small adm-file">Upload the sheet<input type="file" accept=".csv,text/csv" class="adm-file__input" id="stockFile"></label>')
+      + ' <span class="adm-muted">Nothing changes yet: you’ll see exactly what will, first.</span></li></ol>'
+      + '<div id="stockResult"></div>';
+    if (me.masked) return;
+    var file = document.getElementById('stockFile'), out = document.getElementById('stockResult');
+    var rows = null;
+    file.addEventListener('change', function () {
+      var f = file.files[0];
+      if (!f) return;
+      f.text().then(function (text) {
+        try { rows = parseStockCsv(text); } catch (err) { out.innerHTML = '<p class="adm-alert">' + esc(err.message) + '</p>'; file.value = ''; return; }
+        return api('/stock/bulk', { method: 'POST', body: { rows: rows, apply: false } }).then(showCheck);
+      }).catch(failed).finally(function () { file.value = ''; });
+    });
+    function showCheck(r) {
+      if (r.errors.length) {
+        out.innerHTML = '<p class="adm-alert">The sheet has ' + r.errors.length + ' problem' + (r.errors.length === 1 ? '' : 's') + '. Nothing was changed. Fix ' + (r.errors.length === 1 ? 'it' : 'them') + ' and upload again.</p>'
+          + r.errors.map(function (e) { return '<div class="adm-log">' + esc(e) + '</div>'; }).join('');
+        return;
+      }
+      if (!r.changes.length) { out.innerHTML = '<p class="adm-notice">Every number matches the shop already: nothing to change.</p>'; return; }
+      out.innerHTML = '<h2 class="adm-h2">' + r.changes.length + ' change' + (r.changes.length === 1 ? '' : 's') + '</h2>'
+        + '<p class="adm-muted" style="margin-bottom:8px;">' + r.unchanged + ' other row' + (r.unchanged === 1 ? '' : 's') + ' already match.</p>'
+        + '<table class="ins-table"><thead><tr><th>Product</th><th>Size</th><th>Now</th><th>New</th></tr></thead><tbody>'
+        + r.changes.map(function (c) {
+            return '<tr><td>' + esc(c.name) + ' <span class="adm-muted">' + esc(c.sku) + '</span></td><td>' + esc(c.size) + '</td><td>' + c.from + '</td><td><strong>' + c.to + '</strong></td></tr>';
+          }).join('') + '</tbody></table>'
+        + '<button class="adm-btn" id="stockApply" style="margin-top:12px;">Apply ' + r.changes.length + ' change' + (r.changes.length === 1 ? '' : 's') + '</button>';
+      var btn = document.getElementById('stockApply');
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        api('/stock/bulk', { method: 'POST', body: { rows: rows, apply: true } }).then(function (done) {
+          if (!done.applied) return showCheck(done);              // something changed since the check
+          out.innerHTML = '<p class="adm-notice">Done: ' + done.changes.length + ' size' + (done.changes.length === 1 ? '' : 's') + ' updated. Each one is in Activity.</p>';
+          toast('Stock updated');
+        }, function (err) { btn.disabled = false; failed(err); });
+      });
+    }
+  }
+
+  /** The stock sheet → [{ sku, size, stock }]. Handles quoted cells, as spreadsheets write them. */
+  function parseStockCsv(text) {
+    var lines = [], row = [], cell = '', q = false;
+    text = text.replace(/^﻿/, '');                       // Excel's byte-order mark
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); lines.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); lines.push(row); }
+    lines = lines.filter(function (l) { return l.some(function (c) { return c.trim(); }); });
+    var head = (lines.shift() || []).map(function (h) { return h.trim().toLowerCase(); });
+    var at = { sku: head.indexOf('sku'), size: head.indexOf('size'), stock: head.indexOf('stock') };
+    if (at.sku < 0 || at.size < 0 || at.stock < 0) throw new Error('This doesn’t look like the stock sheet: it needs sku, size and stock columns. Download it again from step 1.');
+    if (!lines.length) throw new Error('The sheet has no rows.');
+    return lines.map(function (l, n) {
+      var v = (l[at.stock] || '').trim();
+      if (!/^\d+$/.test(v)) throw new Error('Row ' + (n + 2) + ': stock “' + v + '” isn’t a whole number of 0 or more.');
+      return { sku: (l[at.sku] || '').trim(), size: (l[at.size] || '').trim(), stock: parseInt(v, 10) };
+    });
+  }
+
   /* ── Router: #screen?key=value ───────────────────────────────────────────────── */
   function route() {
     if (!me || me.needsTotp) return;
@@ -634,7 +876,9 @@
     window.scrollTo(0, 0);
     if (path.indexOf('order/') === 0) return order(path.slice(6));
     if (path === 'orders') return orders(query);
-    if (path === 'products') return products();
+    if (path === 'products') return products(query);
+    if (path === 'stock') return stockScreen();
+    if (path === 'insights') return insightsScreen();
     if (path === 'product/new') return newProduct();
     if (path === 'customers') return customers(query);
     if (path === 'activity') return activityScreen();

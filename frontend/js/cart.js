@@ -40,8 +40,21 @@
     cart = next;
     refreshBadge();
     render();
+    markCards();
     return cart;
   }
+  /* Product cards whose product is in the cart get .in-cart on their add button: on phones the
+     bag icon is then filled black (shared.css), like a saved heart. Runs whenever the cart
+     changes, and when a grid of cards is drawn (nura:grid), since cards can arrive later. */
+  function markCards() {
+    if (!cart) return;
+    var inCart = {};
+    cart.items.forEach(function (it) { inCart[it.product.sku] = true; });
+    document.querySelectorAll('[data-sku] [data-action="add-to-cart"]').forEach(function (btn) {
+      btn.classList.toggle('in-cart', !!inCart[btn.closest('[data-sku]').dataset.sku]);
+    });
+  }
+  document.addEventListener('nura:grid', markCards);
   function load() {
     return NURA.api('/cart').then(function (d) { return setCart(d.cart); });
   }
@@ -160,9 +173,11 @@
       .finally(function () { clearTimeout(slow); });
   }
   function confirmOnCard(btn) {
-    btn.textContent = 'Added';
+    // Only the words change: the button also holds the bag icon that phones show instead.
+    var label = btn.querySelector('.card-add__label') || btn;
+    label.textContent = 'Added';
     btn.classList.add('is-added');
-    setTimeout(function () { btn.textContent = 'Add to cart'; btn.classList.remove('is-added'); }, 1500);
+    setTimeout(function () { label.textContent = 'Add to cart'; btn.classList.remove('is-added'); }, 1500);
     NURA.toast('Added to your cart');
   }
 

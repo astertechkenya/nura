@@ -10,7 +10,7 @@
 //   POST  /api/admin/orders/:id/refunded        { note? }      a due refund has been paid back
 //   POST  /api/admin/orders/:id/flagged         { paymentId, decision: accept|reject, note? }  a wrong-amount payment
 //   GET   /api/admin/products                   every product, hidden ones too, with stock per size
-//   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, isActive?, description? }
+//   PATCH /api/admin/products/:id               { priceKes?, compareAtKes?, saleStartsAt?, saleEndsAt?, isActive?, description? }
 //   PATCH /api/admin/variants/:id               { stock }
 //   GET   /api/admin/brands                     brand names, for the new-product form
 //   POST  /api/admin/uploads/sign               a signed Cloudinary upload (see services/cloudinary.js)
@@ -19,6 +19,9 @@
 //   GET   /api/admin/customers?q=&page=          shopper accounts, with orders, spend and newsletter status
 //   GET   /api/admin/newsletter.csv             confirmed subscribers as CSV (not for the demo admin)
 //   GET   /api/admin/activity                   the audit log: who changed what, before and after
+//   GET   /api/admin/insights                   takings by day, best sellers, most wanted, carts left behind
+//   GET   /api/admin/stock.csv                  every size's stock, as a spreadsheet
+//   POST  /api/admin/stock/bulk                 { rows: [{ sku, size, stock }], apply } check, then apply
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
@@ -29,8 +32,9 @@ import { verifyCode } from '../lib/totp.js';
 import { ORDER_STATUSES } from '../services/orderStates.js';
 import {
   activity, codCollected, createProduct, FOCUS, listBrands, listCustomers, listOrders, newsletterCsv, listProducts, markRefunded, orderDetail, resolveFlagged,
-  setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct,
+  setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct, stockSheet, bulkStock,
 } from '../services/admin.js';
+import { insights } from '../services/insights.js';
 import { signUpload } from '../services/cloudinary.js';
 
 export const adminRouter = Router();
@@ -103,9 +107,14 @@ adminRouter.post('/orders/:id/flagged', validate(idParams, 'params'),
 adminRouter.get('/products', async (req, res) => res.json({ products: await listProducts() }));
 
 const kes = z.number().int().positive().max(10_000_000);
+const saleTime = z.string().datetime({ offset: true }).transform((s) => new Date(s)).nullable().optional();
 const productPatch = z.strictObject({
   priceKes: kes.optional(),
-  compareAtKes: kes.nullable().optional(),                  // null removes the sale
+  compareAtKes: kes.nullable().optional(),                  // null removes the sale (and its dates)
+  // When the sale runs (Oct 2026). An ISO time with its offset, e.g. 2026-11-28T00:00:00+03:00;
+  // null removes that limit. Outside the window the product sells at its "was" price.
+  saleStartsAt: saleTime,
+  saleEndsAt: saleTime,
   isActive: z.boolean().optional(),
   // Shown on the product page and in link previews. Empty clears it.
   description: z.string().trim().max(1000, 'Keep the description under 1,000 characters.')
@@ -178,3 +187,26 @@ adminRouter.get('/newsletter.csv', async (req, res) => {
 });
 
 adminRouter.get('/activity', async (req, res) => res.json({ activity: await activity() }));
+
+// Insights (Oct 2026): sales, best sellers, what's wanted, carts left behind. Read-only, and no
+// names or contact details in it, so the demo admin sees it whole.
+adminRouter.get('/insights', async (req, res) => res.json(await insights()));
+
+// Bulk stock (Oct 2026): the spreadsheet out, and back in. POST checks first (apply: false)
+// and only writes with apply: true; the demo admin is refused writes by adminGate as usual.
+adminRouter.get('/stock.csv', async (req, res) => {
+  const day = new Date().toISOString().slice(0, 10);
+  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="nura-stock-${day}.csv"` });
+  res.send(await stockSheet());
+});
+const stockRow = z.strictObject({
+  sku: z.string().trim().min(1).max(40),
+  size: z.string().trim().min(1).max(20),
+  stock: z.number().int().min(0, 'Stock can’t be negative.').max(9999),
+});
+adminRouter.post('/stock/bulk', validate(z.strictObject({
+  rows: z.array(stockRow).min(1, 'The sheet has no rows.').max(2000, 'At most 2,000 rows at once.'),
+  apply: z.boolean(),
+})), async (req, res) => {
+  res.json(await bulkStock(req.admin, req.valid.body.rows, req.valid.body.apply));
+});
