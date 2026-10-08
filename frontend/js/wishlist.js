@@ -42,8 +42,6 @@
     document.querySelectorAll('.nav__wish-wrap [data-action="open-wishlist"]').forEach(function (btn) {
       btn.setAttribute('aria-label', n ? 'Wishlist, ' + n + ' item' + (n !== 1 ? 's' : '') : 'Wishlist');
     });
-    var mb = byId('mobWLBadge');
-    if (mb) { mb.textContent = n; mb.className = 'mob-badge' + (n > 0 ? ' visible' : ''); }
     var dc = byId('drawerCount');
     if (dc) dc.textContent = n + ' item' + (n !== 1 ? 's' : '');
   }
@@ -85,20 +83,31 @@
 
   function fromServer(promise) {
     return promise.then(function (d) { show(d.items); })
-      .catch(function (err) { NURA.toast(err.message); syncHearts(); throw err; });
+      .catch(function (err) {
+        NURA.toast(err.message);
+        // Undo the optimistic heart (Oct 2026): before, the heart stayed as tapped and the badge
+        // stayed raised even though the server refused, until the page was reloaded.
+        skus = items.map(function (p) { return p.sku; });
+        syncHearts(); syncBadge();
+        throw err;
+      });
   }
 
   /* ── Actions ───────────────────────────────────────────────────────────────────── */
+  var busy = {};                   // sku → true while its change is on the way to the server
   function toggle(btn) {
     var sku = btn.dataset.wishlistId;
-    if (!sku) return;
+    if (!sku || busy[sku]) return;   // a second tap mid-request would race the first (add vs remove)
     var on = skus.indexOf(sku) > -1;
     // Update the heart immediately; the server call catches up (and undoes it if it fails).
     skus = on ? skus.filter(function (s) { return s !== sku; }) : skus.concat(sku);
     syncHearts(); syncBadge();
     if (user) {
+      busy[sku] = true;
       fromServer(on ? NURA.api('/wishlist/' + encodeURIComponent(sku), { method: 'DELETE' })
-                    : NURA.api('/wishlist', { method: 'POST', body: { skus: [sku] } })).catch(function () {});
+                    : NURA.api('/wishlist', { method: 'POST', body: { skus: [sku] } }))
+        .catch(function () {})
+        .then(function () { delete busy[sku]; });
     } else {
       var codes = localSkus().filter(function (s) { return s !== sku; });
       if (!on) codes.push(sku);
@@ -138,13 +147,15 @@
       var bg = esc(p.cardBg || '#efefed');
       // data-wl-sku, not data-sku: [data-sku] means "a product card" to the rest of the site
       // (catalogue hydration, #sku links, counts), and these rows are not cards.
+      // Photo and name open the product page (Oct 2026); the photo link is out of the Tab order
+      // and hidden from screen readers, since the name link beside it goes to the same place.
+      var href = esc(NURA.productUrl(p));
       return '<div class="wishlist-item" data-wl-sku="' + esc(p.sku) + '">'
-        + (p.imageUrl
-            ? '<div class="wishlist-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>'
-            : '<div class="wishlist-item__img" style="background:' + bg + '"></div>')
+        + '<a class="wishlist-item__img item-photo" href="' + href + '" tabindex="-1" aria-hidden="true" style="background:' + bg + ';overflow:hidden;">'
+        +   (p.imageUrl ? '<img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : '') + '</a>'
         + '<div class="wishlist-item__info">'
         + '<p class="wishlist-item__brand">' + esc(p.brand.name) + '</p>'
-        + '<p class="wishlist-item__name">' + esc(p.name) + '</p>'
+        + '<p class="wishlist-item__name"><a class="item-link" href="' + href + '">' + esc(p.name) + '</a></p>'
         + '<p class="wishlist-item__price">' + NURA.fmtKsh(p.priceKes)
         +   (p.onSale ? ' <s class="wishlist-item__was">' + NURA.fmtKsh(p.compareAtKes) + '</s>' : '') + '</p>'
         + (soldOut(p)
@@ -158,9 +169,11 @@
 
   function open() {
     render();
-    byId('wishlistDrawer').classList.add('open');
+    var d = byId('wishlistDrawer');
+    d.classList.add('open');
     byId('wishlistOverlay').classList.add('open');
     NURA.lockScroll(true);
+    NURA.panel.open(d, { focus: d.querySelector('[data-action="close-wishlist"]') });
   }
   function close() {
     var d = byId('wishlistDrawer');
@@ -168,6 +181,7 @@
     d.classList.remove('open');
     byId('wishlistOverlay').classList.remove('open');
     NURA.lockScroll(false);
+    NURA.panel.close(d);
   }
 
   NURA.on('wishlist', toggle);
@@ -221,6 +235,10 @@
     NURA.addToCart(p, row.querySelector('[data-action="wishlist-add"]'), row, true, function () {
       Promise.resolve(remove(p.sku)).then(function () { askSize(list.slice(1)); }, function () {});
     });
+    // The piece may be far down a long list: bring its row and sizes into view, so the sizes
+    // are seen opening, not just focused somewhere off-screen. (Focusing a size, which the
+    // picker does, only scrolls far enough to show that one button.)
+    row.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
   NURA.onEscape(close);
 

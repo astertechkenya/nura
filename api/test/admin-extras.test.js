@@ -2,7 +2,9 @@
 //   - A sale can have dates. Outside them the product sells at its "was" price everywhere:
 //     catalogue, Sale filter, product page data, cart and checkout (one rule: lib/salePrice.js).
 //   - Insights is read-only and safe for the demo admin.
-//   - Bulk stock checks first and applies only on request, all or nothing, audited.
+//   - Restock (bulk stock) checks first and applies only on request, all or nothing, audited,
+//     and refuses a size that sold while the admin was editing.
+//   - Delete removes a product but never an open order's stock, and old orders keep their lines.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import argon2 from 'argon2';
@@ -153,13 +155,8 @@ describe('bulk stock', () => {
   const stock = async (sku, size) => (await db.execute(sql`
     select v.stock from product_variants v join products p on p.id = v.product_id where p.sku = ${sku} and v.size = ${size}`)).rows[0].stock;
 
-  it('downloads every size as a spreadsheet', async () => {
-    const res = await as(admin).get('/api/admin/stock.csv');
-    expect(res.status).toBe(200);
-    expect(res.headers['content-disposition']).toMatch(/nura-stock-\d{4}-\d{2}-\d{2}\.csv/);
-    const lines = res.text.trim().split('\r\n');
-    expect(lines[0]).toBe('"sku","name","size","stock"');   // every cell quoted (formula-safe)
-    expect(lines.length).toBeGreaterThan(21);
+  it('the spreadsheet download is gone (the Restock tab replaced it)', async () => {
+    expect((await as(admin).get('/api/admin/stock.csv')).status).toBe(404);
   });
 
   it('checks first: shows the changes and writes nothing', async () => {
@@ -182,7 +179,7 @@ describe('bulk stock', () => {
       { sku: 'nura-003', size: 'M', stock: 41 },
     ] });
     expect(res.body.applied).toBe(false);
-    expect(res.body.errors).toEqual(['Row 3: no size “XXXL” for “nura-003”.', 'Row 4: nura-003 M appears twice.']);
+    expect(res.body.errors).toEqual(['nura-003 XXXL: no such size. It may have been deleted.', 'nura-003 M appears twice.']);
     expect(await stock('nura-003', 'M')).toBe(before);
   });
 
@@ -194,8 +191,105 @@ describe('bulk stock', () => {
     expect(log).toMatchObject({ action: 'stock.set', after: { stock: 17, bulk: true } });
   });
 
+  it('refuses a size that sold while the admin was editing, and saves nothing', async () => {
+    const m = await stock('nura-003', 'M'), l = await stock('nura-003', 'L');
+    const res = await as(admin).post('/api/admin/stock/bulk').send({ apply: true, rows: [
+      { sku: 'nura-003', size: 'M', stock: m + 10, expect: m + 1 },   // the admin saw one more: one sold since
+      { sku: 'nura-003', size: 'L', stock: l + 10, expect: l },
+    ] });
+    expect(res.body.applied).toBe(false);
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.errors[0]).toMatch(new RegExp(`M: changed while you were editing \\(was ${m + 1}, now ${m}\\)`));
+    expect([await stock('nura-003', 'M'), await stock('nura-003', 'L')]).toEqual([m, l]);
+    // Seen fresh, it saves.
+    const ok = await as(admin).post('/api/admin/stock/bulk').send({ apply: true, rows: [{ sku: 'nura-003', size: 'M', stock: m + 10, expect: m }] });
+    expect(ok.body.applied).toBe(true);
+    expect(await stock('nura-003', 'M')).toBe(m + 10);
+  });
+
   it('refuses negative stock, and the demo admin', async () => {
     expect((await as(admin).post('/api/admin/stock/bulk').send({ apply: false, rows: [{ sku: 'nura-003', size: 'M', stock: -1 }] })).status).toBe(400);
     expect((await as(looker).post('/api/admin/stock/bulk').send({ apply: false, rows: [{ sku: 'nura-003', size: 'M', stock: 1 }] })).status).toBe(403);
+  });
+});
+
+describe('deleting a product', () => {
+  // A throwaway copy of nura-001, so the seeded catalogue isn't touched.
+  async function scratch(sku) {
+    const id = randomUUID();
+    await db.execute(sql`insert into products (id, sku, slug, name, brand_id, department, price_kes, image_url, arrived_at)
+      select ${id}, ${sku}, ${sku}, ${'Scratch ' + sku}, brand_id, department, price_kes, image_url, now() from products where sku = 'nura-001'`);
+    await db.execute(sql`insert into product_variants (product_id, size, stock) values (${id}, 'M', 4), (${id}, 'L', 2)`);
+    return id;
+  }
+  // An order with one line of the product, in the given status.
+  async function orderFor(productId, status) {
+    const [v] = (await db.execute(sql`select id from product_variants where product_id = ${productId} and size = 'M'`)).rows;
+    const oid = randomUUID(), no = `NURA-T${Math.floor(Math.random() * 1e6)}`;
+    await db.execute(sql`insert into orders (id, number, email, phone, customer_name, status, payment_method, subtotal_kes, shipping_kes, total_kes, address_line1, address_area, address_city)
+      values (${oid}, ${no}, 'del@nura.test', '254700000000', 'Del Test', ${status}, 'COD', 1000, 0, 1000, '1 Road', 'Area', 'Nairobi')`);
+    await db.execute(sql`insert into order_items (order_id, product_id, variant_id, sku, name, size, unit_price_kes, qty)
+      values (${oid}, ${productId}, ${v.id}, 'scratch', 'Scratch line', 'M', 1000, 1)`);
+    return oid;
+  }
+
+  it('deletes it with its sizes, keeps old orders’ lines, and audits what it was', async () => {
+    const id = await scratch('nura-del-1');
+    const oid = await orderFor(id, 'DELIVERED');
+    const res = await as(admin).delete(`/api/admin/products/${id}`);
+    expect(res.status).toBe(200);
+    expect(res.body.products.find((p) => p.id === id)).toBeUndefined();
+    expect((await db.execute(sql`select count(*)::int as n from product_variants where product_id = ${id}`)).rows[0].n).toBe(0);
+    const [line] = (await db.execute(sql`select product_id, variant_id, name from order_items where order_id = ${oid}`)).rows;
+    expect(line).toEqual({ product_id: null, variant_id: null, name: 'Scratch line' });
+    const [log] = (await db.execute(sql`select action, before, after from admin_actions order by created_at desc limit 1`)).rows;
+    expect(log).toMatchObject({ action: 'product.delete', after: null,
+      before: { sku: 'nura-del-1', sizes: [{ size: 'M', stock: 4 }, { size: 'L', stock: 2 }] } });
+    expect((await as(admin).delete(`/api/admin/products/${id}`)).status).toBe(404);
+    await db.execute(sql`delete from orders where id = ${oid}`);
+  });
+
+  it('refuses while the product is in an open order, so a cancel can still return its stock', async () => {
+    const id = await scratch('nura-del-2');
+    const oid = await orderFor(id, 'AWAITING_COD');
+    const res = await as(admin).delete(`/api/admin/products/${id}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/1 open order\. Untick “Shown in shop”/);
+    expect((await db.execute(sql`select count(*)::int as n from products where id = ${id}`)).rows[0].n).toBe(1);
+    await db.execute(sql`delete from orders where id = ${oid}`);
+    expect((await as(admin).delete(`/api/admin/products/${id}`)).status).toBe(200);
+  });
+
+  it('the demo admin can’t delete', async () => {
+    const id = await scratch('nura-del-3');
+    expect((await as(looker).delete(`/api/admin/products/${id}`)).status).toBe(403);
+    await db.execute(sql`delete from products where id = ${id}`);
+  });
+});
+
+describe('the demo admin can’t uncover hidden details (Oct 2026)', () => {
+  it('order search: by number only, never by the masked email, phone or name', async () => {
+    const no = `NURA-S${Math.floor(Math.random() * 1e6)}`;
+    await db.execute(sql`insert into orders (number,email,phone,customer_name,status,payment_method,subtotal_kes,shipping_kes,total_kes,address_line1,address_area,address_city)
+      values (${no},'hidden.person@nura.test','254711222333','Hidden Person','AWAITING_COD','COD',1000,0,1000,'1','A','Nairobi')`);
+    const hits = async (who, q) => (await as(who).get(`/api/admin/orders?q=${encodeURIComponent(q)}`)).body.orders.map((o) => o.number);
+    expect(await hits(admin, 'hidden.person@nura.test')).toContain(no);
+    expect(await hits(looker, 'hidden.person@nura.test')).not.toContain(no);
+    expect(await hits(looker, '0711222')).not.toContain(no);
+    expect(await hits(looker, '2547112')).not.toContain(no);
+    expect(await hits(looker, 'Person')).not.toContain(no);
+    expect(await hits(looker, no)).toContain(no);
+    await db.execute(sql`delete from orders where number = ${no}`);
+  });
+
+  it('phone numbers and emails typed into an order’s history are hidden', async () => {
+    const no = `NURA-S${Math.floor(Math.random() * 1e6)}`;
+    const [{ id }] = (await db.execute(sql`insert into orders (number,email,phone,customer_name,status,payment_method,subtotal_kes,shipping_kes,total_kes,address_line1,address_area,address_city)
+      values (${no},'x@nura.test','254700000000','X','AWAITING_COD','COD',1000,0,1000,'1','A','Nairobi') returning id`)).rows;
+    await db.execute(sql`insert into order_events (order_id, from_status, to_status, note) values (${id}, null, 'AWAITING_COD', 'Called her on 0712 345 678, also jane@x.com')`);
+    const note = async (who) => (await as(who).get(`/api/admin/orders/${id}`)).body.order.events.at(-1).note;
+    expect(await note(admin)).toContain('0712 345 678');
+    expect(await note(looker)).toBe('Called her on •••, also •••');
+    await db.execute(sql`delete from orders where id = ${id}`);
   });
 });

@@ -36,6 +36,11 @@
   };
 
   /* ── Talking to the API ───────────────────────────────────────────────────────────── */
+  // Every request is numbered; an answer older than one already drawn is dropped (Oct 2026).
+  // Without this, opening the drawer (GET) and tapping + at once on a slow connection could
+  // draw the newer quantity, then have the older GET arrive and put the old one back.
+  var sent = 0, drawn = 0;
+  function newer(n) { if (n < drawn) return false; drawn = n; return true; }
   function setCart(next) {
     cart = next;
     refreshBadge();
@@ -56,15 +61,17 @@
   }
   document.addEventListener('nura:grid', markCards);
   function load() {
-    return NURA.api('/cart').then(function (d) { return setCart(d.cart); });
+    var n = ++sent;
+    return NURA.api('/cart').then(function (d) { return newer(n) ? setCart(d.cart) : cart; });
   }
   /** Every write answers with the whole cart. While it runs the drawer is marked busy, so a
    *  double tap on + can't send two changes built on the same old quantity. */
   function write(method, path, body) {
     var drawer = byId('cartDrawer');
     if (drawer) drawer.setAttribute('aria-busy', 'true');
+    var n = ++sent;
     return NURA.api(path, { method: method, body: body })
-      .then(function (d) { return setCart(d.cart); })
+      .then(function (d) { return newer(n) ? setCart(d.cart) : cart; })
       .catch(function (err) {
         NURA.toast(err.message);               // the API writes its messages for shoppers
         if (err.status === 404 || err.status === 409) load().catch(function () {}); // resync
@@ -83,6 +90,10 @@
     var n = cart ? cart.count : 0;
     var cb = byId('cartBadge');
     if (cb) { cb.textContent = n; cb.style.display = n > 0 ? 'flex' : 'none'; }
+    // The badge is only a picture: the button says the count too, like the wishlist's heart.
+    document.querySelectorAll('.nav__cart').forEach(function (btn) {
+      btn.setAttribute('aria-label', n ? 'Open cart, ' + n + ' item' + (n !== 1 ? 's' : '') : 'Open cart');
+    });
   }
   function flashNav() {
     document.querySelectorAll('.nav__cart').forEach(function (btn) {
@@ -208,12 +219,18 @@
     var p = it.product, id = esc(it.id), bg = esc(p.cardBg || '#efefed');
     var maxQty = Math.min(it.variant.stock, 10);
     var sized = it.variant.size !== 'ONE SIZE';
+    // Photo and name open the product page (Oct 2026). Not for a product taken off the shop:
+    // its page no longer exists. The photo link is out of the Tab order and hidden from screen
+    // readers: the name link right beside it goes to the same place, and one stop is enough.
+    var href = p.isActive === false ? '' : esc(NURA.productUrl(p));
+    // lazy: the drawer is drawn (closed, off-screen) on every page load; its photos load when it opens.
+    var img = p.imageUrl ? '<img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : '';
     return '<div class="cart-item' + (it.problem ? ' has-problem' : '') + '" data-id="' + id + '">'
-      + (p.imageUrl
-          ? '<div class="cart-item__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
-          : '<div class="cart-item__img" style="background:' + bg + '"></div>')
+      + (href
+          ? '<a class="cart-item__img item-photo" href="' + href + '" tabindex="-1" aria-hidden="true" style="background:' + bg + ';overflow:hidden;">' + img + '</a>'
+          : '<div class="cart-item__img" style="background:' + bg + ';overflow:hidden;">' + img + '</div>')
       + '<div><p class="cart-item__brand">' + esc(p.brand) + '</p>'
-      + '<p class="cart-item__name">' + esc(p.name) + '</p>'
+      + '<p class="cart-item__name">' + (href ? '<a class="item-link" href="' + href + '">' + esc(p.name) + '</a>' : esc(p.name)) + '</p>'
       + (sized ? '<p class="cart-item__size">Size ' + esc(it.variant.size) + '</p>' : '')
       + '<div class="cart-item__qty">'
       + '<button type="button" class="cart-qty-btn" data-action="cart-set" data-id="' + id + '" data-qty="' + (it.qty - 1) + '"'
@@ -240,7 +257,16 @@
       list.innerHTML = '<div class="cart-empty"><p class="cart-empty__title">Your cart is empty</p><p class="cart-empty__sub">Add items from any page to get started.</p></div>';
       return;
     }
+    // Redrawing replaces the buttons, so note which one had focus (+, − or ×) and put it back
+    // on the new one: otherwise a keyboard user's focus drops to the top of the page.
+    var had = document.activeElement && list.contains(document.activeElement) && document.activeElement.dataset
+      ? { action: document.activeElement.dataset.action, id: document.activeElement.dataset.id, label: document.activeElement.getAttribute('aria-label') } : null;
     list.innerHTML = cart.items.map(lineHtml).join('');
+    if (had) {
+      var back = [].filter.call(list.querySelectorAll('[data-action="' + had.action + '"]'), function (b) { return b.dataset.id === had.id && b.getAttribute('aria-label') === had.label; })[0];
+      if (back && !back.disabled) back.focus();
+      else { var any = list.querySelector('button:not([disabled])'); (any || byId('cartClose') || list).focus(); }
+    }
 
     var sub = byId('cartSubtotal'), ship = byId('cartShipping'), tot = byId('cartTotal'), note = byId('cartShipNote');
     if (sub) sub.textContent = NURA.fmtKsh(cart.subtotalKes);
@@ -259,6 +285,7 @@
     if (d) d.classList.add('open');
     if (o) o.classList.add('open');
     NURA.lockScroll(true);
+    NURA.panel.open(d, { focus: byId('cartClose') });
     load().catch(function () {});             // fresh stock and prices every time it opens
   }
   function close() {
@@ -267,6 +294,7 @@
     d.classList.remove('open');
     if (o) o.classList.remove('open');
     NURA.lockScroll(false);
+    NURA.panel.close(d);
   }
 
   NURA.on('cart-set', function (el) {

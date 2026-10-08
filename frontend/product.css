@@ -71,8 +71,11 @@
 
 .pd__section{border-top:1px solid var(--light);padding:18px 0;}
 .pd__section h2{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
-.pd__section p{font-size:14px;line-height:1.7;margin-bottom:10px;}
-.pd__facts{display:grid;gap:6px;font-size:13px;}
+/* Details (Oct 2026): one size up for easier reading, 14 → 15 px, and the facts list keeps its
+   step below at 13 → 14 px. Only Details has paragraphs and a .pd__facts list; Delivery &
+   payment is a .pd__list and stays as it was. */
+.pd__section p{font-size:15px;line-height:1.7;margin-bottom:11px;}
+.pd__facts{display:grid;gap:7px;font-size:14px;}
 .pd__facts div{display:flex;gap:10px;}
 .pd__facts dt{color:#5f5f5f;min-width:110px;}
 .pd__list{list-style:none;display:grid;gap:8px;font-size:13px;line-height:1.6;}

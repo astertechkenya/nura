@@ -31,7 +31,12 @@
   /** One card. The home page uses .product / .product__*; category pages use .product-card /
    *  .product-card__*. Same content, two class prefixes, because the two layouts were styled
    *  separately. Every value from the database goes through esc(). */
-  function cardHtml(p, prefix) {
+  // A category page's first row is on screen when the page opens (often the largest thing
+  // there): those photos load straight away, the first one first. The rest wait until scrolled
+  // near (lazy). The home page's grid sits below the hero, so all of it waits. (Oct 2026)
+  var EAGER = 4;
+  function cardHtml(p, prefix, i) {
+    var eager = prefix === 'product-card' && i < EAGER;
     var tag = prefix === 'product' ? 'product' : 'product-card';
     var badge = p.onSale ? 'sale' : p.isNew ? 'new' : null;           // Sale wins: the more useful fact
     var soldOut = p.totalStock === 0;
@@ -54,8 +59,11 @@
       // others use the estimate after it, which errs wide: grids differ per page (one card
       // across on a phone on some), and too wide costs bytes, too narrow costs sharpness.
       +     '<img class="nura-card-img" src="' + esc(NURA.photo(p.imageUrl, 800)) + '"'
-      +       (NURA.photoSrcset(p.imageUrl) ? ' srcset="' + esc(NURA.photoSrcset(p.imageUrl)) + '" sizes="auto, (max-width: 540px) 100vw, (max-width: 960px) 50vw, 33vw"' : '')
-      +       ' alt="" loading="lazy"></a>'
+      // (sizes="auto" only works with lazy loading, so the eager first row skips it.) The home
+      // grid is 4 across on wide screens, the category grids 3.
+      +       (NURA.photoSrcset(p.imageUrl) ? ' srcset="' + esc(NURA.photoSrcset(p.imageUrl)) + '" sizes="' + (eager ? '' : 'auto, ')
+      +         '(max-width: 540px) 100vw, (max-width: 960px) 50vw, ' + (prefix === 'product' ? '25vw' : '33vw') + '"' : '')
+      +       ' alt=""' + (eager ? (i === 0 ? ' fetchpriority="high"' : '') : ' loading="lazy"') + '></a>'
       +   '<button class="product__wish product-card__wish" data-wishlist-id="' + esc(p.sku) + '" aria-label="Add to wishlist" aria-pressed="false" data-action="wishlist">' + HEART + '</button>'
       +   overlay
       + '</div>'
@@ -110,19 +118,9 @@
       list.forEach(function (p) { shownOnPage[p.sku] = true; });
 
       if (!list.length) message(grid, EMPTY[grid.dataset.list] || 'No pieces here right now.', false);
-      else grid.innerHTML = list.map(function (p) { return cardHtml(p, prefix); }).join('');
+      else grid.innerHTML = list.map(function (p, i) { return cardHtml(p, prefix, i); }).join('');
       applyLooks(grid, byId);
       grid.setAttribute('aria-busy', 'false');
-    });
-
-    // "Up to N% off" = the biggest real discount on this page (the Sale page header).
-    var maxOff = 0;
-    Object.keys(shownOnPage).forEach(function (sku) {
-      var p = byId[sku];
-      if (p.onSale) maxOff = Math.max(maxOff, Math.floor((1 - p.priceKes / p.compareAtKes) * 100));
-    });
-    document.querySelectorAll('[data-max-discount]').forEach(function (el) {
-      if (maxOff > 0) el.textContent = maxOff + '% off';
     });
 
     document.dispatchEvent(new CustomEvent('nura:grid', { detail: data }));

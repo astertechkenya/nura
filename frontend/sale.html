@@ -25,9 +25,8 @@ a{color:inherit;text-decoration:none;}
 button{font-family:var(--sans);cursor:none;border:none;}
 .cursor{width:10px;height:10px;background:var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .2s,height .2s;mix-blend-mode:multiply;}
 body.cursor-hover .cursor{width:6px;height:6px;}
-body.cursor-hover 
-
-    
+.cursor-ring{width:32px;height:32px;border:1.5px solid var(--purple);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);opacity:.5;}
+body.cursor-hover .cursor-ring{width:52px;height:52px;opacity:.7;}   /* restored Oct 2026: a half-deleted line here had swallowed @keyframes fadeUp below */
     @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
 .reveal{opacity:0;transform:translateY(28px);transition:opacity .6s ease,transform .6s ease;}
 .reveal.visible{opacity:1;transform:translateY(0);}
@@ -73,11 +72,11 @@ body.cursor-hover
 .view-btn:hover{border-color:var(--purple);color:var(--purple);}
 .shop-layout{width:100%;}
 .filters{padding:28px 24px;border-right:1px solid var(--light);position:sticky;top:64px;height:calc(100vh - 64px);overflow-y:auto;background:var(--white);scrollbar-width:thin;scrollbar-color:var(--light) transparent;}
-.filters__clear:hover{opacity:.7;}
-.price-range input[type="range"]{width:100%;accent-color:var(--purple);height:2px;cursor:none;}
-.filter-chip{display:inline-flex;align-items:center;gap:6px;background:var(--black);color:var(--white);padding:4px 10px;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
-.filter-chip__remove{background:none;border:none;color:var(--white);font-size:14px;line-height:1;cursor:none;padding:0;transition:color var(--transition);}
-.filter-chip__remove:hover{color:var(--purple);}
+
+
+
+
+
 .grid-area{padding:24px 32px;}
 .product-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--muted);border:1px solid var(--muted);}
 .product-grid.list-view{grid-template-columns:1fr;gap:1px;}
@@ -102,9 +101,9 @@ body.cursor-hover
 .product-card__name{font-size:14px;font-weight:500;color:var(--black);margin-bottom:8px;line-height:1.3;}
 .product-card__price{font-size:15px;font-weight:700;color:var(--black);}
 .product-card__price-old{font-size:12px;color:var(--muted);text-decoration:line-through;margin-left:8px;}
-.product-card__swatches{display:flex;gap:5px;margin-top:10px;}
-.swatch{width:14px;height:14px;border-radius:50%;border:1.5px solid transparent;cursor:none;transition:border-color var(--transition);}
-.swatch:hover,.swatch.active{border-color:var(--black);}
+
+
+
 @media(max-width:960px){.nav{padding:0 24px;}
       .nav__links{display:none;}
       .sort-bar{padding:12px 24px;}
@@ -237,7 +236,7 @@ body.cursor-hover
         <button class="nav__avatar" id="accountAvatar" aria-label="My account" data-action="toggle-account"></button>
         <div class="auth-dropdown" id="authDropdown">
           <div class="auth-dropdown__name" id="dropdownName"></div>
-          <a class="auth-dropdown__item" href="account.html">My account &amp; orders</a>
+          <a class="auth-dropdown__item" href="account.html">My account</a>
           <button class="auth-dropdown__item auth-dropdown__logout" data-action="open-signout">Sign out</button>
         </div>
       </div>

@@ -14,7 +14,9 @@ const BASE = config.DARAJA_BASE_URL
 const TIMEOUT_MS = 15_000;
 
 export class DarajaError extends Error {
-  constructor(message, { status, body } = {}) { super(message); this.status = status; this.body = body; }
+  // providerStatus, not status: the error handler treats .status as OUR answer to the browser,
+  // so a Paystack/Safaricom 401 would reach the shopper as a 401, unlogged. Ours is a 500, logged.
+  constructor(message, { status, body } = {}) { super(message); this.providerStatus = status; this.body = body; }
 }
 
 /* ── Access token: valid ~1 hour. Cached, and refreshed a minute early. ─────────────── */

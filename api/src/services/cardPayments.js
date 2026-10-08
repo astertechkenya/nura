@@ -85,13 +85,24 @@ export async function cardAttempt(orderId) {
     if (state === 'open' && live.raw?.authorizationUrl) return live.raw.authorizationUrl;
     if (state === 'open') await markFailed(live.id, 'SUPERSEDED', 'Replaced by a new attempt', null, 'Replaced by a new card attempt.');
   } else if (live) {
-    return openCardPayment(live.id);
+    const url = await openCardPayment(live.id);
+    // null here means Paystack couldn't be reached, not "already paid": say so (Oct 2026).
+    if (!url) throw httpError(502, 'We couldn’t open the card payment page. Please try again in a moment.');
+    return url;
   }
 
   const [{ n }] = await db.select({ n: count() }).from(payments).where(eq(payments.orderId, orderId));
   if (n >= MAX_CARD_ATTEMPTS) throw httpError(409, 'That was the last card attempt for this order. Please place a new order.');
-  const [p] = await db.insert(payments).values({ orderId, provider: 'PAYSTACK', amountKes: o.totalKes })
-    .returning({ id: payments.id });
+  let p;
+  try {
+    [p] = await db.insert(payments).values({ orderId, provider: 'PAYSTACK', amountKes: o.totalKes })
+      .returning({ id: payments.id });
+  } catch (err) {
+    // "Pay by card" pressed twice at once: the other press made the attempt (one PENDING payment
+    // per order is a unique index). A clear answer instead of a 500.
+    if ((err?.code ?? err?.cause?.code) === '23505') throw httpError(409, 'A card payment page is already opening. Please wait a moment.');
+    throw err;
+  }
   const url = await openCardPayment(p.id);
   if (!url) throw httpError(502, 'We couldn’t open the card payment page. Please try again in a moment.');
   return url;

@@ -35,15 +35,46 @@ const codRefusal = (county, rules = config) => (!rules.COD_COUNTIES.includes(cou
 const isUniqueViolation = (err, constraint) =>
   (err?.code ?? err?.cause?.code) === '23505' && (err?.constraint ?? err?.cause?.constraint) === constraint;
 
+/** The order a checkout key already made, for this shopper: { id } | null. Throws 409 if it's someone else's. */
+async function orderForKey(checkoutKey, userId) {
+  const [existing] = await db.select({ id: orders.id, userId: orders.userId }).from(orders)
+    .where(eq(orders.checkoutKey, checkoutKey));
+  if (!existing) return null;
+  if ((existing.userId ?? null) !== (userId ?? null)) {
+    throw httpError(409, 'This checkout was already used. Reload the page and try again.');
+  }
+  return existing;
+}
+
 /**
  * Creates an order from the cart `cartId`. `details` is the validated checkout form.
- * Returns the new order's id. Throws a 4xx with a shopper-friendly message when it can't.
+ * Returns { id, created }: created is false when this checkout key already made the order
+ * (a double tap, or a retry after a timeout), and the caller must not ask for payment again.
+ * Throws a 4xx with a shopper-friendly message when it can't.
  */
 export async function placeOrder({ cartId, userId, details }) {
+  // A retry of a checkout that already went through (Oct 2026). Typical case: Render was asleep,
+  // Netlify gave up after 26 s and the browser said "try again", but the first request finished
+  // and emptied the cart. Without this check the retry would read the empty cart and answer
+  // "Your cart is empty" instead of handing back the order the shopper just placed.
+  const done = await orderForKey(details.checkoutKey, userId);
+  if (done) return { id: done.id, created: false };
   try {
     return await db.transaction(async (tx) => {
+      // Lock this cart first: two checkouts of the same cart (two tabs, different keys) queue
+      // here, and the second finds it empty instead of making a second order from the same lines.
+      if (cartId) await tx.select({ id: carts.id }).from(carts).where(eq(carts.id, cartId)).for('update');
+      // The same checkout sent twice at once waits on that lock; once through, the first one
+      // has committed and emptied the cart. Hand back its order instead of "Your cart is empty".
+      const [twin] = await tx.select({ id: orders.id, userId: orders.userId }).from(orders)
+        .where(eq(orders.checkoutKey, details.checkoutKey));
+      if (twin) {
+        if ((twin.userId ?? null) !== (userId ?? null)) throw httpError(409, 'This checkout was already used. Reload the page and try again.');
+        return { id: twin.id, created: false };
+      }
       const rows = cartId ? await tx
         .select({
+          cartItemId: cartItems.id,
           variantId: productVariants.id, size: productVariants.size, qty: cartItems.qty,
           productId: products.id, sku: products.sku, name: products.name,
           priceKes: products.priceKes, compareAtKes: products.compareAtKes,
@@ -71,8 +102,10 @@ export async function placeOrder({ cartId, userId, details }) {
         throw httpError(409, codRefusal(details.county));
       }
 
-      // Reserve stock, line by line. Each UPDATE only succeeds if enough is left.
-      for (const l of lines) {
+      // Reserve stock, line by line. Each UPDATE only succeeds if enough is left. Always in the
+      // same order (by variant id), so two checkouts sharing sizes lock them in the same order
+      // and can't deadlock each other.
+      for (const l of [...lines].sort((a, b) => (a.variantId < b.variantId ? -1 : 1))) {
         const took = await tx.update(productVariants)
           .set({ stock: sql`${productVariants.stock} - ${l.qty}` })
           .where(and(eq(productVariants.id, l.variantId), sql`${productVariants.stock} >= ${l.qty}`))
@@ -127,16 +160,17 @@ export async function placeOrder({ cartId, userId, details }) {
       });
       await tx.insert(orderEvents).values({ orderId: order.id, fromStatus: null, toStatus: status, note: 'Order placed' });
 
-      await tx.delete(cartItems).where(eq(cartItems.cartId, cartId));
+      // Only the lines this order was made from: never something added a moment ago.
+      await tx.delete(cartItems).where(inArray(cartItems.id, lines.map((l) => l.cartItemId)));
       await tx.update(carts).set({ updatedAt: new Date() }).where(eq(carts.id, cartId));
-      return order.id;
+      return { id: order.id, created: true };
     });
   } catch (err) {
-    // The same checkout sent twice: the first one won the unique checkout_key. Hand back that order.
+    // The same checkout sent twice at the same moment: the first one won the unique
+    // checkout_key. Hand back that order.
     if (isUniqueViolation(err, 'orders_checkout_key_unique')) {
-      const [existing] = await db.select({ id: orders.id, userId: orders.userId }).from(orders)
-        .where(eq(orders.checkoutKey, details.checkoutKey));
-      if (existing && (existing.userId ?? null) === (userId ?? null)) return existing.id;
+      const existing = await orderForKey(details.checkoutKey, userId);
+      if (existing) return { id: existing.id, created: false };
       throw httpError(409, 'This checkout was already used. Reload the page and try again.');
     }
     throw err;
@@ -144,14 +178,15 @@ export async function placeOrder({ cartId, userId, details }) {
 }
 
 /** The money a refund on this order would send back, and how it was paid. */
-export async function paidOn(orderId) {
+export async function paidOn(orderId, knownStatus) {
   // Money we hold for this order that a refund would send back:
   //   - payments the admin REJECTED (wrong amount): always, whatever happened to the order;
   //   - normal PAID payments: only once the order is closed (cancelled after paying, or paid
   //     after it expired). A live or delivered order's payment is the shop's, not a refund.
   // `kes` is null when a rejected payment's amount isn't known in shillings (another currency).
-  const [o] = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId));
-  const closed = o && (o.status === 'CANCELLED' || o.status === 'EXPIRED');
+  // knownStatus: the caller already has the order (loadOrder), so don't read it again.
+  const status = knownStatus ?? (await db.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)))[0]?.status;
+  const closed = status === 'CANCELLED' || status === 'EXPIRED';
   const rows = (await db.select({ amountKes: payments.amountKes, receivedKes: payments.receivedKes, status: payments.status,
                                   resultCode: payments.resultCode, provider: payments.provider, phone: payments.phone })
     .from(payments).where(and(eq(payments.orderId, orderId), inArray(payments.status, ['PAID', 'FAILED'])))
@@ -167,7 +202,9 @@ export async function paidOn(orderId) {
 export async function loadOrder(id) {
   const [o] = await db.select().from(orders).where(eq(orders.id, id));
   if (!o) return null;
-  const items = await db
+  // Items, the refund amount and the payment state don't depend on each other: fetched together
+  // (this runs every few seconds while an order page waits for M-Pesa).
+  const [items, refundPaid, payment] = await Promise.all([db
     .select({
       sku: orderItems.sku, name: orderItems.name, size: orderItems.size,
       unitPriceKes: orderItems.unitPriceKes, qty: orderItems.qty,
@@ -177,7 +214,9 @@ export async function loadOrder(id) {
     .leftJoin(products, eq(orderItems.productId, products.id))   // left: the product may be deleted one day
     .leftJoin(brands, eq(products.brandId, brands.id))
     .where(eq(orderItems.orderId, id))
-    .orderBy(asc(orderItems.name));
+    .orderBy(asc(orderItems.name)),
+  o.refundStatus === 'NONE' ? null : paidOn(o.id, o.status),
+  paymentSummary(o.id)]);
   return {
     id: o.id,
     number: o.number,
@@ -194,9 +233,9 @@ export async function loadOrder(id) {
     guest: o.userId === null,
     // A refund owed or already sent (cancelled after paying, or paid after it closed).
     refund: o.refundStatus === 'NONE' ? null
-      : { status: o.refundStatus, kes: (await paidOn(o.id))?.kes ?? null },   // null: amount not known in shillings
+      : { status: o.refundStatus, kes: refundPaid?.kes ?? null },   // null: amount not known in shillings
     // M-Pesa: where the latest attempt stands, how many prompts are left, and until when.
-    payment: await paymentSummary(o.id),
+    payment,
     promptsLeft: o.paymentMethod === 'MPESA' ? Math.max(0, MAX_STK_ATTEMPTS - o.stkAttempts) : 0,
     payBy: o.expiresAt,
   };

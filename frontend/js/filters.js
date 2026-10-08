@@ -95,13 +95,9 @@
     grid.classList.toggle('list-view', type === 'list');
     grid.querySelectorAll('img[data-grid-pos]').forEach(function (img) {
       img.style.objectPosition = type === 'list'
-        ? (img.dataset.listPos || 'center center')
+        ? 'center center'
         : (img.dataset.gridPos || 'center top');
     });
   });
 
-  var sidebar = document.getElementById('filtersSidebar');
-  var toggle = document.getElementById('filterToggle');
-  if (sidebar && toggle) toggle.addEventListener('click', function () { sidebar.classList.add('open'); });
-  NURA.onEscape(function () { if (sidebar) sidebar.classList.remove('open'); });
 })();

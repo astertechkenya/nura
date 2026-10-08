@@ -21,6 +21,7 @@ const EVERY_MINUTE = 60 * 1000;
 let timer = null;
 let running = false;
 let started = false;
+let wakeCount = 0;              // bumped by every wake; a tick only goes quiet if none came in meanwhile
 export const jobStats = { ticks: 0, wakes: 0 };   // for tests
 
 /** Is any payment still open? Then the jobs have work to do next minute. */
@@ -36,6 +37,7 @@ async function tick() {
   if (running) return;          // a slow run is never overlapped by the next one
   running = true;
   jobStats.ticks += 1;
+  const wakesAtStart = wakeCount;
   try {
     // First settle M-Pesa prompts whose result never arrived, THEN expire what's still unpaid:
     // an order must not expire while Safaricom is holding a "paid" for it.
@@ -49,7 +51,10 @@ async function tick() {
     }
     const n = await expireOrders();
     if (n) logger.info({ expired: n }, 'expired unpaid orders and returned their stock');
-    if (!(await anythingOpen())) quiet();          // nothing left to watch: stop until woken
+    // Nothing left to watch: stop until woken. Unless a wake arrived while this tick ran (a
+    // checkout committing just after anythingOpen() looked): then its order may be the one open
+    // payment, and stopping now would leave it unwatched, never expiring.
+    if (!(await anythingOpen()) && wakeCount === wakesAtStart) quiet();
   } catch (err) {
     logger.error({ err }, 'order expiry job failed');   // logged, retried next minute
   } finally {
@@ -75,6 +80,7 @@ export function startJobs() {
 export function wakeJobs() {
   if (!started) return;         // tests and scripts never start the timer
   jobStats.wakes += 1;
+  wakeCount += 1;
   const wasQuiet = !timer;
   every();
   if (wasQuiet) tick();

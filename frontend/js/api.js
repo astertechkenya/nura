@@ -48,6 +48,7 @@
                     : data.error || 'Something went wrong. Please try again.';
             var err = new Error(msg);
             err.status = res.status;
+            if (data.needsTotp) err.needsTotp = true;   // the admin: "show the 6-digit code box"
             throw err;
           }
           return data;
@@ -78,9 +79,8 @@
     return catalogue;
   };
 
-  /* Which products each list shows. The ONE place these rules live: grid.js uses them to fill
-     the pages, and search.js uses NURA.pageFor to link a result to a page that really holds it.
-     Change a rule here and both follow. Products arrive in catalogue order (by SKU). */
+  /* Which products each list shows: grid.js fills the pages with these. Products arrive in
+     catalogue order (by SKU). */
   var byNewest = function (a, b) { return Date.parse(b.arrivedAt) - Date.parse(a.arrivedAt); };
   NURA.lists = {
     women: { test: function (p) { return p.department === 'WOMEN' || p.department === 'UNISEX'; } },
@@ -95,8 +95,6 @@
     return rule.sort ? list.sort(rule.sort) : list;
   };
 
-  /** The page to open for a search result: New In if it's new, Sale if it's on sale, else its
-   *  department. The rules above guarantee that page contains the card; #sku scrolls to it. */
   /* Right-sized photos. Every photo exists at 400, 800 and 1200 pixels wide, always the WHOLE
      picture (the frame crops it, in CSS). srcset lists them; the browser picks the smallest
      that is sharp for the frame's width on this screen. Same rules as the server's
@@ -123,12 +121,4 @@
 
   /** A product's own page (rendered by the API: api/src/routes/pages.js). */
   NURA.productUrl = function (p) { return '/p/' + encodeURIComponent(p.slug); };
-
-  NURA.pageFor = function (p) {
-    var page = p.isNew ? 'new-in.html'
-      : p.onSale ? 'sale.html'
-      : p.department === 'MEN' ? 'men.html'
-      : 'women.html';                                   // WOMEN and UNISEX
-    return page + '#' + p.sku;
-  };
 })();

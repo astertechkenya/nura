@@ -1,9 +1,8 @@
 /* NURA search.js: the search overlay.
    Products come from the API (NURA.products(), fetched once per page and shared with
-   grid.js). Each result links to the product's own page (NURA.productUrl, in api.js). (Before product pages,
-   it linked to a page that held its card: NURA.pageFor, which uses
-   the same rules that fill the grids). Filtering the list happens here in the browser: 21 products is tiny, and
-   filtering locally keeps results instant as you type. */
+   grid.js). Each result links to the product's own page (NURA.productUrl, in api.js).
+   Filtering happens here in the browser: a few dozen products is tiny, and filtering locally
+   keeps results instant as you type. */
 (function () {
   'use strict';
   var NURA = window.NURA, esc = NURA.esc;
@@ -16,7 +15,13 @@
   var products = null;   // filled on first open
   var failed = false;
 
-  function message(text) { results.innerHTML = '<div class="search-overlay__empty">' + esc(text) + '</div>'; }
+  // Screen readers hear how many results there are (the list itself isn't announced as it changes).
+  var status = document.createElement('p');
+  status.className = 'sr-only'; status.setAttribute('role', 'status');
+  overlay.appendChild(status);
+  if (!input.getAttribute('aria-label')) input.setAttribute('aria-label', 'Search products');
+  function say(text) { status.textContent = text; }
+  function message(text) { results.innerHTML = '<div class="search-overlay__empty">' + esc(text) + '</div>'; say(text); }
 
   function load() {
     if (products || failed) return;
@@ -31,7 +36,7 @@
 
   function render(q) {
     q = q.trim().toLowerCase();
-    if (q.length < 2) { results.innerHTML = ''; return; }
+    if (q.length < 2) { results.innerHTML = ''; say(''); return; }
     if (failed) { message('Search is unavailable right now. Please try again shortly.'); return; }
     if (!products) { message('Loading…'); return; }
     var matches = products.filter(function (p) {
@@ -42,25 +47,27 @@
       var bg = esc(p.cardBg);
       return '<a class="search-result" href="' + esc(NURA.productUrl(p)) + '">'
         + (p.imageUrl
-            ? '<div class="search-result__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl, 800)) + '" alt="" style="width:100%;height:100%;object-fit:cover;"></div>'
+            ? '<div class="search-result__img" style="background:' + bg + ';overflow:hidden;"><img src="' + esc(NURA.photo(p.imageUrl)) + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;"></div>'
             : '<div class="search-result__img" style="background:' + bg + '"></div>')
         + '<p class="search-result__brand">' + esc(p.brand.name) + '</p>'
         + '<p class="search-result__name">' + esc(p.name) + '</p>'
         + '<p class="search-result__price">' + NURA.fmtKsh(p.priceKes) + '</p>'
         + '</a>';
     }).join('');
+    say(matches.length + ' result' + (matches.length !== 1 ? 's' : ''));
   }
 
   function open() {
     overlay.classList.add('open');
     NURA.lockScroll(true);
     load();
-    setTimeout(function () { input.focus(); }, 100);
+    NURA.panel.open(overlay, { focus: input });
   }
   function close() {
     if (!overlay.classList.contains('open')) return;
     overlay.classList.remove('open');
     NURA.lockScroll(false);
+    NURA.panel.close(overlay);
     input.value = '';
     results.innerHTML = '';
   }

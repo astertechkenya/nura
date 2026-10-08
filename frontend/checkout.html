@@ -17,11 +17,7 @@
   <header class="co-head">
     <div class="co-head__inner">
       <a class="auth-modal__logo" href="index.html" aria-label="NURA home">NUR<span>A</span></a>
-      <p class="co-head__secure">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-        <span>Secure checkout</span>
-      </p>
-      <a class="co-head__back" href="index.html">&larr; Shop</a>
+      <a class="nura-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a>
     </div>
   </header>
 
@@ -32,7 +28,7 @@
     <details class="co-summary" id="coSummary" open>
       <summary><span class="co-summary__toggle">Order summary</span><span class="co-summary__total" id="coSummaryTotal"></span></summary>
       <div class="co-summary__body">
-        <div id="coLines" aria-live="polite"><p class="co-hint" style="padding-top:14px;">Loading your cart…</p></div>
+        <div id="coLines"><p class="co-hint" style="padding-top:14px;">Loading your cart…</p></div>
         <div class="co-rows">
           <div class="co-row"><span>Subtotal</span><span id="coSubtotal">&mdash;</span></div>
           <div class="co-row"><span>Delivery</span><span id="coShipping">&mdash;</span></div>
@@ -91,10 +87,6 @@
               <span class="auth-error" id="coCountyErr">Please choose a county.</span>
             </div>
           </div>
-          <div class="auth-field">
-            <label class="auth-label" for="coNotes">Notes for the rider <span class="co-optional">(optional)</span></label>
-            <input class="auth-input" type="text" id="coNotes" name="notes" maxlength="300" placeholder="e.g. Blue gate, call on arrival" />
-          </div>
         </div>
       </fieldset>
 
@@ -126,7 +118,6 @@
 
       <div>
         <button class="auth-submit co-submit" type="submit" id="coSubmit" disabled>Place order</button>
-        <p class="co-reassure">We call to confirm every order before it's dispatched.</p>
       </div>
     </form>
   </main>

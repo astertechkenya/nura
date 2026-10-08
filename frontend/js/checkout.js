@@ -61,7 +61,7 @@
         '<h1 class="co-title">Checkout</h1>'
       + '<div class="co-empty"><p style="font-family:var(--display);font-size:26px;letter-spacing:2px;color:var(--black);margin:0;">Your cart is empty</p>'
       + '<p>Add something you love, then come back here.</p>'
-      + '<a class="co-link" href="index.html">Continue shopping &rarr;</a></div>';
+      + '<a class="nura-continue co-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a></div>';
   }
 
   function loadCart() {
@@ -158,6 +158,7 @@
 
   function alertBox(text) {
     var a = byId('coAlert');
+    if (!a) return;                       // the empty-cart message has replaced the form
     a.hidden = !text;
     a.textContent = text || '';
     if (text) a.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -176,7 +177,6 @@
       addressLine1: val('coLine1'), area: val('coArea'), county: val('coCounty'),
       paymentMethod: form.querySelector('input[name="paymentMethod"]:checked').value,
     };
-    if (val('coNotes')) body.notes = val('coNotes');
 
     sending = true; updatePayment();
     NURA.api('/checkout', { method: 'POST', body: body })
@@ -218,17 +218,30 @@
   if (window.matchMedia('(max-width: 899px)').matches) byId('coSummary').open = false;
 
   /* ── Start: options, cart and (if signed in) who you are, in parallel ────────────── */
-  var optionsReady = NURA.api('/checkout/options').then(function (o) {
-    options = o;
-    var sel = byId('coCounty');
-    if (!sel) return;
-    o.counties.forEach(function (c) {
-      var opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
-      sel.appendChild(opt);
+  // Counties and payment methods. If they can't be loaded (after api.js's own retries), the
+  // form can't be completed, so offer "Try again" right in the message (Oct 2026: before, the
+  // county list stayed empty and Place order stayed disabled with no way out but a reload).
+  function loadOptions() {
+    return NURA.api('/checkout/options').then(function (o) {
+      options = o;
+      alertBox('');
+      var sel = byId('coCounty');
+      if (!sel) return;
+      o.counties.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        sel.appendChild(opt);
+      });
+      updatePayment();
+    }, function (err) {
+      alertBox(err.message + ' ');
+      var retry = document.createElement('button');
+      retry.type = 'button'; retry.className = 'co-link'; retry.textContent = 'Try again';
+      retry.addEventListener('click', function () { retry.disabled = true; optionsReady = loadOptions(); });
+      if (byId('coAlert')) byId('coAlert').appendChild(retry);
     });
-    updatePayment();
-  }).catch(function (err) { alertBox(err.message); });
+  }
+  var optionsReady = loadOptions();
 
   loadCart().catch(function (err) { alertBox(err.message); });
 

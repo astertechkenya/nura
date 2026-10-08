@@ -116,6 +116,11 @@ authRouter.post(
   // after N failures would let anyone lock any customer out just by knowing their email.
   limit({ windowMs: 15 * MINUTE, max: 5, by: (req) => req.body?.email,
           message: 'Too many sign-in attempts. Wait 15 minutes, or reset your password.' }),
+  // And per connection alone, counting only wrong passwords (Oct 2026): the limit above is per
+  // email, so one address could otherwise try 5 passwords on every email in a leaked list.
+  // Generous, because Kenyan mobile networks put many customers behind one shared address.
+  limit({ windowMs: 15 * MINUTE, max: 30, failuresOnly: true,
+          message: 'Too many sign-in attempts from this connection. Wait 15 minutes.' }),
   validate(loginBody),
   async (req, res) => {
     const { email: addr, password: pw } = req.valid.body;
@@ -147,6 +152,8 @@ authRouter.post(
   '/forgot',
   limit({ windowMs: 60 * MINUTE, max: 3, by: (req) => req.body?.email,
           message: 'Too many reset requests for this email. Try again later.' }),
+  // Per connection too: otherwise one address could send reset emails to any number of people.
+  limit({ windowMs: 60 * MINUTE, max: 20, message: 'Too many reset requests. Try again later.' }),
   validate(z.strictObject({ email })),
   async (req, res) => {
     const user = await findUserByEmail(req.valid.body.email);

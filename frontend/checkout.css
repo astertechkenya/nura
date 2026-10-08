@@ -12,14 +12,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--black);min-height:
 a{color:inherit;}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
 
-/* Header: logo, "Secure checkout", back to the shop. Nothing else to wander off to. */
+/* Header: the logo and Continue shopping (Oct 2026: "Secure checkout" removed). Nothing else to wander off to. */
 .co-head{background:var(--black);color:var(--white);}
 .co-head__inner{max-width:1180px;margin:0 auto;padding:18px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .co-head .auth-modal__logo{color:var(--white);margin:0;text-decoration:none;font-size:26px;}
-.co-head__secure{display:flex;align-items:center;gap:8px;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.75);}
-.co-head__back{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--white);text-decoration:none;}
-.co-head__back:hover,.co-head__back:focus-visible{color:var(--purple);}
-@media (max-width:560px){.co-head__secure span{display:none;}}
+.co-head .nura-continue{color:var(--white);}   /* white outline on the black header */
+.co-head .nura-continue:focus-visible{outline-color:var(--white);}   /* a black focus ring would vanish on black */
 
 .co-main{max-width:1180px;margin:0 auto;padding:24px 16px 64px;display:grid;gap:24px;}
 .co-title{font-family:var(--display);font-weight:400;font-size:40px;letter-spacing:2px;line-height:1;}
@@ -45,7 +43,6 @@ a{color:inherit;}
 .co-page select.auth-input{background-image:linear-gradient(45deg,transparent 50%,var(--black) 50%),linear-gradient(135deg,var(--black) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 15px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:40px;}
 .co-page .auth-input:focus-visible{outline:2px solid var(--purple);outline-offset:1px;}
 .co-hint{font-size:11px;color:var(--co-muted);line-height:1.5;}
-.co-optional{font-weight:400;letter-spacing:0;text-transform:none;color:var(--co-muted);}
 
 /* Payment options: big tap targets, the whole card is the label. */
 .co-methods{display:grid;gap:10px;}
@@ -65,7 +62,6 @@ a{color:inherit;}
 .co-alert{padding:14px 16px;font-size:13px;line-height:1.6;color:var(--black);background:#fdecec;border-left:3px solid var(--red-sale);}
 .co-submit{width:100%;padding:18px;font-size:11px;}
 .co-submit:disabled{opacity:.45;}
-.co-reassure{margin-top:10px;text-align:center;font-size:11px;color:var(--co-muted);}
 
 /* Summary: collapsible on phones (a <details>), always open on desktop. */
 .co-summary{background:var(--white);}
@@ -100,6 +96,7 @@ a{color:inherit;}
 .co-empty p{margin-top:8px;font-size:13px;color:var(--co-muted);}
 .co-link{display:inline-block;margin-top:20px;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--black);}
 .co-link:hover,.co-link:focus-visible{color:var(--co-accent);}
+.co-continue{margin-top:20px;}   /* the button under a message: same gap as the .co-link it replaced */
 
 /* Order confirmed */
 .oc{max-width:760px;margin:0 auto;padding:32px 16px 64px;display:grid;gap:18px;}
@@ -160,6 +157,15 @@ a{color:inherit;}
 .ac-signout:hover,.ac-signout:focus-visible{border-color:var(--white);}
 .ac-danger{border-left:3px solid var(--red-sale);}
 .ac-danger__start{margin-top:14px;background:none;border:1px solid var(--red-sale);color:var(--red-sale);padding:12px 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
-.ac-danger__confirm{background:var(--red-sale);}
+.ac-danger__start:hover,.ac-danger__start:focus-visible{background:var(--red-sale);color:var(--white);}
+/* Change password, folded (Oct 2026): the heading is the button; the chevron turns when open. */
+.ac-fold summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;min-height:32px;}
+.ac-fold summary::-webkit-details-marker{display:none;}
+.ac-fold summary h2{margin:0;}
+.ac-fold summary:focus-visible{outline:2px solid var(--purple);outline-offset:4px;}
+.ac-fold__chev{flex:none;transition:transform .2s;}
+.ac-fold[open] .ac-fold__chev{transform:rotate(180deg);}
+.ac-fold[open] summary{margin-bottom:16px;}
+.ac-fold-card{align-self:start;}   /* closed, it's one line: don't stretch to the delivery card's height */
 /* Headings focused by script (so screen readers announce a new state) need no ring: the user didn't move focus there. */
 .co-title[tabindex="-1"]:focus{outline:none;}

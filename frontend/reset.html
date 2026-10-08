@@ -23,6 +23,7 @@
     .reset-card .auth-form{margin-top:22px;}
     .reset-card .reset-link{display:block;margin-top:18px;text-align:center;font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--black);}
     .reset-card .reset-link:hover{color:var(--purple);}
+    .reset-continue{display:flex;width:fit-content;margin:18px auto 0;}
     .reset-back{margin-top:22px;font-size:12px;color:var(--muted);}
     .reset-back a{color:var(--white);}
     @media (max-width:480px){.reset-card{padding:28px 22px;}}
@@ -51,7 +52,7 @@
 
     <div id="resetDone" role="status" hidden>
       <p class="auth-hint auth-hint--done">Your password has been changed and you're signed in. Any other devices have been signed out.</p>
-      <a class="reset-link" href="index.html">Continue shopping &rarr;</a>
+      <a class="nura-continue reset-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a>
     </div>
 
     <div id="resetInvalid" hidden>

@@ -66,7 +66,7 @@ checkoutRouter.post(
     }
     const cartId = await cartIdFor(req, res);
     const userId = req.session?.userId ?? null;
-    const orderId = await placeOrder({ cartId, userId, details });
+    const { id: orderId, created } = await placeOrder({ cartId, userId, details });
 
     if (!userId) {
       // A guest's proof of ownership is this browser session. Keep the latest 20.
@@ -82,10 +82,18 @@ checkoutRouter.post(
     // checkout arrives twice, because order_emails lets one sender through per order.
     if (details.paymentMethod === 'COD') queueOrderEmail(orderId, 'received');
     if (details.paymentMethod !== 'COD') {
-      const [p] = await db.select({ id: payments.id }).from(payments)
+      const [p] = await db.select({ id: payments.id, raw: payments.raw }).from(payments)
         .where(and(eq(payments.orderId, orderId), eq(payments.status, 'PENDING')));
-      if (p && details.paymentMethod === 'MPESA') await pushPayment(p.id);
-      if (p && details.paymentMethod === 'CARD') redirectUrl = await openCardPayment(p.id);
+      if (p && created) {
+        if (details.paymentMethod === 'MPESA') await pushPayment(p.id);
+        if (details.paymentMethod === 'CARD') redirectUrl = await openCardPayment(p.id);
+      } else if (p && details.paymentMethod === 'CARD') {
+        // The same checkout again (a double tap, or a retry after a timeout): never a second
+        // prompt or a second Paystack page for the same payment (Oct 2026). A second page would
+        // replace the first one's record, and a payment made on the first could then be lost.
+        // Send them back to the page that's already open, if it's ready.
+        redirectUrl = p.raw?.authorizationUrl ?? null;
+      }
     }
     // Card: the browser goes to Paystack's page next (redirectUrl), then comes back.
     res.status(201).json({ order: await loadOrder(orderId), redirectUrl });

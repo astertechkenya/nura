@@ -16,6 +16,11 @@ body.adm{font-family:var(--sans);background:var(--bg);color:var(--black);min-hei
 .adm-role{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;background:var(--purple);color:var(--black);padding:4px 8px;}
 .adm-signout{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.4);color:var(--white);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:7px 10px;}
 .adm-role:not([hidden]) + .adm-signout{margin-left:0;}
+/* Sign out fills purple on hover, on keyboard focus and while pressed (Oct 2026). Black text on
+   the purple: #B57BFF is 7.6:1 against black, but only 2.8:1 against white, too faint to read. */
+.adm-signout{transition:background-color .15s,border-color .15s,color .15s;}
+.adm-signout:hover,.adm-signout:focus-visible,.adm-signout:active{background:var(--purple);border-color:var(--purple);color:var(--black);}
+.adm-signout:focus-visible{outline-color:var(--white);}   /* the purple ring would vanish into the purple fill */
 
 .adm-tabs{position:sticky;top:56px;z-index:4;display:flex;overflow-x:auto;background:var(--white);border-bottom:1px solid var(--adm-line);}
 .adm-tabs a{flex:1 0 auto;padding:14px 10px;text-align:center;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--adm-muted);border-bottom:3px solid transparent;}
@@ -86,22 +91,25 @@ body.adm{font-family:var(--sans);background:var(--bg);color:var(--black);min-hei
 .adm-btn{border:0;padding:15px 16px;background:var(--black);color:var(--white);font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
 .adm-btn:hover{background:var(--adm-accent);}
 .adm-btn--danger{background:var(--white);color:var(--red-sale);border:1.5px solid var(--red-sale);}
-.adm-btn--danger.is-arming{background:var(--red-sale);color:var(--white);}
+/* Hovering a danger button fills it red. Without this, .adm-btn:hover's purple won and left red
+   text on purple (about 2:1): unreadable on Delete product and Cancel order alike. */
+.adm-btn--danger:hover{background:var(--red-sale);color:var(--white);}
 /* A flagged payment's decision, inside its line in the Payments list. */
 .adm-flag{margin-top:10px;padding:10px 12px;border-left:3px solid var(--red-sale);background:var(--bg);}
 .adm-flag__help{margin:0 0 8px;font-size:13px;line-height:1.5;}
-.adm-btn.is-arming:not(.adm-btn--danger){background:var(--black);color:var(--white);}
 .adm-btn--quiet{background:var(--white);color:var(--black);border:1.5px solid var(--black);}
 .adm-btn:disabled{opacity:.45;}
 .adm-note{width:100%;}
 
 /* Products */
 .adm-product{background:var(--white);padding:14px 16px;margin-bottom:10px;}
-.adm-product.is-hidden{opacity:.65;}
+/* Hidden from the shop: a dashed outline, not faded text (fading the grey text dropped it under
+   3:1 contrast). The "Shown in shop" tick says it in words. */
+.adm-product.is-hidden{outline:2px dashed var(--light);outline-offset:-2px;}
 .adm-product__head{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;margin-bottom:12px;}
 .adm-product__head img,.adm-product__head .adm-ph{width:48px;height:56px;object-fit:cover;background:var(--bg-light);}
 .adm-product__name{font-weight:700;font-size:13px;}
-.adm-prices{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;}
+.adm-prices{display:grid;gap:8px;align-items:end;}
 .adm-field{display:grid;gap:4px;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--black);}
 .adm-field input{width:100%;padding:10px;border:1.5px solid var(--light);font-family:var(--sans);font-size:14px;}
 .adm-stock{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
@@ -181,7 +189,6 @@ button.adm-chip{font-family:var(--sans);cursor:pointer;}
 /* Price, was, the two sale dates and Save: two to a row on a phone, one row on a wide screen. */
 .adm-prices{grid-template-columns:1fr 1fr;}
 .adm-prices .adm-btn{grid-column:1/-1;}
-.adm-prices .adm-hint{grid-column:1/-1;}
 .adm-prices .adm-pill{margin-left:4px;}
 @media (min-width:760px){
   .adm-prices{grid-template-columns:1fr 1fr 1.5fr 1.5fr auto;}
@@ -224,6 +231,40 @@ button.adm-chip{font-family:var(--sans);cursor:pointer;}
 .ins-bar i{display:block;height:100%;background:var(--adm-accent);border-radius:0 4px 4px 0;}
 .ins-row__val{font-size:12px;font-weight:700;white-space:nowrap;}
 .ins-out{color:var(--red-sale);font-weight:700;}
-.ins-steps{margin:0 0 16px 20px;display:grid;gap:12px;font-size:14px;line-height:1.6;}
 a.adm-btn--quiet{color:var(--black);}   /* a.adm-btn's white text would vanish on the quiet button's white */
 .adm-tiles--money .adm-tile strong{font-size:clamp(26px,7vw,38px);}   /* shilling amounts are long: keep them on one line on a phone */
+
+/* ── Deleting a product (Oct 2026) ─────────────────────────────────────────── */
+.adm-delete{display:grid;gap:6px;justify-items:start;margin-top:12px;padding-top:12px;border-top:1px solid var(--adm-line);}
+.adm-delete .adm-hint{margin-top:0;}
+
+/* ── Restock (Oct 2026) ────────────────────────────────────────────────────── */
+.rs-table{width:100%;border-collapse:collapse;background:var(--white);}
+.rs-table th,.rs-table td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--adm-line);}
+.rs-table thead th{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--adm-muted);}
+.rs-name{font-size:13px;font-weight:700;min-width:140px;}
+.rs-name small{display:block;font-weight:400;font-size:11px;color:var(--adm-muted);margin-top:3px;}
+.rs-num{text-align:right!important;font-weight:700;font-variant-numeric:tabular-nums;}
+.rs-sizes{margin-top:0;}
+/* An edited size: purple until saved. Not saved = not on the shop, so it must look different. */
+.adm-stock input.is-changed{border-color:var(--adm-accent);background:#f4effc;font-weight:700;}
+.adm-stock input.is-invalid,.adm-stock input.is-conflict{border-color:var(--red-sale);box-shadow:0 0 0 1px var(--red-sale);}
+.rs-errors{margin:8px 0 0 18px;}
+.rs-sep{flex:0 0 1px;background:var(--adm-line);margin:4px 2px;}
+/* Phones: each product is a block (name, then its sizes, then the total), not a squeezed row. */
+@media (max-width:699px){
+  .rs-table thead{display:none;}
+  .rs-table,.rs-table tbody,.rs-table tr,.rs-table th,.rs-table td{display:block;}
+  .rs-table tr{border-bottom:1px solid var(--adm-line);padding:12px 14px;}
+  .rs-table tr[hidden]{display:none;}
+  .rs-table th,.rs-table td{border:0;padding:0;}
+  .rs-table td + td{margin-top:8px;}
+  .rs-num{text-align:left!important;font-size:12px;}
+  .rs-num::before{content:'Total ';font-weight:400;color:var(--adm-muted);}
+}
+/* The save bar stays on screen while the list scrolls, and is only there with something to save. */
+.rs-bar{position:sticky;bottom:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:16px -16px 0;padding:12px 16px;background:var(--white);border-top:2px solid var(--adm-accent);box-shadow:0 -4px 12px rgba(0,0,0,.06);}
+.rs-bar[hidden]{display:none;}
+.rs-bar span{flex:1 1 140px;font-size:13px;font-weight:700;}
+@media (max-width:699px){.rs-bar span{flex-basis:100%;}.rs-bar .adm-btn{flex:1;}}   /* phone: the count, then two equal buttons */
+@media (min-width:1032px){.rs-bar{margin:16px 0 0;}}

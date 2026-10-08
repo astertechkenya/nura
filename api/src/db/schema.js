@@ -202,7 +202,12 @@ export const orderItems = pgTable('order_items', {
   size: text('size').notNull(),
   unitPriceKes: integer('unit_price_kes').notNull(),
   qty: integer('qty').notNull(),
-}, (t) => [check('order_items_qty_positive', sql`${t.qty} > 0`)]);
+}, (t) => [
+  check('order_items_qty_positive', sql`${t.qty} > 0`),
+  // Postgres doesn't index a foreign key by itself. Every order page, order list (item counts),
+  // restock on cancel/expiry and receipt email looks items up by order (Oct 2026).
+  index('order_items_order_idx').on(t.orderId),
+]);
 
 export const payments = pgTable('payments', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -226,6 +231,8 @@ export const payments = pgTable('payments', {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => [
+  // An order's payments, oldest first: the order page (polled while paying), the admin, refunds.
+  index('payments_order_created_idx').on(t.orderId, t.createdAt),
   // At most one PENDING payment per order: no two live M-Pesa prompts for one order.
   uniqueIndex('payments_one_pending_per_order_uq').on(t.orderId).where(sql`${t.status} = 'PENDING'`),
   check('payments_amount_positive', sql`${t.amountKes} > 0`),

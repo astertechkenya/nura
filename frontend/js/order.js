@@ -16,7 +16,8 @@
   // api/src/lib/orderLink.js). It's swapped for access once, then removed from the address bar,
   // so it doesn't linger in history or get copied along with the address.
   var params = new URLSearchParams(location.search);
-  var raw = params.get('order') || decodeURIComponent(location.hash.slice(1));
+  var raw = params.get('order') || '';
+  if (!raw) { try { raw = decodeURIComponent(location.hash.slice(1)); } catch (e) { raw = ''; } }   // a broken # → "not found", not a stuck page
   var dot = raw.indexOf('.');
   var id = dot > 0 ? raw.slice(0, dot) : raw;
   var linkToken = dot > 0 ? raw.slice(dot + 1) : '';
@@ -89,7 +90,7 @@
           : ['Payment received', 'Thank you. Your payment is confirmed.'],
       ['We pack it', 'Your pieces are checked, packed and handed to a rider.'],
       ['On its way', cod ? 'Have ' + NURA.fmtKsh(o.totalKes) + ' ready for the rider.' : 'Your rider brings it to your door.'],
-      ['Delivered', cod ? 'You pay the rider in cash, and it’s yours.' : 'Nothing more to pay.'],
+      ['Delivered', cod ? 'You pay the rider in cash, and it’s yours.' : 'Your package has arrived.'],
     ];
     var at = REACHED[o.status];
     return '<ol class="oc-steps">' + steps.map(function (st, i) {
@@ -152,7 +153,7 @@
     main.innerHTML =
         hero('Order ' + esc(o.number), 'Cancelled', 'This order has been cancelled.')
       + '<section class="oc-card"><p class="oc-address">' + refundText(o, 'No payment was taken for it.') + '</p>'
-      + '<a class="co-link" href="index.html">Back to the shop &rarr;</a></section>'
+      + '<a class="nura-continue co-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a></section>'
       + itemsCard(o, 'Total');
     document.title = 'Order ' + o.number + ' cancelled — NURA';
   }
@@ -220,7 +221,7 @@
     } else if (outOfTries) {
       panel = '<div class="co-alert" role="alert">' + esc(p.message || 'The payment didn’t go through.')
         + ' That was the last M-Pesa prompt for this order. Your items are held until ' + time(o.payBy) + ', then released. You can place a new order any time.</div>'
-        + '<a class="co-link" href="index.html">Back to the shop &rarr;</a>';
+        + '<a class="nura-continue co-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a>';
     } else {
       panel = '<div class="co-alert" role="alert">' + esc(p.message || 'The payment didn’t go through.') + '</div>'
         + '<form class="pay-retry" id="payRetry" novalidate>'
@@ -253,8 +254,10 @@
       NURA.api('/orders/' + encodeURIComponent(o.id) + '/pay', { method: 'POST', body: { phone: phone } })
         .then(function (d) { pollStarted = Date.now(); show(d.order); poll(); }, function (err) {
           btn.disabled = false; btn.textContent = 'Resend M-Pesa prompt';
-          var a = document.createElement('p'); a.className = 'co-alert'; a.setAttribute('role', 'alert'); a.textContent = err.message;
-          form.prepend(a);
+          // One message box, reused: repeated failures replace the message instead of stacking.
+          var a = form.querySelector('.co-alert[data-resend-err]');
+          if (!a) { a = document.createElement('p'); a.className = 'co-alert'; a.setAttribute('role', 'alert'); a.dataset.resendErr = ''; form.prepend(a); }
+          a.textContent = err.message;
         });
     });
   }
@@ -263,7 +266,7 @@
     main.innerHTML =
         hero('Order ' + esc(o.number), 'Not paid in time', 'This order wasn’t paid within the time limit, so its items were released for other shoppers.')
       + '<section class="oc-card"><p class="oc-address">' + refundText(o, 'If money left your account for this order, it will be refunded in full. Keep your order number handy if you contact us.') + '</p>'
-      + '<a class="co-link" href="index.html">Back to the shop &rarr;</a></section>'
+      + '<a class="nura-continue co-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a></section>'
       + itemsCard(o, 'Total');
   }
 
@@ -289,7 +292,18 @@
   function poll() {
     clearTimeout(pollTimer);
     pollTimer = setTimeout(function () {
-      if (Date.now() - pollStarted > GIVE_UP_MS) return;
+      if (Date.now() - pollStarted > GIVE_UP_MS) {
+        // Ten minutes without an answer: stop asking every 3 s, but say so and let the shopper
+        // ask again, instead of a spinner that silently never changes (Oct 2026).
+        var wait = main.querySelector('.pay-wait');
+        if (wait && !wait.querySelector('[data-recheck]')) {
+          wait.insertAdjacentHTML('beforeend', '<p class="co-hint" style="margin-top:10px;">We’ve stopped checking automatically. <button type="button" class="co-link" data-recheck>Check again</button></p>');
+          wait.querySelector('[data-recheck]').addEventListener('click', function () {
+            this.parentNode.remove(); pollStarted = Date.now(); poll();
+          });
+        }
+        return;
+      }
       load().then(function (d) {
         var o = d.order, pending = o.status === 'PENDING_PAYMENT' && o.payment && o.payment.status === 'PENDING';
         // Back from Paystack but still undecided after a minute: stop saying "checking" and

@@ -20,8 +20,8 @@
 //   GET   /api/admin/newsletter.csv             confirmed subscribers as CSV (not for the demo admin)
 //   GET   /api/admin/activity                   the audit log: who changed what, before and after
 //   GET   /api/admin/insights                   takings by day, best sellers, most wanted, carts left behind
-//   GET   /api/admin/stock.csv                  every size's stock, as a spreadsheet
-//   POST  /api/admin/stock/bulk                 { rows: [{ sku, size, stock }], apply } check, then apply
+//   DELETE /api/admin/products/:id              delete a product (refused while it's in an open order)
+//   POST  /api/admin/stock/bulk                 { rows: [{ sku, size, stock, expect? }], apply }  the Restock tab's save
 import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
@@ -32,7 +32,7 @@ import { verifyCode } from '../lib/totp.js';
 import { ORDER_STATUSES } from '../services/orderStates.js';
 import {
   activity, codCollected, createProduct, FOCUS, listBrands, listCustomers, listOrders, newsletterCsv, listProducts, markRefunded, orderDetail, resolveFlagged,
-  setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct, stockSheet, bulkStock,
+  setProductImage, setStock, SIZES, summary, transitionOrder, updateProduct, bulkStock, deleteProduct,
 } from '../services/admin.js';
 import { insights } from '../services/insights.js';
 import { signUpload } from '../services/cloudinary.js';
@@ -125,6 +125,13 @@ adminRouter.patch('/products/:id', validate(idParams, 'params'), validate(produc
   res.json({ products: await listProducts() });
 });
 
+// Delete (Oct 2026). Answers with the list, like the other product changes. The demo admin is
+// refused by adminGate (DELETE isn't a read).
+adminRouter.delete('/products/:id', validate(idParams, 'params'), async (req, res) => {
+  await deleteProduct(req.admin, req.valid.params.id);
+  res.json({ products: await listProducts() });
+});
+
 adminRouter.patch('/variants/:id', validate(idParams, 'params'),
   validate(z.strictObject({ stock: z.number().int().min(0).max(9999) })), async (req, res) => {
     await setStock(req.admin, req.valid.params.id, req.valid.body.stock);
@@ -192,20 +199,17 @@ adminRouter.get('/activity', async (req, res) => res.json({ activity: await acti
 // names or contact details in it, so the demo admin sees it whole.
 adminRouter.get('/insights', async (req, res) => res.json(await insights()));
 
-// Bulk stock (Oct 2026): the spreadsheet out, and back in. POST checks first (apply: false)
-// and only writes with apply: true; the demo admin is refused writes by adminGate as usual.
-adminRouter.get('/stock.csv', async (req, res) => {
-  const day = new Date().toISOString().slice(0, 10);
-  res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="nura-stock-${day}.csv"` });
-  res.send(await stockSheet());
-});
+// Restock (Oct 2026): the Restock tab saves its changed sizes here, all together. apply: false
+// only checks. expect is the stock the admin saw; a size that has moved since is refused (see
+// bulkStock). The demo admin is refused writes by adminGate as usual.
 const stockRow = z.strictObject({
   sku: z.string().trim().min(1).max(40),
   size: z.string().trim().min(1).max(20),
   stock: z.number().int().min(0, 'Stock can’t be negative.').max(9999),
+  expect: z.number().int().min(0).max(9999).optional(),
 });
 adminRouter.post('/stock/bulk', validate(z.strictObject({
-  rows: z.array(stockRow).min(1, 'The sheet has no rows.').max(2000, 'At most 2,000 rows at once.'),
+  rows: z.array(stockRow).min(1, 'Nothing to save.').max(2000, 'At most 2,000 rows at once.'),
   apply: z.boolean(),
 })), async (req, res) => {
   res.json(await bulkStock(req.admin, req.valid.body.rows, req.valid.body.apply));

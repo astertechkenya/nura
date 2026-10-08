@@ -34,7 +34,7 @@ describe('a product page', () => {
     expect(h).toContain('<title>Linen Oversized Blazer by KikoRomeo — NURA</title>');
     expect(h).toContain(`<link rel="canonical" href="${config.SITE_URL}/p/linen-oversized-blazer" />`);
     expect(h).toMatch(/<meta property="og:title" content="Linen Oversized Blazer — KSh [\d,]+" \/>/);
-    expect(h).toContain(`<meta property="og:image" content="${config.SITE_URL}/images/linen_blazer.webp" />`);
+    expect(h).toContain(`<meta property="og:image" content="${config.SITE_URL}/images/sized/linen_blazer-1200.webp" />`);   // the 1200 px copy, not the original
     expect(h).toContain('<h1 class="pd__name" id="pdTitle" tabindex="-1">Linen Oversized Blazer</h1>');
     const ld = ldOf(h);
     expect(ld).toMatchObject({ '@type': 'Product', sku: 'nura-002', offers: { priceCurrency: 'KES', availability: 'https://schema.org/InStock' } });

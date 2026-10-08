@@ -78,6 +78,9 @@ const sized = (u, w, sizes) => {
   return `src="${esc(root(photoAt(u, w)))}" srcset="${esc(set.split(', ').map(root).join(', '))}" sizes="${sizes}"`;
 };
 const absolutePhoto = (u) => (/^https:\/\//.test(u) ? u : `${config.SITE_URL}/${u}`);
+// Link previews and search results get the 1200 px .webp copy (Oct 2026), not the original:
+// some originals are 600 KB+ or AVIF, which WhatsApp and Facebook previews may not show.
+const previewPhoto = (u) => absolutePhoto(photoAt(u, 1200) ?? u);
 // Database values only reach a style="" attribute after matching these exact shapes.
 const safeColour = (c) => (/^#[0-9a-f]{3,8}$/i.test(c) ? c : '#efefed');
 const safeFocus = (f) => (/^\d{1,3}(\.\d+)?% \d{1,3}(\.\d+)?%$/.test(f) ? f : '50% 50%');
@@ -104,7 +107,7 @@ function headTags(p) {
   // still escapes it so a product name can't end the block.
   const ld = {
     '@context': 'https://schema.org', '@type': 'Product', name: p.name, sku: p.sku,
-    image: [absolutePhoto(p.imageUrl)], description, brand: { '@type': 'Brand', name: p.brand.name },
+    image: [previewPhoto(p.imageUrl)], description, brand: { '@type': 'Brand', name: p.brand.name },
     offers: {
       '@type': 'Offer', url, priceCurrency: 'KES', price: String(p.priceKes),
       availability: p.totalStock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
@@ -121,7 +124,7 @@ function headTags(p) {
     `<meta property="og:title" content="${esc(`${p.name} — ${ksh(p.priceKes)}`)}" />`,
     `<meta property="og:description" content="${esc(description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
-    `<meta property="og:image" content="${esc(absolutePhoto(p.imageUrl))}" />`,
+    `<meta property="og:image" content="${esc(previewPhoto(p.imageUrl))}" />`,
     `<meta property="og:image:alt" content="${esc(p.name)}" />`,
     `<meta property="product:price:amount" content="${Number(p.priceKes)}" />`,
     '<meta property="product:price:currency" content="KES" />',
@@ -245,7 +248,7 @@ function recCardHtml(o) {
         <li class="product-card pd-rec" data-sku="${esc(o.sku)}">
           <div class="product-card__img" style="background-color:${safeColour(o.cardBg)}">${badge
             ? `<span class="product-card__badge product-card__badge--${badge}">${badge === 'sale' ? 'Sale' : 'New'}</span>` : ''}
-            <a class="card-photo-link" href="${url}" tabindex="-1" aria-hidden="true"><img class="nura-card-img" ${sized(o.imageUrl, 400, '(min-width: 1180px) 290px, (min-width: 541px) 50vw, 50vw')} alt="" loading="lazy" style="object-position:${safeFocus(o.imageFocus)}"></a>
+            <a class="card-photo-link" href="${url}" tabindex="-1" aria-hidden="true"><img class="nura-card-img" ${sized(o.imageUrl, 400, '(min-width: 1180px) 290px, (min-width: 961px) 25vw, 50vw')} alt="" loading="lazy" style="object-position:${safeFocus(o.imageFocus)}"></a>
             <button class="product__wish product-card__wish" data-wishlist-id="${esc(o.sku)}" data-wishlist-name="${esc(o.name)}" aria-label="Add ${esc(o.name)} to wishlist" aria-pressed="false" data-action="wishlist">${CARD_HEART}</button>
             ${o.totalStock > 0
               ? `<button type="button" class="product-card__overlay" data-action="add-to-cart" aria-label="Add ${esc(o.name)} to cart"><span class="card-add__label">Add to cart</span>${ADD_ICON}</button>`

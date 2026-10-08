@@ -45,11 +45,13 @@
     NURA.cart.add(c.value).then(function () {
       add.textContent = 'Added ✓';
       NURA.toast('Added to your cart: ' + (product ? product.name : 'item') + ', ' + c.dataset.size);
-      setTimeout(function () { add.textContent = 'Add to cart'; add.disabled = false; }, 1600);
+      // Back to "Add to cart" after a moment, unless refresh() found it has now sold out
+      // completely (the shopper took the last one): then it must stay "Sold out" (Oct 2026).
+      setTimeout(function () { if (add.dataset.soldOut) return; add.textContent = 'Add to cart'; add.disabled = false; }, 1600);
       refresh();
     }, function () {
       // cart.js has already shown the API's message (e.g. "Only 1 left in M").
-      add.textContent = 'Add to cart'; add.disabled = false;
+      if (!add.dataset.soldOut) { add.textContent = 'Add to cart'; add.disabled = false; }
       refresh();
     });
   });
@@ -67,7 +69,7 @@
         if (out && input.checked) input.checked = false;
         input.closest('.pd-chip').classList.toggle('is-out', out);
       });
-      if (d.product.totalStock === 0) { add.disabled = true; add.textContent = 'Sold out'; }
+      if (d.product.totalStock === 0) { add.disabled = true; add.textContent = 'Sold out'; add.dataset.soldOut = '1'; }
       describe();
     }, function () {});
   }

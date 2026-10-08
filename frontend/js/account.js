@@ -59,23 +59,22 @@
       + (hint ? '<span class="co-hint" id="' + id + 'Hint">' + hint + '</span>' : '') + '</div>';
   }
 
+  // Folded away until clicked (Oct 2026): a native <details>, so it opens with a click, a tap,
+  // Enter or Space, and screen readers announce it as expanded or collapsed with no extra code.
   function passwordCard() {
-    return '<section class="oc-card" aria-labelledby="acPw"><h2 id="acPw">Change password</h2>'
+    return '<section class="oc-card ac-fold-card"><details class="ac-fold" id="acPwFold"><summary><h2 id="acPw">Change password</h2>'
+      + '<svg class="ac-fold__chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></summary>'
       + '<form class="ac-form" id="acPwForm" novalidate>'
       + field('acPwCurrent', 'Current password', 'password', 'current-password')
       + field('acPwNew', 'New password', 'password', 'new-password', 'At least 8 characters. Your other devices will be signed out.')
       + '<p class="ac-msg" id="acPwMsg" role="status"></p>'
-      + '<button class="auth-submit" type="submit">Change password</button></form></section>';
+      + '<button class="auth-submit" type="submit">Change password</button></form></details></section>';
   }
 
   function deleteCard() {
     return '<section class="oc-card ac-danger" aria-labelledby="acDel"><h2 id="acDel">Delete account</h2>'
       + '<p class="oc-address">This deletes your login, saved cart, wishlist and newsletter subscription. Records of past orders are kept for our accounts and refunds, no longer linked to an account. It can’t be undone.</p>'
-      + '<button class="ac-danger__start" type="button" id="acDelStart" aria-expanded="false" aria-controls="acDelForm">Delete my account…</button>'
-      + '<form class="ac-form" id="acDelForm" novalidate hidden>'
-      + field('acDelPw', 'Enter your password to confirm', 'password', 'current-password')
-      + '<p class="ac-msg" id="acDelMsg" role="status"></p>'
-      + '<button class="auth-submit ac-danger__confirm" type="submit">Delete my account for good</button></form></section>';
+      + '<button class="ac-danger__start" type="button" id="acDelStart" aria-haspopup="dialog">Delete account</button></section>';
   }
 
   function show(account, orders) {
@@ -117,25 +116,23 @@
         .finally(function () { btn.disabled = false; });
     });
 
-    // Two steps on purpose: one button reveals the form, a second (with the password) deletes.
-    var start = document.getElementById('acDelStart'), del = document.getElementById('acDelForm');
-    start.addEventListener('click', function () {
-      del.hidden = false; start.hidden = true; start.setAttribute('aria-expanded', 'true');
-      document.getElementById('acDelPw').focus();
-    });
-    del.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var p = document.getElementById('acDelPw');
-      if (!p.value) { message('acDelMsg', 'Please enter your password.'); p.focus(); return; }
-      var btn = del.querySelector('button'); btn.disabled = true;
-      NURA.api('/account/delete', { method: 'POST', body: { password: p.value } }).then(function () {
-        main.innerHTML = '<section class="oc-card"><h1 class="co-title" id="acTitle" tabindex="-1" style="font-size:36px;">Your account has been deleted</h1>'
-          + '<p class="co-hint" style="margin-top:10px;font-size:13px;">Thank you for shopping with NURA. You’re welcome back any time.</p>'
-          + '<a class="co-link" href="index.html">Back to the shop &rarr;</a></section>';
-        document.getElementById('acTitle').focus();
-      }, function (err) {
-        message('acDelMsg', err.message);
-        btn.disabled = false;
+    // Delete account: the button opens "Are you sure?" (NURA.confirmDialog in ui.js), which also
+    // asks for the password. Nothing is deleted until both are given. A wrong password shows
+    // its message inside the box, which stays open.
+    document.getElementById('acDelStart').addEventListener('click', function () {
+      NURA.confirmDialog({
+        title: 'Delete your account?',
+        text: 'Are you sure you want to delete your account? Your login, saved cart, wishlist and newsletter subscription go for good. Records of past orders are kept, no longer linked to you. This can’t be undone.',
+        password: 'Enter your password to confirm',
+        confirm: 'Delete account',
+        onConfirm: function (password) {
+          return NURA.api('/account/delete', { method: 'POST', body: { password: password } }).then(function () {
+            main.innerHTML = '<section class="oc-card"><h1 class="co-title" id="acTitle" tabindex="-1" style="font-size:36px;">Your account has been deleted</h1>'
+              + '<p class="co-hint" style="margin-top:10px;font-size:13px;">Thank you for shopping with NURA. You’re welcome back any time.</p>'
+              + '<a class="nura-continue co-continue" href="index.html">Continue shopping <span aria-hidden="true">&rarr;</span></a></section>';
+            setTimeout(function () { document.getElementById('acTitle').focus(); }, 0);   // after the box hands focus back
+          });
+        },
       });
     });
   }

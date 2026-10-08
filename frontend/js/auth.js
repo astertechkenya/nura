@@ -16,28 +16,18 @@
   var currentUser = null;
 
   function syncNav() {
-    var mwlb = byId('mobWLBadge');
-    if (mwlb && NURA.wishlist) {
-      var wln = NURA.wishlist.count();
-      mwlb.textContent = wln; mwlb.className = 'mob-badge' + (wln > 0 ? ' visible' : '');
-    }
     var user = currentUser, icon = byId('accountIcon'), avatar = byId('accountAvatar');
-    var msi = byId('mobileSignIn'), mus = byId('mobileUserSection'), mun = byId('mobileUserName');
     if (!icon || !avatar) return;
+    if (!avatar.hasAttribute('aria-expanded')) avatar.setAttribute('aria-expanded', 'false');
     if (user) {
       avatar.textContent = user.name.split(/\s+/).filter(Boolean).map(function (w) { return w[0]; }).join('').toUpperCase().slice(0, 2);
       avatar.setAttribute('aria-label', 'My account: ' + user.name);
       avatar.classList.add('visible');
       icon.classList.add('hidden');
       if (byId('dropdownName')) byId('dropdownName').textContent = user.name;
-      if (msi) msi.style.display = 'none';
-      if (mus) mus.style.display = 'block';
-      if (mun) mun.textContent = user.name;
     } else {
       avatar.classList.remove('visible');
       icon.classList.remove('hidden');
-      if (msi) msi.style.display = 'block';
-      if (mus) mus.style.display = 'none';
     }
   }
 
@@ -95,6 +85,7 @@
     byId('authOverlay').classList.add('open');
     byId('authModal').classList.add('open');
     NURA.lockScroll(true);
+    NURA.panel.open(byId('authModal'), { focus: false });   // switchTab puts the cursor in the first field
     switchTab(tab || 'login');
   }
   function closeModal() {
@@ -103,6 +94,7 @@
     byId('authOverlay').classList.remove('open');
     m.classList.remove('open');
     NURA.lockScroll(false);
+    NURA.panel.close(m);
   }
   function showSuccess(title, sub) {
     FORMS.forEach(function (id) { if (byId(id)) byId(id).classList.add('hidden'); });
@@ -181,7 +173,7 @@
   }
 
   /* ── Account menu ─────────────────────────────────────────────────── */
-  function closeDropdown() { var dd = byId('authDropdown'); if (dd) dd.classList.remove('open'); }
+  function closeDropdown() { setDropdown(false); }
   function logout() {
     closeDropdown();
     return NURA.api('/auth/logout', { method: 'POST' })
@@ -195,12 +187,20 @@
   NURA.on('toggle-account', function () {
     if (!currentUser) { openModal('login'); return; }
     var dd = byId('authDropdown');
-    if (dd) dd.classList.toggle('open');
+    if (dd) setDropdown(!dd.classList.contains('open'));
   });
+  // The menu's open state is said on its button too (aria-expanded), and Escape closes it.
+  function setDropdown(open) {
+    var dd = byId('authDropdown'), avatar = byId('accountAvatar');
+    if (!dd) return;
+    dd.classList.toggle('open', open);
+    if (avatar) avatar.setAttribute('aria-expanded', String(open));
+  }
   document.addEventListener('click', function (e) {
     var wrap = document.querySelector('.nav__account-wrap'), dd = byId('authDropdown');
-    if (dd && wrap && !wrap.contains(e.target)) dd.classList.remove('open');
+    if (dd && wrap && !wrap.contains(e.target) && dd.classList.contains('open')) setDropdown(false);
   });
+  NURA.onEscape(function () { var dd = byId('authDropdown'); if (dd && dd.classList.contains('open')) setDropdown(false); });
   if (byId('loginForm')) byId('loginForm').addEventListener('submit', handleLogin);
   if (byId('signupForm')) byId('signupForm').addEventListener('submit', handleSignup);
   if (byId('forgotForm')) byId('forgotForm').addEventListener('submit', handleForgot);
@@ -224,7 +224,10 @@
 
   // Who is signed in? Asked once per page load. Until it answers, the nav shows "signed out".
   syncNav();
-  NURA.api('/auth/me').then(function (data) { setUser(data.user); }, function () { /* API asleep: stay signed-out looking */ });
+  // If it fails (API asleep), say "signed out" anyway: the cart counts this first answer as "who
+  // am I" and only reloads on a CHANGE after it, so without one a later sign-in looked like the
+  // first answer and the merged cart never appeared (Oct 2026).
+  NURA.api('/auth/me').then(function (data) { setUser(data.user); }, function () { setUser(null); });
 
   NURA.auth = { logout: logout, user: function () { return currentUser; } };
 })();

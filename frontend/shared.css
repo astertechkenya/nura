@@ -169,36 +169,15 @@ a.auth-dropdown__item{text-decoration:none;box-sizing:border-box;}
 .search-overlay__empty{grid-column:1/-1;text-align:center;padding:40px;font-family:var(--display);font-size:32px;letter-spacing:4px;color:#333;}
 @media(max-width:600px){.search-overlay__results{grid-template-columns:repeat(2,1fr);}.search-overlay__input{font-size:24px;}}
 @media(pointer:coarse){.cursor,.cursor-ring{display:none!important;}}
-}
-.mob-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:199;opacity:0;pointer-events:none;transition:opacity .3s ease;}
-.mob-menu-overlay.open{opacity:1;pointer-events:all;}
-to{right:0}
-.mobile-menu__close{align-self:flex-end;background:none;border:none;color:var(--muted);font-size:24px;line-height:1;cursor:none;margin-bottom:8px;padding:0;}
-.mobile-menu a{font-family:var(--display);font-size:36px;letter-spacing:3px;color:var(--black);text-decoration:none;width:100%;padding:10px 0;border-bottom:0.5px solid var(--light);transition:color var(--transition);display:block;}
-.mobile-menu a.sale-link{color:var(--red-sale);}
-.mobile-menu a:hover{color:var(--purple);}
-.mobile-menu__divider{margin:16px 0 8px;border:none;}
-.mobile-menu__action{background:none;border:0.5px solid var(--light);display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;cursor:none;transition:color var(--transition),border-color var(--transition);color:var(--black);margin-top:8px;box-sizing:border-box;}
-.mobile-menu__action:hover{color:var(--purple);border-color:var(--purple);}
-.mobile-menu__action--solid{background:var(--black);border-color:var(--black);color:var(--white);}
-.mobile-menu__action--solid:hover{background:var(--purple);border-color:var(--purple);color:var(--white);}
-.mob-action-text{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;flex:1;font-family:var(--sans);text-align:left;}
-.mob-badge{background:var(--purple);color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:none;align-items:center;justify-content:center;line-height:1;flex-shrink:0;}
-.mob-badge.visible{display:flex;}
-.mobile-menu__user-row{display:flex;align-items:center;gap:12px;padding:12px 0;}
-.mob-avatar{width:28px;height:28px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.mob-username{font-family:var(--sans);font-size:16px;font-weight:500;letter-spacing:0.5px;text-transform:none;color:var(--black);display:block;line-height:1.1;}
-.mob-signout{background:none;border:none;font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--red-sale);cursor:none;padding:0;display:block;margin-top:2px;}
 @media(max-width:960px){.cart-text{display:none;}}   /* the account icon now stays on phones too: the menu that held "Sign in" is gone */
 /* Phones (Oct 2026): the wishlist heart stays in the top bar, with its count, next to the cart.
    It used to be hidden here and only reachable through the menu. There was room for it: at
    360 px the gap between the logo and the icons was 89 px. Each icon also gets a 40 px tap
-   area (search and the menu were 26 px and 30x21), with the gaps cut from 16 px to 4 px so
+   area (search was 26 px), with the gaps cut from 16 px to 4 px so
    the row ends up no wider than before. (.nav .x outranks each page's own .x rule.) */
 @media(max-width:960px){
   .nav .nav__actions{gap:4px;}
   .nav .nav__icon{width:40px;height:40px;padding:0;justify-content:center;}
-  .nav .nav__toggle{width:40px;height:40px;padding:0;align-items:center;justify-content:center;}
   .nav .wishlist-badge{top:2px;right:0;}   /* on the 40 px button's corner, not off it */
 }
 /* The header heart: for 1.5 s after something new is saved (wishlist.js adds .pop), it fills
@@ -207,8 +186,6 @@ to{right:0}
 .nav__wish-wrap.pop svg{animation:wishPop .45s ease;}
 @keyframes wishPop{0%{transform:scale(1);}40%{transform:scale(1.35);}100%{transform:scale(1);}}
 @media(prefers-reduced-motion:reduce){.nav__wish-wrap.pop svg{animation:none;}}
-.mobile-menu{display:none;}
-@media(max-width:960px){.mobile-menu{display:none;flex-direction:column;position:fixed;top:0;right:0;bottom:0;width:80vw;max-width:320px;background:var(--bg);z-index:200;padding:28px 28px 40px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.12);}.mobile-menu.open{display:flex;}}
 
 /* ── Product cards (rendered by js/grid.js since Phase 7.5) ────────────── */
 /* Low stock: a quiet line under the price. */
@@ -380,3 +357,44 @@ button.product-card__overlay,button.product__overlay{border:0;width:100%;font-fa
 }
 @media(max-width:600px){body:has(.tabbar) .nura-toast{bottom:calc(64px + env(safe-area-inset-bottom,0px));}}   /* messages pop up above the bar */
 @media(prefers-reduced-motion:reduce){.tabbar{transition:none;}}
+
+/* Continue shopping (Oct 2026): one button wherever the shopper is sent back to the shop:
+   the checkout, order and account headers, an empty cart, the end of an order, a reset
+   password. A rectangle in the text's own colour (currentColor), so the same class reads as
+   white on the black headers and black on the white cards. Hover/focus fill it purple with
+   black text, like the admin's Sign out: black on this purple is 7.6:1, white only 2.8:1. */
+.nura-continue{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border:1.5px solid currentColor;
+  font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;line-height:1;
+  color:var(--black);text-decoration:none;white-space:nowrap;transition:background-color .15s,border-color .15s,color .15s;}
+.nura-continue:hover,.nura-continue:focus-visible{background:var(--purple);border-color:var(--purple);color:var(--black)!important;}
+.nura-continue:focus-visible{outline:2px solid var(--black);outline-offset:2px;}
+
+/* Cart and wishlist rows open the product page (Oct 2026): the photo and the name are links.
+   The name looks as it did; it underlines on hover/focus so it reads as a link when it matters. */
+a.item-photo{display:block;}
+.item-link{color:inherit;text-decoration:none;}
+.item-link:hover,.item-link:focus-visible{text-decoration:underline;text-underline-offset:3px;}
+.item-link:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+a.item-photo:hover img{opacity:.85;}
+
+/* "Are you sure?" box (Oct 2026), opened by NURA.confirmDialog in ui.js. Same look as the
+   Sign out box; the confirm button is red, because everything it's used for can't be undone. */
+.nura-confirm{border:0;padding:32px 28px;max-width:400px;width:calc(100% - 32px);background:var(--bg);color:var(--black);text-align:left;
+  margin:auto;max-height:calc(100% - 32px);overflow:auto;}   /* margin:auto centres it: the pages' reset (margin:0 on everything) had removed the browser's own */
+.nura-confirm::backdrop{background:rgba(0,0,0,.55);}
+.nura-confirm__title{font-family:var(--display);font-weight:400;font-size:28px;letter-spacing:3px;text-transform:uppercase;margin:0 0 10px;}
+.nura-confirm__text{font-family:var(--sans);font-size:13px;line-height:1.6;color:#555;margin:0 0 20px;}
+.nura-confirm__label{display:block;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+.nura-confirm__input{width:100%;}
+.nura-confirm__msg{min-height:18px;margin:8px 0 12px;font-size:12px;font-weight:600;color:var(--red-sale);}
+.nura-confirm__actions{display:flex;gap:12px;}
+.nura-confirm__actions button{flex:1;padding:13px 10px;font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:background .2s,border-color .2s;}
+.nura-confirm__cancel{border:1px solid var(--light);background:none;color:var(--black);}
+.nura-confirm__cancel:hover{background:var(--light);}
+.nura-confirm__ok{border:1px solid var(--red-sale);background:var(--red-sale);color:var(--white);}
+.nura-confirm__ok:hover{background:#a50d0d;border-color:#a50d0d;}
+.nura-confirm__actions button:disabled{opacity:.5;cursor:not-allowed;}
+.nura-confirm__actions button:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+
+/* The account menu (Oct 2026): both choices in capitals, like the name above them. */
+.auth-dropdown__item{text-transform:uppercase;letter-spacing:1.5px;font-size:11px;font-weight:600;}

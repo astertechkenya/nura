@@ -18,6 +18,13 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Photos (Oct 2026): kept for a day without asking, then re-checked in the background while the
+# old copy is shown. Before, every page view re-asked about every photo (a round trip each, on
+# mobile in Kenya). Not "immutable": a hero or product photo can be replaced under the same name,
+# and a day is the longest anyone would see the old one.
+/images/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
 # Shared scripts change between deploys; make browsers check for a new version.
 /js/*
   Cache-Control: public, max-age=0, must-revalidate

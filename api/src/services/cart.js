@@ -118,6 +118,7 @@ export async function loadCart(cartId) {
       variant: { id: r.variantId, size: r.size, stock: r.stock },
       product: {
         sku: r.sku, slug: r.slug, name: r.name, brand: r.brand,
+        isActive: r.isActive,   // false: taken off the shop; the cart shows it without a link to its page
         priceKes: price.priceKes, compareAtKes: price.compareAtKes, imageUrl: r.imageUrl, cardBg: r.cardBg,
       },
       lineTotalKes: buyable ? price.priceKes * r.qty : 0,
@@ -148,7 +149,6 @@ export async function loadCart(cartId) {
 export async function mergeGuestCart(req, res, userId) {
   const token = guestToken(req);
   if (!token) return;
-  res.clearCookie(GUEST_COOKIE, cookieOptions());   // either way, this browser is no longer a guest
 
   await db.transaction(async (tx) => {
     const [guest] = await tx.select({ id: carts.id }).from(carts).where(eq(carts.guestToken, sha256(token)));
@@ -173,6 +173,8 @@ export async function mergeGuestCart(req, res, userId) {
     }
     await tx.delete(carts).where(eq(carts.id, guest.id));   // its lines go with it (cascade)
   });
+  // Only now, after the commit: if the merge had failed, the guest cart would still be reachable.
+  res.clearCookie(GUEST_COOKIE, cookieOptions());
 }
 
 /** One line of this cart (with its variant's stock), or null if the id isn't in this cart. */

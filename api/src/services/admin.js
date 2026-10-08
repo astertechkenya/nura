@@ -28,6 +28,8 @@ export function audited(tx, admin, action, entity, entityId, before, after) {
 
 export const maskEmail = (e) => (e ? e.replace(/^(.)[^@]*(@.*)$/, '$1•••$2') : e);
 export const maskPhone = (p) => (p ? `${p.slice(0, 4)}••••${p.slice(-2)}` : p);
+/** Phone numbers and email addresses inside free text, hidden. */
+export const maskContacts = (t) => (t ? t.replace(/\S+@\S+/g, '•••').replace(/\+?\d[\d\s-]{6,}\d/g, '•••') : t);
 export const maskName = (n) => (n ? n.split(/\s+/).map((w, i) => (i === 0 ? w : `${w[0]}.`)).join(' ') : n);
 
 /* ── What an admin may do next with an order ────────────────────────────────────── */
@@ -46,19 +48,22 @@ export function actionsFor(o) {
 /* ── Reads ─────────────────────────────────────────────────────────────────────── */
 
 export async function summary() {
-  const byStatus = Object.fromEntries((await db.execute(sql`
-    select status, count(*)::int as n from orders group by status`)).rows.map((r) => [r.status, r.n]));
-  const [{ refunds }] = (await db.execute(sql`select count(*)::int as refunds from orders where refund_status = 'DUE'`)).rows;
-  const [{ flagged }] = (await db.execute(sql`select count(*)::int as flagged from payments where status = 'FLAGGED'`)).rows;
-  const lowStock = (await db.execute(sql`
-    select p.id, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
-    where p.is_active and v.stock <= 3 order by v.stock, p.name limit 20`)).rows;
-  // Takings: orders whose money is in (paid by M-Pesa/card, or COD delivered), last 7 days.
-  const [{ week }] = (await db.execute(sql`
-    select coalesce(sum(total_kes), 0)::int as week from orders
-    where status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
-      and (payment_method <> 'COD' or status = 'DELIVERED')
-      and created_at > now() - interval '7 days'`)).rows;
+  // Five independent counts: run them together (one round trip's wait instead of five).
+  const [statusRows, [{ refunds }], [{ flagged }], lowStock, [{ week }]] = (await Promise.all([
+    db.execute(sql`select status, count(*)::int as n from orders group by status`),
+    db.execute(sql`select count(*)::int as refunds from orders where refund_status = 'DUE'`),
+    db.execute(sql`select count(*)::int as flagged from payments where status = 'FLAGGED'`),
+    db.execute(sql`
+      select p.id, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
+      where p.is_active and v.stock <= 3 order by v.stock, p.name limit 20`),
+    // Takings: orders whose money is in (paid by M-Pesa/card, or COD delivered), last 7 days.
+    db.execute(sql`
+      select coalesce(sum(total_kes), 0)::int as week from orders
+      where status in ('PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED')
+        and (payment_method <> 'COD' or status = 'DELIVERED')
+        and created_at > now() - interval '7 days'`),
+  ])).map((r) => r.rows);
+  const byStatus = Object.fromEntries(statusRows.map((r) => [r.status, r.n]));
   return {
     toDo: (byStatus.AWAITING_COD ?? 0) + (byStatus.PAID ?? 0) + (byStatus.PROCESSING ?? 0),
     byStatus, refundsDue: refunds, flaggedPayments: flagged, lowStock, takingsLast7DaysKes: week,
@@ -76,7 +81,11 @@ export async function listOrders({ status, q, limit = 50, offset = 0 }, masked) 
   else if (status) where.push(eq(orders.status, status));
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    where.push(or(ilike(orders.number, like), ilike(orders.customerName, like), ilike(orders.phone, like), ilike(orders.email, like)));
+    // The demo admin searches order numbers only (Oct 2026). Searching the hidden email, phone
+    // and full name would let it confirm them anyway ("does jane@x.com have an order?"), or
+    // rebuild a phone number one digit at a time, even though the results show them masked.
+    where.push(masked ? ilike(orders.number, like)
+      : or(ilike(orders.number, like), ilike(orders.customerName, like), ilike(orders.phone, like), ilike(orders.email, like)));
   }
   const rows = await db.select({
     id: orders.id, number: orders.number, status: orders.status, paymentMethod: orders.paymentMethod,
@@ -91,23 +100,24 @@ export async function listOrders({ status, q, limit = 50, offset = 0 }, masked) 
 export async function orderDetail(id, masked) {
   const [o] = await db.select().from(orders).where(eq(orders.id, id));
   if (!o) return null;
-  const items = await db.select({
+  // Items, payments, history and emails don't depend on each other: one round trip's wait.
+  const [items, pays, events, emails] = await Promise.all([db.select({
     sku: orderItems.sku, name: orderItems.name, size: orderItems.size, qty: orderItems.qty,
     unitPriceKes: orderItems.unitPriceKes, imageUrl: products.imageUrl, cardBg: products.cardBg,
   }).from(orderItems).leftJoin(products, eq(orderItems.productId, products.id))
-    .where(eq(orderItems.orderId, id)).orderBy(orderItems.name);
-  const pays = await db.select({
+    .where(eq(orderItems.orderId, id)).orderBy(orderItems.name),
+  db.select({
     id: payments.id, provider: payments.provider, status: payments.status, amountKes: payments.amountKes,
     receivedKes: payments.receivedKes, receipt: payments.receipt,
     resultCode: payments.resultCode, failureReason: payments.failureReason, phone: payments.phone, createdAt: payments.createdAt,
-  }).from(payments).where(eq(payments.orderId, id)).orderBy(payments.createdAt);
-  const events = await db.select({
+  }).from(payments).where(eq(payments.orderId, id)).orderBy(payments.createdAt),
+  db.select({
     from: orderEvents.fromStatus, to: orderEvents.toStatus, note: orderEvents.note, at: orderEvents.createdAt, by: users.name,
   }).from(orderEvents).leftJoin(users, eq(orderEvents.actorId, users.id))
-    .where(eq(orderEvents.orderId, id)).orderBy(orderEvents.createdAt);
+    .where(eq(orderEvents.orderId, id)).orderBy(orderEvents.createdAt),
   // Which emails the customer got: "did they get the shipped email?" answered without guessing.
-  const emails = await db.select({ kind: orderEmails.kind, status: orderEmails.status, at: orderEmails.createdAt })
-    .from(orderEmails).where(eq(orderEmails.orderId, id)).orderBy(orderEmails.createdAt);
+  db.select({ kind: orderEmails.kind, status: orderEmails.status, at: orderEmails.createdAt })
+    .from(orderEmails).where(eq(orderEmails.orderId, id)).orderBy(orderEmails.createdAt)]);
   const m = (v, f) => (masked ? f(v) : v);
   return {
     id: o.id, number: o.number, status: o.status, paymentMethod: o.paymentMethod, refundStatus: o.refundStatus,
@@ -120,7 +130,9 @@ export async function orderDetail(id, masked) {
     items: items.map((i) => ({ ...i, lineTotalKes: i.unitPriceKes * i.qty })),
     subtotalKes: o.subtotalKes, shippingKes: o.shippingKes, totalKes: o.totalKes,
     payments: pays.map((p) => ({ ...p, phone: m(p.phone, maskPhone) })),
-    events,
+    // History notes are typed by admins ("called Jane on 0712…"): for the demo admin, phone
+    // numbers and email addresses inside them are hidden like everywhere else.
+    events: masked ? events.map((e) => ({ ...e, note: maskContacts(e.note) })) : events,
     emails,
     actions: actionsFor(o),
   };
@@ -360,41 +372,78 @@ export async function setStock(admin, variantId, stock) {
   });
 }
 
-/* ── Bulk stock (Oct 2026) ─────────────────────────────────────────────────────────
-   A stock count done in a spreadsheet: download every size's stock as CSV, change the numbers,
-   upload it back. Two steps on purpose: the upload is first CHECKED (apply = false) and the
-   admin sees exactly what will change; only then is it applied, all or nothing, in one
-   transaction, with one audit entry per size changed (the same entry a single edit makes). */
+/* ── Deleting a product (Oct 2026) ─────────────────────────────────────────────
+   For a product added by mistake, or one the shop will never sell again. ("Shown in shop"
+   is still the way to take something off the site for a while: it keeps everything.)
+   What a delete does, and why it's safe:
+     - Past orders keep their lines: order_items store their own sku, name, size and price,
+       and its link to the product is set to null (onDelete: 'set null'). An old order shows
+       the line without a photo.
+     - Its sizes go with it (cascade), and so does the product from shoppers' carts and
+       wishlists: nobody can check out a product that no longer exists.
+   What it refuses: a product in an order that is still open (awaiting payment, cash on
+   delivery, paid, packing, on its way). Cancelling or expiring such an order puts its stock
+   back through order_items.variant_id; with the sizes deleted there would be nowhere to put
+   it, and the stock would silently vanish. Hide it now and delete it once those orders end. */
+const OPEN = ['PENDING_PAYMENT', 'AWAITING_COD', 'PAID', 'PROCESSING', 'SHIPPED'];
 
-/** Every size of every product, for the spreadsheet: sku, name, size, stock. */
-export async function stockSheet() {
-  const rows = (await db.execute(sql`
-    select p.sku, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
-    order by substring(p.sku from '[0-9]+$')::int nulls last, p.sku,
-             array_position(ARRAY[${sql.join(SIZES.map((z) => sql`${z}`), sql`, `)}]::text[], v.size)`)).rows;   // sizes in shop order: S before M before L
-  return [['sku', 'name', 'size', 'stock'], ...rows.map((r) => [r.sku, r.name, r.size, r.stock])]
-    .map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+export async function deleteProduct(admin, id) {
+  return db.transaction(async (tx) => {
+    const p = await tx.query.products.findFirst({ where: eq(products.id, id), with: { brand: true, variants: true } });
+    if (!p) throw httpError(404, 'Product not found. It may already have been deleted.');
+    // Lock the row: no order can be placed for it between this check and the delete.
+    await tx.select({ id: products.id }).from(products).where(eq(products.id, id)).for('update');
+    const [{ n }] = (await tx.execute(sql`
+      select count(distinct o.id)::int as n from order_items i join orders o on o.id = i.order_id
+      where i.product_id = ${id} and o.status in (${sql.join(OPEN.map((st) => sql`${st}`), sql`, `)})`)).rows;
+    if (n > 0) {
+      throw httpError(409, `${p.name} is in ${n} open order${n === 1 ? '' : 's'}. Untick “Shown in shop” to take it off the site now, and delete it once ${n === 1 ? 'that order is' : 'those orders are'} delivered or cancelled.`);
+    }
+    await tx.delete(products).where(eq(products.id, id));
+    // The audit entry keeps what was deleted, since the product itself is gone.
+    await audited(tx, admin, 'product.delete', 'product', id, {
+      sku: p.sku, name: p.name, brand: p.brand.name, priceKes: p.priceKes, isActive: p.isActive,
+      sizes: p.variants.map((v) => ({ size: v.size, stock: v.stock })),
+    }, null);
+  });
 }
 
+/* ── Restock (Oct 2026) ────────────────────────────────────────────────────────
+   The Restock tab: a table of every size's stock, edited in place, saved together. (It
+   replaced a download-a-spreadsheet, upload-it-back flow.) Saved all or nothing, in one
+   transaction, with one audit entry per size changed (the same entry a single edit makes).
+
+   Each row can say what the stock WAS when the admin opened the table (expect). The shop
+   keeps selling while someone counts: if a size sold in the meantime, writing the counted
+   number blindly would undo that sale's stock change. So a size that moved since is refused,
+   with its number now, and nothing is saved until the admin has looked again. */
+
 /**
- * rows: [{ sku, size, stock }] from the uploaded sheet (already shape-checked by the route).
+ * rows: [{ sku, size, stock, expect? }] (already shape-checked by the route).
  * Returns { changes: [{ sku, name, size, from, to }], unchanged, errors: [text] }. With
  * apply = true and no errors, writes the changes.
  */
 export async function bulkStock(admin, rows, apply) {
   const run = async (tx) => {
+    // Only the products named in the save (Oct 2026): locking every size in the shop would make
+    // all checkouts wait while a restock is written.
+    const skus = [...new Set(rows.map((r) => r.sku))];
     const current = (await tx.execute(sql`
       select v.id, p.sku, p.name, v.size, v.stock from product_variants v join products p on p.id = v.product_id
+      where p.sku in (${sql.join(skus.map((k) => sql`${k}`), sql`, `)})
       ${apply ? sql`for update of v` : sql``}`)).rows;
     const byKey = new Map(current.map((v) => [`${v.sku}|${v.size}`, v]));
     const seen = new Set(), errors = [], changes = [];
     let unchanged = 0;
-    rows.forEach((r, i) => {
-      const key = `${r.sku}|${r.size}`, line = `Row ${i + 2}`;   // row 1 is the header
+    rows.forEach((r) => {
+      const key = `${r.sku}|${r.size}`;
       const v = byKey.get(key);
-      if (!v) return errors.push(`${line}: no size “${r.size}” for “${r.sku}”.`);
-      if (seen.has(key)) return errors.push(`${line}: ${r.sku} ${r.size} appears twice.`);
+      if (!v) return errors.push(`${r.sku} ${r.size}: no such size. It may have been deleted.`);
+      if (seen.has(key)) return errors.push(`${r.sku} ${r.size} appears twice.`);
       seen.add(key);
+      if (r.expect !== undefined && v.stock !== r.expect) {
+        return errors.push(`${v.name} ${r.size}: changed while you were editing (was ${r.expect}, now ${v.stock}). Probably a sale.`);
+      }
       if (v.stock === r.stock) unchanged++;
       else changes.push({ id: v.id, sku: v.sku, name: v.name, size: v.size, from: v.stock, to: r.stock });
     });

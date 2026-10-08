@@ -49,5 +49,3 @@ export function clientIp(req) {
   return req.ip;
 }
 
-/** True when the request came through the Netlify proxy (useful for logs and tests). */
-export const viaNetlify = (req) => Boolean(verifyNetlifySignature(req.get('x-nf-sign')));

@@ -8,7 +8,7 @@
   <link rel="preload" href="fonts/dm-sans-v17-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/dm-sans-v17-latin-700.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="fonts/bebas-neue-v16-latin-regular.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="images/hero-street-1600.webp" imagesrcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w" imagesizes="(max-aspect-ratio: 16/9) 180vh, 100vw" fetchpriority="high" />
+  <link rel="preload" as="image" href="images/hero-street-1600.webp" imagesrcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w" imagesizes="(max-width: 860px) 100vh, (max-aspect-ratio: 16/9) 180vh, 100vw" fetchpriority="high" />
   <link rel="stylesheet" href="fonts.css" />
   <link rel="stylesheet" href="shared.css" />
   <style>
@@ -143,18 +143,10 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       transition: background var(--transition);
     }
 .nav__cart:hover { background: var(--purple); }
-.mobile-menu__label {
-      font-size: 9px; font-weight: 700; letter-spacing: 3px;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 20px;
-    }
-.mobile-menu a {
-      font-family: var(--display); font-size: 36px; letter-spacing: 3px;
-      color: var(--black); text-decoration: none; width: 100%;
-      padding: 10px 0; border-bottom: 0.5px solid var(--light);
-      transition: color var(--transition); display: block;
-    }
-.mobile-menu a.sale-link { color: var(--red-sale); }
-.mobile-menu a:hover { color: var(--purple); }
+
+
+
+
 .hero {
       /* One photo, full width, the text set over a dark fade on its left (Option B, Oct 2026).
          The fade sits where the street is darkest and the group isn't, so the headline never
@@ -289,6 +281,22 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
    100% its right), so each one's people land in the clear part. ---- */
 .hero .hero__photo--women { object-position: 62% 30%; }   /* desktop: her at about 3/4 across; phone: her, centred */
 .hero .hero__photo--men   { object-position: 55% 30%; }   /* desktop: the group clear of the fade; phone: the man in grey at the front */
+/* Phones: every hero photo zoomed out to the same height (Oct 2026). The photos are wide
+   (1.8 : 1 to 2.4 : 1); filling the whole tall frame blew them up until only a sliver showed
+   (two or three of the men). Here each fills the top 60% instead: the frame is wider for its
+   height, so cover crops far less. The same height on all three keeps the photo edge and the
+   text in the same place as the slides turn. The bottom edge fades out (mask) into the hero's
+   black, where the headline sits, so there is no hard line and the text never crosses a face.
+   .hero in front: the men's focus point outranks its desktop rule above. If this 60% changes,
+   change the (max-width: 860px) values in the slides' sizes= (and the preload) to match. */
+@media (max-width: 860px) {
+      .hero .hero__photo {
+        height: 60%;
+        -webkit-mask-image: linear-gradient(to bottom, #000 52%, transparent 92%);
+                mask-image: linear-gradient(to bottom, #000 52%, transparent 92%);
+      }
+      .hero .hero__photo--men { object-position: 50% 30%; }   /* the whole group, centred */
+    }
 /* Same black strip, longer fade. Slide 1's photo happens to start on a dark doorway, so its
    short fade melts in; these photos start on sunlit street and stone, and the same fade
    leaves a visible edge at 30%. So their fade runs further (to 60% instead of 55%) and stays
@@ -333,8 +341,8 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 .hero-playing a.nav-hero-current::after { animation: heroUnderline var(--hero-interval, 5s) linear; }
 .hero-held a.nav-hero-current::after { animation-play-state: paused; }
 @keyframes heroUnderline { from { width: 0; } to { width: 100%; } }
-.img-ph { background: var(--muted); border-radius: 1px; }
-.img-ph--dark { background: #c0c0be; }
+
+
 .section-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 28px 40px 16px;
@@ -397,13 +405,8 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 .product__overlay { position:absolute; bottom:0; left:0; right:0; background:var(--black); color:var(--white); padding:12px; text-align:center; font-size:9px; font-weight:700; letter-spacing:2px; text-transform:uppercase; transform:translateY(100%); transition:transform .3s ease; cursor:none; }
 .product:hover .product__overlay { transform:translateY(0); }
 .product__overlay:hover { background:var(--purple); }
-.product__badge {
-      position: absolute; top: 12px; left: 12px;
-      background: var(--purple); color: var(--white);
-      font-size: 8px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; padding: 4px 10px; z-index: 1;
-    }
-.product__badge--sale { background: var(--red-sale); }
+
+
 .product-card__badge { position:absolute; top:12px; left:12px; background:var(--purple); color:var(--white); font-size:8px; font-weight:700; letter-spacing:2px; text-transform:uppercase; padding:4px 10px; z-index:1; }
 .product-card__badge--new  { background: var(--purple); }
 .product-card__badge--sale { background: var(--red-sale); }
@@ -429,15 +432,9 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       font-size: 12px; color: var(--muted);
       text-decoration: line-through; margin-left: 8px;
     }
-.product__add {
-      width: 100%; margin-top: 12px;
-      background: transparent; border: 1px solid var(--light);
-      color: var(--muted); padding: 10px;
-      font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
-      transition: border-color var(--transition), color var(--transition), background var(--transition);
-    }
-.product:hover .product__add { border-color: var(--black); color: var(--black); }
-.product__add.added { background: var(--purple); color: var(--white); border-color: var(--purple); }
+
+
+
 .newsletter {
       padding: 80px 40px; text-align: center;
       position: relative; overflow: hidden;
@@ -503,8 +500,8 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
       .newsletter__form { flex-direction: column; }
       .newsletter__btn { padding: 14px; }
     }
-.search-overlay__label{font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#444;margin-bottom:12px;}
-.search-overlay__hint{margin-top:16px;font-size:10px;color:#333;letter-spacing:1px;text-align:center;}
+
+
 </style>
 </head>
 <body>
@@ -548,7 +545,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
         <button class="nav__avatar" id="accountAvatar" aria-label="My account" data-action="toggle-account"></button>
         <div class="auth-dropdown" id="authDropdown">
           <div class="auth-dropdown__name" id="dropdownName"></div>
-          <a class="auth-dropdown__item" href="account.html">My account &amp; orders</a>
+          <a class="auth-dropdown__item" href="account.html">My account</a>
           <button class="auth-dropdown__item auth-dropdown__logout" data-action="open-signout">Sign out</button>
         </div>
       </div>
@@ -716,9 +713,9 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
           <!-- The original was 1376 px; these copies come from a 2x Real-ESRGAN upscale (2752 px). -->
           <img class="hero__photo" src="images/hero-street-1600.webp"
                srcset="images/hero-street-800.webp 800w, images/hero-street-1600.webp 1600w, images/hero-street-2400.webp 2400w, images/hero-street-2752.webp 2752w"
-               sizes="(max-aspect-ratio: 16/9) 180vh, 100vw"
+               sizes="(max-width: 860px) 100vh, (max-aspect-ratio: 16/9) 180vh, 100vw"
                alt="Five people in tailored coats and suits walking down a city street"
-               width="2752" height="1536" fetchpriority="high" decoding="async">
+               width="2752" height="1536" fetchpriority="high">
           <div class="hero__text">
             <p class="hero__season">SS26 Collection</p>
             <h2 class="hero__title">DRESS<br>LIKE YOU<br><span>MEAN IT</span></h2>
@@ -739,7 +736,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
              wider than the screen's shape, so they are drawn by height (about 2.4x the hero's height). -->
         <div class="hero__slide hero__slide--women" role="group" aria-roledescription="slide" aria-label="2 of 3">
           <img class="hero__photo hero__photo--women" data-srcset="images/hero-women-800.webp 800w, images/hero-women-1600.webp 1600w, images/hero-women-2400.webp 2400w, images/hero-women-3168.webp 3168w"
-               sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
+               sizes="(max-width: 860px) 130vh, (max-aspect-ratio: 16/9) 240vh, 100vw"
                alt="A woman in a wide black hat and sunglasses, a red and green print bustier and a black blazer over her shoulders, on a sunny city street"
                width="3168" height="1344" decoding="async">
           <div class="hero__text">
@@ -755,7 +752,7 @@ body.cursor-hover .cursor-ring { width: 52px; height: 52px; opacity: 0.7; }
 
         <div class="hero__slide hero__slide--men" role="group" aria-roledescription="slide" aria-label="3 of 3">
           <img class="hero__photo hero__photo--men" data-srcset="images/hero-men-800.webp 800w, images/hero-men-1600.webp 1600w, images/hero-men-2400.webp 2400w, images/hero-men-3168.webp 3168w"
-               sizes="(max-aspect-ratio: 16/9) 240vh, 100vw"
+               sizes="(max-width: 860px) 130vh, (max-aspect-ratio: 16/9) 240vh, 100vw"
                alt="Six bearded men in tailored suits, waistcoats and hats on the steps of a brownstone"
                width="3168" height="1344" decoding="async">
           <div class="hero__text">

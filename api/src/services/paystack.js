@@ -15,7 +15,9 @@ const TIMEOUT_MS = 15_000;
 export const CHANNELS = ['card', 'apple_pay'];
 
 export class PaystackError extends Error {
-  constructor(message, { status, body } = {}) { super(message); this.status = status; this.body = body; }
+  // providerStatus, not status: the error handler treats .status as OUR answer to the browser,
+  // so a Paystack/Safaricom 401 would reach the shopper as a 401, unlogged. Ours is a 500, logged.
+  constructor(message, { status, body } = {}) { super(message); this.providerStatus = status; this.body = body; }
 }
 
 async function call(method, path, payload) {

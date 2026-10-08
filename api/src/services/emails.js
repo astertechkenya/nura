@@ -13,7 +13,9 @@ import { inBackground, sendMail } from './mail.js';
 
 // Everything that goes into HTML passes through here: a product or customer name is data,
 // never markup. (A name like <img onerror=…> must arrive as text.)
-export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// One escaping function for every HTML the API writes (pages and emails): lib/html.js.
+import { esc } from '../lib/html.js';
+export { esc };
 export const ksh = (n) => `KSh ${Number(n).toLocaleString('en-KE')}`;
 const firstName = (name) => String(name ?? '').trim().split(/\s+/)[0] || 'there';
 const localPhone = (p) => { const m = /^254(\d{3})(\d{3})(\d{3})$/.exec(String(p)); return m ? `0${m[1]} ${m[2]} ${m[3]}` : p; };
@@ -163,11 +165,19 @@ export function queueOrderEmail(orderId, kind) {
     // Claim first: the primary key (order_id, kind) lets exactly one caller through.
     const claimed = await db.insert(orderEmails).values({ orderId, kind }).onConflictDoNothing().returning();
     if (!claimed.length) return 'duplicate';
-    const o = { ...(await loadOrder(orderId)), paid: await paidOn(orderId) };
-    const status = await sendMail(orderMessage(kind, o));
-    await db.update(orderEmails).set({ status })
+    const mark = (status) => db.update(orderEmails).set({ status })
       .where(and(eq(orderEmails.orderId, orderId), eq(orderEmails.kind, kind)));
-    return status;
+    try {
+      const o = { ...(await loadOrder(orderId)), paid: await paidOn(orderId) };
+      const status = await sendMail(orderMessage(kind, o));
+      await mark(status);
+      return status;
+    } catch (err) {
+      // Claimed but not sent (a database hiccup while building it): say so, so the admin's
+      // "Emails to the customer" shows failed rather than queued forever. inBackground logs it.
+      await mark('failed').catch(() => {});
+      throw err;
+    }
   });
 }
 

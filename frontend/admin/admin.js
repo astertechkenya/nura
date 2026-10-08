@@ -1,5 +1,5 @@
-/* NURA admin.js: the whole admin, one page, four screens (#dashboard, #orders, #products,
-   #activity) plus one order (#order/<id>).
+/* NURA admin.js: the whole admin, one page: #dashboard, #orders, #insights, #products,
+   #restock, #customers and #activity, plus one order (#order/<id>) and #product/new.
 
    This page decides nothing. Every button asks the API, which checks the role, the two-factor
    code, and whether the move is allowed, then answers with the new state to draw. A demo admin
@@ -30,13 +30,29 @@
     clearTimeout(toast.timer); toast.timer = setTimeout(function () { t.classList.remove('show'); }, 3500);
   }
   var pill = function (status) { return '<span class="adm-pill adm-pill--' + esc(status) + '">' + esc(STATUS[status] || status) + '</span>'; };
-  var when = function (d) { return new Date(d).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short' }); };
+  // Nairobi time on every device (a phone set to another zone showed shifted order times).
+  var when = function (d) { return new Date(d).toLocaleString('en-KE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi' }); };
   function ago(d) {
     var m = Math.round((Date.now() - new Date(d)) / 60000);
     return m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago';
   }
+  /** "12" → 12; anything that isn't a plain whole number ("1e3", "2.5", "") → NaN. */
+  var wholeNumber = function (v) { v = String(v).trim(); return /^\d+$/.test(v) ? Number(v) : NaN; };
   var localPhone = function (p) { var m = String(p).match(/^254(\d{3})(\d{3})(\d{3})$/); return m ? '0' + m[1] + ' ' + m[2] + ' ' + m[3] : p; };
-  var api = function (path, opts) { return NURA.api('/admin' + path, opts); };
+  var screen = 0;                       // bumped by route(): which screen a read belongs to
+  var api = function (path, opts) {
+    var mine = screen, read = !opts || !opts.method || opts.method === 'GET';
+    return NURA.api('/admin' + path, opts).then(function (d) {
+      // A read for a screen that's gone: never settle, so nothing draws over the current one.
+      // (Writes always settle: the change happened, and their redraws check onScreen().)
+      return read && mine !== screen ? new Promise(function () {}) : d;
+    }, function (err) {
+      if (read && mine !== screen && err.status !== 401) return new Promise(function () {});
+      throw err;
+    });
+  };
+  /** Is this screen (e.g. 'products', 'order/<id>') still the one showing? */
+  var onScreen = function (path) { return location.hash.replace(/^#/, '').split('?')[0] === path; };
 
   /* ── Getting in: sign in, then the 6-digit code ─────────────────────────────── */
   function showLogin(message) {
@@ -68,6 +84,9 @@
     input.focus();
     document.getElementById('admTotp').addEventListener('submit', function (e) {
       e.preventDefault();
+      var btn = this.querySelector('button');
+      if (btn.disabled) return;
+      btn.disabled = true;
       api('/totp', { method: 'POST', body: { code: input.value.replace(/\D/g, '') } }).then(start, function (err) { showCode(err.message); });
     });
   }
@@ -91,13 +110,23 @@
       } else main.innerHTML = '<p class="adm-alert" role="alert">' + esc(err.message) + '</p>';
     });
   }
-  function signOut() { NURA.api('/auth/logout', { method: 'POST' }).catch(function () {}).then(function () { location.hash = ''; showLogin(); }); }
+  function signedOutState() {
+    me = null; pending = {};              // a back button must not redraw the old admin's screens
+    document.getElementById('admSignOut').hidden = true;
+    document.getElementById('admRole').hidden = true;
+  }
+  function signOut() {
+    NURA.api('/auth/logout', { method: 'POST' }).catch(function () {}).then(function () {
+      signedOutState(); history.replaceState(null, '', location.pathname); showLogin();
+    });
+  }
   document.getElementById('admSignOut').addEventListener('click', signOut);
 
   /** Any request can find the session expired or the code needed: go back to the right step. */
   function failed(err) {
-    if (err.status === 401 && err.message.indexOf('code') > -1) return showCode();
-    if (err.status === 401) return showLogin(err.message);
+    // needsTotp comes from the API (errors.js), passed on by api.js: no guessing from the wording.
+    if (err.status === 401 && (err.needsTotp || err.message.indexOf('code') > -1)) return showCode();
+    if (err.status === 401) { signedOutState(); return showLogin(err.message); }
     toast(err.message);
   }
 
@@ -128,7 +157,7 @@
         + '<h2 class="adm-h2">Low stock</h2>'
         + (s.lowStock.length
           ? s.lowStock.map(function (v) { return '<div class="adm-log">' + esc(v.name) + ' · ' + esc(v.size) + ': <strong>' + Number(v.stock) + ' left</strong></div>'; }).join('')
-            + '<a class="adm-back" href="#products" style="margin-top:8px;">Restock in Products →</a>'
+            + '<a class="adm-back" href="#restock?show=low" style="margin-top:8px;">Restock →</a>'
           : '<p class="adm-muted">Nothing is running low.</p>');
     }, failed);
   }
@@ -138,10 +167,12 @@
 
   function orders(query) {
     setTab('orders');
-    var status = query.status != null ? query.status : 'TODO', q = query.q || '';
+    var status = query.status != null ? query.status : 'TODO', q = query.q || '', page = Math.max(1, parseInt(query.page, 10) || 1);
     var params = [];
     if (status) params.push('status=' + encodeURIComponent(status));
     if (q) params.push('q=' + encodeURIComponent(q));
+    if (page > 1) params.push('page=' + page);
+    var here = '#orders?status=' + encodeURIComponent(status) + (q ? '&q=' + encodeURIComponent(q) : '');
     main.innerHTML = '<h1 class="adm-h1">Orders</h1>'
       + '<nav class="adm-filters" aria-label="Filter orders">' + FILTERS.map(function (f) {
         return '<a class="adm-chip" href="#orders?status=' + f[0] + (q ? '&q=' + encodeURIComponent(q) : '') + '"'
@@ -157,7 +188,7 @@
     });
     api('/orders' + (params.length ? '?' + params.join('&') : '')).then(function (d) {
       var list = document.getElementById('admList');
-      if (!d.orders.length) { list.innerHTML = '<p class="adm-muted">No orders here.</p>'; return; }
+      if (!d.orders.length) { list.innerHTML = '<p class="adm-muted">' + (page > 1 ? 'No older orders.' : 'No orders here.') + '</p>'; return; }
       list.innerHTML = d.orders.map(function (o) {
         return '<a class="adm-order" href="#order/' + esc(o.id) + '">'
           + '<span><span class="adm-order__no">' + esc(o.number) + '</span> ' + pill(o.status)
@@ -166,14 +197,22 @@
           + '<span class="adm-order__who">' + esc(o.customerName) + ' · ' + esc(o.area) + ', ' + esc(o.county) + '</span><span></span>'
           + '<span class="adm-order__meta">' + Number(o.itemCount) + ' item' + (o.itemCount === 1 ? '' : 's') + ' · ' + esc(METHOD[o.paymentMethod]) + ' · ' + esc(ago(o.placedAt)) + '</span>'
           + '</a>';
-      }).join('');
-    }, failed);
+      }).join('')
+        // 50 to a page (the API's page size): Newer / Older, like Customers.
+        + ((page > 1 || d.orders.length === 50) ? '<div class="adm-pager">'
+          + (page > 1 ? '<a class="adm-back" href="' + here + '&page=' + (page - 1) + '">← Newer</a>' : '<span></span>')
+          + (d.orders.length === 50 ? '<a class="adm-back" href="' + here + '&page=' + (page + 1) + '">Older →</a>' : '') + '</div>' : '');
+    }, function (err) {
+      var list = document.getElementById('admList');
+      if (list && err.status !== 401) list.innerHTML = '<p class="adm-alert" role="alert">' + esc(err.message) + '</p>';
+      failed(err);
+    });
   }
 
   function order(id) {
     setTab('orders');
     api('/orders/' + encodeURIComponent(id)).then(function (d) { drawOrder(d.order); }, function (err) {
-      if (err.status === 404) main.innerHTML = '<a class="adm-back" href="#orders">← Orders</a><p class="adm-alert">Order not found.</p>';
+      if (err.status === 404 || err.status === 400) main.innerHTML = '<a class="adm-back" href="#orders">← Orders</a><p class="adm-alert">Order not found.</p>';
       else failed(err);
     });
   }
@@ -245,51 +284,77 @@
           + '<input class="auth-input adm-note" id="admNote" maxlength="300" placeholder="Note for the history (optional)">'
           + actions.map(function (a) {
             var danger = a.to === 'CANCELLED';
-            return '<button class="adm-btn' + (danger ? ' adm-btn--danger' : '') + '" type="button" data-act="' + esc(a.action) + '" data-to="' + esc(a.to) + '">'
+            return '<button class="adm-btn' + (danger ? ' adm-btn--danger' : '') + '" type="button"' + (danger ? ' aria-haspopup="dialog"' : '') + ' data-act="' + esc(a.action) + '" data-to="' + esc(a.to) + '">'
               + esc(ACTION[a.action === 'cod-collected' ? 'cod-collected' : a.to]) + '</button>';
           }).join('')
           + (refund ? '<button class="adm-btn adm-btn--quiet" type="button" data-act="refunded">Refund paid back</button>' : '')
           + '</div>'
         : '');
 
+    // Final decisions ask "Are you sure?" first (NURA.confirmDialog, js/ui.js): the same box as
+    // Delete product and the shop's Delete account. Nothing is sent until the red button in it
+    // is pressed; if the API refuses, its reason shows in the box.
+    var kshOf = function (n) { return ksh(Number(n) || 0); };
+    function confirmThen(opts, send) {
+      NURA.confirmDialog({ title: opts.title, text: opts.text, confirm: opts.confirm, cancel: opts.cancel, onConfirm: function () {
+        return send().then(function (d) {
+          setTimeout(function () { toast(opts.done(d)); if (onScreen('order/' + o.id)) { drawOrder(d.order); main.focus(); } }, 0);   // after the box closes
+        }, function (err) {
+          if (err.status === 401) { failed(err); return; }
+          throw err;
+        });
+      } });
+    }
+    var noteBody = function (body) {
+      var n = document.getElementById('admNote');
+      if (n && n.value.trim()) body.note = n.value.trim();
+      return body;
+    };
+
     main.querySelectorAll('[data-flag]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        // Both decisions are final: the first tap arms the button, the second confirms.
-        if (!btn.classList.contains('is-arming')) {
-          var label = btn.textContent;
-          btn.classList.add('is-arming'); btn.textContent = 'Tap again to confirm';
-          setTimeout(function () { btn.classList.remove('is-arming'); btn.textContent = label; }, 4000);
-          return;
-        }
-        var noteBox = document.getElementById('admNote');
-        var body = { paymentId: btn.dataset.payment, decision: btn.dataset.flag };
-        if (noteBox && noteBox.value.trim()) body.note = noteBox.value.trim();
-        main.querySelectorAll('[data-flag],[data-act]').forEach(function (b) { b.disabled = true; });
-        api('/orders/' + encodeURIComponent(o.id) + '/flagged', { method: 'POST', body: body }).then(function (d) {
-          toast(body.decision === 'accept' ? 'Payment accepted: order is paid' : 'Payment rejected: refund due');
-          drawOrder(d.order);
-          main.focus();
-        }, function (err) { failed(err); order(o.id); });
+        var accept = btn.dataset.flag === 'accept';
+        var pay = (o.payments || []).filter(function (p) { return p.id === btn.dataset.payment; })[0] || {};
+        var got = pay.receivedKes != null ? kshOf(pay.receivedKes) : 'the amount received';
+        confirmThen({
+          title: accept ? 'Accept this payment?' : 'Reject this payment?',
+          text: accept
+            ? 'Are you sure you want to accept ' + got + ' as payment for ' + o.number + ' (the order total is ' + kshOf(o.totalKes) + ')? The order becomes paid and the customer gets their confirmation email. This can’t be undone.'
+            : 'Are you sure you want to reject this payment of ' + got + '? It is marked to be refunded, and the customer is emailed. This can’t be undone.',
+          confirm: accept ? 'Accept payment' : 'Reject payment',
+          done: function () { return accept ? 'Payment accepted: order is paid' : 'Payment rejected: refund due'; },
+        }, function () {
+          return api('/orders/' + encodeURIComponent(o.id) + '/flagged', { method: 'POST', body: noteBody({ paymentId: btn.dataset.payment, decision: btn.dataset.flag }) });
+        });
       });
     });
 
     main.querySelectorAll('[data-act]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        // Cancelling can't be undone: the first tap arms the button, the second confirms.
-        if (btn.dataset.to === 'CANCELLED' && !btn.classList.contains('is-arming')) {
-          btn.classList.add('is-arming'); btn.textContent = 'Tap again to cancel';
-          setTimeout(function () { btn.classList.remove('is-arming'); btn.textContent = ACTION.CANCELLED; }, 4000);
-          return;
+        var act = btn.dataset.act;
+        var send = function () {
+          return api('/orders/' + encodeURIComponent(o.id) + '/' + act, { method: 'POST', body: noteBody(act === 'transition' ? { to: btn.dataset.to } : {}) });
+        };
+        var done = function (d) { return act === 'refunded' ? 'Refund recorded' : 'Order is now: ' + (STATUS[d.order.status] || d.order.status); };
+        if (btn.dataset.to === 'CANCELLED') {
+          // Cancelling can't be undone. Say what it does to THIS order: paid ones owe a refund.
+          var paid = (o.payments || []).some(function (p) { return p.status === 'PAID'; });
+          return confirmThen({
+            title: 'Cancel this order?',
+            text: 'Are you sure you want to cancel ' + o.number + '? Its items go back into stock and the customer is emailed that it’s cancelled.'
+              + (paid ? ' They have already paid, so the order will show a refund of ' + kshOf(o.totalKes) + ' due, for you to pay back.' : '')
+              + ' This can’t be undone.',
+            confirm: 'Cancel order',
+            cancel: 'Keep order',            // not "Cancel": next to "Cancel order" that would be ambiguous
+            done: done,
+          }, send);
         }
-        var act = btn.dataset.act, note = document.getElementById('admNote').value.trim();
-        var body = act === 'transition' ? { to: btn.dataset.to } : {};
-        if (note) body.note = note;
-        main.querySelectorAll('[data-act]').forEach(function (b) { b.disabled = true; });
-        api('/orders/' + encodeURIComponent(o.id) + '/' + act, { method: 'POST', body: body }).then(function (d) {
-          toast(act === 'refunded' ? 'Refund recorded' : 'Order is now: ' + (STATUS[d.order.status] || d.order.status));
-          drawOrder(d.order);
-          main.focus();
-        }, function (err) { failed(err); order(o.id); });
+        // Every other step goes straight through, as before.
+        main.querySelectorAll('[data-act],[data-flag]').forEach(function (b) { b.disabled = true; });
+        send().then(function (d) {
+          toast(done(d));
+          if (onScreen('order/' + o.id)) { drawOrder(d.order); main.focus(); }
+        }, function (err) { failed(err); if (err.status !== 401 && onScreen('order/' + o.id)) order(o.id); });
       });
     });
   }
@@ -318,13 +383,12 @@
   var DEPTS = [['WOMEN', 'Women'], ['MEN', 'Men'], ['UNISEX', 'Unisex']];
 
   function drawProducts(list) {
-    var off = me.masked ? ' disabled' : '';
     var count = function (d) { return list.filter(function (p) { return p.department === d; }).length; };
     main.innerHTML = '<div class="adm-titlebar"><h1 class="adm-h1">Products</h1>'
-      + '<span class="adm-titlebar__actions"><a class="adm-btn adm-btn--quiet adm-btn--small" href="#stock">Bulk stock</a>'
-      + (me.masked ? '' : ' <a class="adm-btn adm-btn--small" href="#product/new">+ Add a product</a>') + '</span></div>'
+      + '<span class="adm-titlebar__actions">'
+      + (me.masked ? '' : '<a class="adm-btn adm-btn--small" href="#product/new">+ Add a product</a>') + '</span></div>'
       + (me.masked ? '<p class="adm-notice">Demo: you can look, but prices and stock can’t be changed.</p>'
-                   : '<p class="adm-muted" style="margin-bottom:14px;">Stock saves as soon as you leave the box. Prices and sale dates save with the button.</p>')
+                   : '<p class="adm-muted" style="margin-bottom:14px;">Stock saves as soon as you leave the box (to change many sizes at once, use <a href="#restock">Restock</a>). Prices and sale dates save with the button.</p>')
       // Search and department chips filter the list in place (no reload, nothing sent anywhere).
       + '<div class="adm-search" role="search"><input class="auth-input" type="search" id="admPQ" placeholder="Search name, brand or code (nura-012)" aria-label="Search products" value="' + esc(productQuery.q || '') + '"></div>'
       + '<div class="adm-filters" role="group" aria-label="Department">'
@@ -391,10 +455,38 @@
           + '<span class="adm-hint">A blank line starts a new paragraph. The first ~155 characters show in Google and WhatsApp previews.</span>'
           + (me.masked ? '' : '<button class="adm-btn adm-btn--small" type="submit">Save description</button>')
           + ' <a class="adm-muted" href="/p/' + encodeURIComponent(p.slug) + '" target="_blank" rel="noopener">View page ↗</a></form></details>'
+          // Delete: last, away from Save, and it asks "Are you sure?" first (see wireProducts).
+          + (me.masked ? '' : '<div class="adm-delete"><button class="adm-btn adm-btn--danger adm-btn--small" type="button" data-delete aria-haspopup="dialog">Delete product</button>'
+            + '<span class="adm-hint">For good: it leaves the shop, carts and wishlists. Past orders keep their lines. To take it off the site for a while, untick “Shown in shop” instead.</span></div>')
           + '</article>';
   }
 
   function wireProducts() {
+    // Delete: the button opens "Are you sure?" (NURA.confirmDialog, js/ui.js), the same box the
+    // shop uses for Delete account. Nothing happens until Delete product is pressed in it.
+    // If the API refuses (the product is in an open order), the reason shows in the box.
+    main.querySelectorAll('[data-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var card = btn.closest('[data-id]'), name = card.querySelector('.adm-product__name').textContent;
+        NURA.confirmDialog({
+          title: 'Delete this product?',
+          text: 'Are you sure you want to delete ' + name + '? It leaves the shop, and shoppers’ carts and wishlists, for good. Past orders keep their lines. This can’t be undone.',
+          confirm: 'Delete product',
+          onConfirm: function () {
+            return api('/products/' + card.dataset.id, { method: 'DELETE' }).then(function (d) {
+              setTimeout(function () {
+                toast('Deleted: ' + name);
+                if (!onScreen('products')) return;
+                productQuery.q = document.getElementById('admPQ').value; drawProducts(d.products); main.focus();
+              }, 0);
+            }, function (err) {
+              if (err.status === 401) { failed(err); return; }
+              throw err;                                // shown inside the box
+            });
+          },
+        });
+      });
+    });
     main.querySelectorAll('[data-desc]').forEach(function (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -404,7 +496,10 @@
           .then(function () {
             toast('Description saved. It’s on the product page now.');
             var pill = form.closest('details').querySelector('summary .adm-pill');
-            if (pill && form.description.value.trim()) pill.remove();
+            // The "missing" pill follows what was saved: gone when there's text, back when cleared.
+            var summary = form.closest('details').querySelector('summary');
+            if (form.description.value.trim()) { if (pill) pill.remove(); }
+            else if (!pill) summary.insertAdjacentHTML('beforeend', ' <span class="adm-pill adm-pill--refund">missing</span>');
           }, failed)
           .finally(function () { btn.disabled = false; });
       });
@@ -414,9 +509,13 @@
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var id = form.closest('[data-id]').dataset.id;
-        var price = parseInt(form.price.value, 10), was = form.was.value.trim() ? parseInt(form.was.value, 10) : null;
+        var price = wholeNumber(form.price.value), was = form.was.value.trim() ? wholeNumber(form.was.value) : null;
         if (!(price > 0)) { toast('Enter a price in whole shillings.'); return; }
+        if (was !== null && !(was > 0)) { toast('Enter the “was” price in whole shillings, or leave it empty.'); return; }
         var body = { priceKes: price, compareAtKes: was };
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn.disabled) return;
+        btn.disabled = true;
         // Dates go only with a sale; removing the "Was" price removes them on the server too.
         if (was) { body.saleStartsAt = fromInput(form.starts.value); body.saleEndsAt = fromInput(form.ends.value); }
         api('/products/' + id, { method: 'PATCH', body: body })
@@ -427,16 +526,19 @@
               form.querySelector('.adm-hint').innerHTML = 'Leave “Was” empty when it isn’t on sale. Dates are optional (Nairobi time): outside them it sells at the “Was” price. ' + saleState(fresh);
               form.starts.value = toInput(fresh.saleStartsAt); form.ends.value = toInput(fresh.saleEndsAt);
             }
-          }, failed);
+          }, failed)
+          .finally(function () { btn.disabled = false; });
       });
     });
     main.querySelectorAll('[data-visible]').forEach(function (box) {
       box.addEventListener('change', function () {
         var card = box.closest('[data-id]');
+        box.disabled = true;                   // one change at a time: no two PATCHes racing
         api('/products/' + card.dataset.id, { method: 'PATCH', body: { isActive: box.checked } }).then(function () {
           card.classList.toggle('is-hidden', !box.checked);
           toast(box.checked ? 'Showing on the site' : 'Hidden from the site');
-        }, function (err) { box.checked = !box.checked; failed(err); });
+        }, function (err) { box.checked = !box.checked; failed(err); })
+          .finally(function () { box.disabled = false; });
       });
     });
     main.querySelectorAll('[data-photo]').forEach(function (input) {
@@ -444,9 +546,14 @@
         var card = input.closest('[data-id]'), file = input.files[0];
         if (!file) return;
         toast('Uploading photo…');
+        input.disabled = true;                 // a second photo mid-upload would start a second upload
         uploadPhoto(file).then(function (publicId) {
           return api('/products/' + card.dataset.id + '/image', { method: 'PUT', body: { publicId: publicId } });
-        }).then(function (d) { productQuery.q = document.getElementById('admPQ').value; drawProducts(d.products); toast('Photo changed'); }, function (err) { input.value = ''; failed(err); });
+        }).then(function (d) {
+          toast('Photo changed');
+          if (!onScreen('products')) return;
+          productQuery.q = document.getElementById('admPQ').value; drawProducts(d.products); main.focus();
+        }, function (err) { input.value = ''; input.disabled = false; failed(err); });
       });
     });
     main.querySelectorAll('[data-focus]').forEach(function (sel) {
@@ -459,8 +566,8 @@
     });
     main.querySelectorAll('[data-variant]').forEach(function (input) {
       input.addEventListener('change', function () {
-        var n = parseInt(input.value, 10);
-        if (!(n >= 0)) { input.value = input.dataset.was; toast('Stock is a whole number, 0 or more.'); return; }
+        var n = wholeNumber(input.value);
+        if (!(n >= 0 && n <= 9999)) { input.value = input.dataset.was; toast('Stock is a whole number from 0 to 9999.'); return; }
         api('/variants/' + input.dataset.variant, { method: 'PATCH', body: { stock: n } }).then(function () {
           input.dataset.was = n;
           input.className = n === 0 ? 'is-out' : n <= 3 ? 'is-low' : '';
@@ -601,9 +708,9 @@
       e.preventDefault();
       err.hidden = true;
       var file = photo.files[0];
-      var price = parseInt(form.price.value, 10), was = form.was.value.trim() ? parseInt(form.was.value, 10) : null;
+      var price = wholeNumber(form.price.value), was = form.was.value.trim() ? wholeNumber(form.was.value) : null;
       var sizes = Array.prototype.filter.call(form.querySelectorAll('[data-size]'), function (i) { return i.value.trim() !== ''; })
-        .map(function (i) { return { size: i.dataset.size, stock: parseInt(i.value, 10) }; });
+        .map(function (i) { return { size: i.dataset.size, stock: wholeNumber(i.value) }; });
       // The same rules as the API, checked first so the photo isn't uploaded for a form that will be refused.
       if (!file) return show('Choose a photo for the product.', photo);
       if (form.name.value.trim().length < 2) return show('Enter a product name.', form.name);
@@ -666,7 +773,7 @@
               + (c.orderCount && !me.masked ? '<a href="#orders?status=&q=' + encodeURIComponent(c.email) + '">' + orders + '</a>' : orders)
               + ' · ' + esc(ksh(c.spentKes)) + ' paid'
               + (c.lastOrderAt ? ' · last ' + esc(ago(c.lastOrderAt)) : '')
-              + ' · joined ' + esc(new Date(c.memberSince).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })) + '</p></li>';
+              + ' · joined ' + esc(new Date(c.memberSince).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Nairobi' })) + '</p></li>';
           }).join('') + '</ul>' : '<p class="adm-muted">No customers here.</p>')
         + (d.total > page * 50 || page > 1 ? '<nav class="adm-pager" aria-label="Pages">'
             + (page > 1 ? '<a class="adm-chip" href="#customers?page=' + (page - 1) + (q ? '&q=' + encodeURIComponent(q) : '') + '">← Newer</a>' : '<span></span>')
@@ -685,8 +792,9 @@
       var line = function (a) {
         var b = a.before || {}, f = a.after || {};
         var what = Object.keys(f).map(function (k) { return k + ': ' + JSON.stringify(b[k]) + ' → ' + JSON.stringify(f[k]); }).join(', ');
+        if (a.action === 'product.delete') what = 'deleted “' + b.name + '” (' + b.brand + ')';
         return '<div class="adm-log"><strong>' + esc(a.action) + '</strong> · ' + esc(what)
-          + (b.sku ? ' <span class="adm-muted">(' + esc(b.sku) + ' ' + esc(b.size || '') + ')</span>' : '')
+          + (b.sku ? ' <span class="adm-muted">(' + esc(b.sku) + (b.size ? ' ' + esc(b.size) : '') + ')</span>' : '')
           + (a.entity === 'order' ? ' · <a href="#order/' + esc(a.entityId) + '">open order</a>' : '')
           + '<small>' + esc(a.by) + ' · ' + esc(when(a.at)) + '</small></div>';
       };
@@ -776,7 +884,7 @@
       tip.hidden = false;
       var box = cols.getBoundingClientRect(), c = col.getBoundingClientRect();
       var x = c.left - box.left + c.width / 2;
-      tip.style.left = Math.min(Math.max(x, 80), box.width - 80) + 'px';
+      tip.style.left = (cols.offsetLeft + Math.min(Math.max(x, 80), box.width - 80)) + 'px';
       cols.querySelectorAll('.ins-col.is-on').forEach(function (o) { o.classList.remove('is-on'); });
       col.classList.add('is-on');
     }
@@ -787,97 +895,184 @@
     });
   }
 
-  /* ── Bulk stock (Oct 2026): download the sheet, change numbers, upload, check, apply ── */
-  function stockScreen() {
-    setTab('products');
-    main.innerHTML = '<a class="adm-back" href="#products">← Products</a><h1 class="adm-h1">Bulk stock</h1>'
-      + '<ol class="ins-steps">'
-      + '<li><a class="adm-btn adm-btn--quiet adm-btn--small" href="/api/admin/stock.csv" download>Download the stock sheet</a> <span class="adm-muted">every size of every product, as a spreadsheet</span></li>'
-      + '<li>Change the numbers in the <strong>stock</strong> column. You can delete rows you aren’t changing; leave the sku, size and stock columns as they are.</li>'
-      + '<li>' + (me.masked ? '<span class="adm-muted">Demo: uploading is switched off.</span>'
-          : '<label class="adm-btn adm-btn--small adm-file">Upload the sheet<input type="file" accept=".csv,text/csv" class="adm-file__input" id="stockFile"></label>')
-      + ' <span class="adm-muted">Nothing changes yet: you’ll see exactly what will, first.</span></li></ol>'
-      + '<div id="stockResult"></div>';
-    if (me.masked) return;
-    var file = document.getElementById('stockFile'), out = document.getElementById('stockResult');
-    var rows = null;
-    file.addEventListener('change', function () {
-      var f = file.files[0];
-      if (!f) return;
-      f.text().then(function (text) {
-        try { rows = parseStockCsv(text); } catch (err) { out.innerHTML = '<p class="adm-alert">' + esc(err.message) + '</p>'; file.value = ''; return; }
-        return api('/stock/bulk', { method: 'POST', body: { rows: rows, apply: false } }).then(showCheck);
-      }).catch(failed).finally(function () { file.value = ''; });
-    });
-    function showCheck(r) {
-      if (r.errors.length) {
-        out.innerHTML = '<p class="adm-alert">The sheet has ' + r.errors.length + ' problem' + (r.errors.length === 1 ? '' : 's') + '. Nothing was changed. Fix ' + (r.errors.length === 1 ? 'it' : 'them') + ' and upload again.</p>'
-          + r.errors.map(function (e) { return '<div class="adm-log">' + esc(e) + '</div>'; }).join('');
-        return;
-      }
-      if (!r.changes.length) { out.innerHTML = '<p class="adm-notice">Every number matches the shop already: nothing to change.</p>'; return; }
-      out.innerHTML = '<h2 class="adm-h2">' + r.changes.length + ' change' + (r.changes.length === 1 ? '' : 's') + '</h2>'
-        + '<p class="adm-muted" style="margin-bottom:8px;">' + r.unchanged + ' other row' + (r.unchanged === 1 ? '' : 's') + ' already match.</p>'
-        + '<table class="ins-table"><thead><tr><th>Product</th><th>Size</th><th>Now</th><th>New</th></tr></thead><tbody>'
-        + r.changes.map(function (c) {
-            return '<tr><td>' + esc(c.name) + ' <span class="adm-muted">' + esc(c.sku) + '</span></td><td>' + esc(c.size) + '</td><td>' + c.from + '</td><td><strong>' + c.to + '</strong></td></tr>';
-          }).join('') + '</tbody></table>'
-        + '<button class="adm-btn" id="stockApply" style="margin-top:12px;">Apply ' + r.changes.length + ' change' + (r.changes.length === 1 ? '' : 's') + '</button>';
-      var btn = document.getElementById('stockApply');
-      btn.addEventListener('click', function () {
-        btn.disabled = true;
-        api('/stock/bulk', { method: 'POST', body: { rows: rows, apply: true } }).then(function (done) {
-          if (!done.applied) return showCheck(done);              // something changed since the check
-          out.innerHTML = '<p class="adm-notice">Done: ' + done.changes.length + ' size' + (done.changes.length === 1 ? '' : 's') + ' updated. Each one is in Activity.</p>';
-          toast('Stock updated');
-        }, function (err) { btn.disabled = false; failed(err); });
-      });
-    }
+  /* ── Restock (Oct 2026): every size's stock in one table, edited in place, saved together ──
+     Typing changes nothing on the shop: changed sizes turn purple and wait for "Save". The save
+     sends only the changed sizes, each with the number it showed when the table was loaded
+     (expect), and the API refuses any size that has sold since, so a count can't undo a sale.
+     Unsaved numbers live in `pending`, outside the screen: switching tabs and coming back
+     keeps them (closing or reloading the page warns first). */
+  var pending = {};                          // variantId → { value, was, sku, size }
+  var pendingCount = function () { return Object.keys(pending).length; };
+  window.addEventListener('beforeunload', function (e) { if (pendingCount()) { e.preventDefault(); e.returnValue = ''; } });
+
+  var LOW = 3;                               // the same line as the dashboard's "Low stock"
+  var stockClass = function (n) { return n === 0 ? 'is-out' : n <= LOW ? 'is-low' : ''; };
+
+  var saving = false;                         // a Restock save is on its way
+  function restock(query) {
+    setTab('restock');
+    var view = { q: '', dept: '', low: (query || {}).show === 'low', conflicts: [] };
+    api('/products').then(function (d) { drawRestock(d.products, view); }, failed);
   }
 
-  /** The stock sheet → [{ sku, size, stock }]. Handles quoted cells, as spreadsheets write them. */
-  function parseStockCsv(text) {
-    var lines = [], row = [], cell = '', q = false;
-    text = text.replace(/^﻿/, '');                       // Excel's byte-order mark
-    for (var i = 0; i < text.length; i++) {
-      var ch = text[i];
-      if (q) {
-        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
-        else if (ch === '"') q = false;
-        else cell += ch;
-      } else if (ch === '"') q = true;
-      else if (ch === ',') { row.push(cell); cell = ''; }
-      else if (ch === '\n' || ch === '\r') {
-        if (ch === '\r' && text[i + 1] === '\n') i++;
-        row.push(cell); lines.push(row); row = []; cell = '';
-      } else cell += ch;
+  function drawRestock(list, view) {
+    var off = me.masked ? ' disabled' : '';
+    // Low = a product on the shop with a size at 3 or fewer: the same rule as the dashboard's list.
+    var isLow = function (p) { return p.isActive && p.variants.some(function (v) { return v.stock <= LOW; }); };
+    var lowCount = list.filter(isLow).length;
+    var chip = function (attr, val, label, n, on) {
+      return '<button type="button" class="adm-chip" ' + attr + '="' + val + '" aria-pressed="' + on + '">' + label + ' <span class="adm-muted">' + n + '</span></button>';
+    };
+    main.innerHTML = '<h1 class="adm-h1">Restock</h1>'
+      + (me.masked ? '<p class="adm-notice">Demo: you can look, but stock can’t be changed.</p>'
+                   : '<p class="adm-muted" style="margin-bottom:14px;">Change any numbers, then save them together. Changed sizes turn purple; nothing changes on the shop until you save.</p>')
+      + '<div id="rsConflicts"></div>'
+      + '<div class="adm-search" role="search"><input class="auth-input" type="search" id="rsQ" placeholder="Search name, brand or code (nura-012)" aria-label="Search products"></div>'
+      // "Low or sold out" first: on a phone the row scrolls sideways, and this is the filter a
+      // restock starts from. It's a separate on/off switch, so it combines with a department.
+      + '<div class="adm-filters" role="group" aria-label="Show">'
+      + chip('data-low', '1', 'Low or sold out', lowCount, view.low) + '<span class="rs-sep" aria-hidden="true"></span>'
+      + chip('data-dept', '', 'All', list.length, true)
+      + DEPTS.map(function (d) { return chip('data-dept', d[0], d[1], list.filter(function (p) { return p.department === d[0]; }).length, false); }).join('')
+      + '</div>'
+      + '<p class="adm-muted" id="rsNone" hidden>No products match.</p>'
+      + '<table class="rs-table"><caption class="sr-only">Stock of every size. Low is ' + LOW + ' or fewer.</caption>'
+      + '<thead><tr><th scope="col">Product</th><th scope="col">Stock by size</th><th scope="col" class="rs-num">Total</th></tr></thead><tbody>'
+      + list.map(function (p) {
+          var low = isLow(p);
+          return '<tr data-dept="' + esc(p.department) + '" data-low="' + low + '" data-search="' + esc((p.name + ' ' + p.brand + ' ' + p.sku).toLowerCase()) + '">'
+            + '<th scope="row" class="rs-name">' + esc(p.name) + '<small>' + esc(p.brand) + ' · ' + esc(p.sku)
+            + (p.isActive ? '' : ' · <span class="adm-pill">hidden</span>') + '</small></th>'
+            + '<td><div class="adm-stock rs-sizes">' + p.variants.map(function (v) {
+                return '<label>' + esc(v.size) + '<input type="number" min="0" max="9999" step="1" inputmode="numeric" class="' + stockClass(v.stock) + '"'
+                  + ' data-variant="' + esc(v.id) + '" data-sku="' + esc(p.sku) + '" data-size="' + esc(v.size) + '" data-was="' + Number(v.stock) + '"'
+                  + ' value="' + Number(v.stock) + '" aria-label="Stock, ' + esc(p.name) + ', ' + esc(v.size) + '"' + off + '></label>';
+              }).join('') + '</div></td>'
+            + '<td class="rs-num" data-total></td></tr>';
+        }).join('') + '</tbody></table>'
+      + (me.masked ? '' : '<div class="rs-bar" id="rsBar" hidden><span id="rsCount" aria-live="polite"></span>'
+          + '<button type="button" class="adm-btn adm-btn--quiet adm-btn--small" id="rsUndo">Undo all</button>'
+          + '<button type="button" class="adm-btn adm-btn--small" id="rsSave">Save changes</button></div>');
+
+    var inputs = [].slice.call(main.querySelectorAll('[data-variant]'));
+    // Typed numbers for sizes that no longer exist (the product was deleted) are dropped: they
+    // could never be saved, and would block every later save.
+    var here = {};
+    inputs.forEach(function (i) { here[i.dataset.variant] = true; });
+    Object.keys(pending).forEach(function (id) { if (!here[id]) delete pending[id]; });
+    // Bring back numbers typed before (another tab, or a save that was refused). A size that
+    // has moved since keeps the typed number, now checked against the new stock, and is marked.
+    inputs.forEach(function (i) {
+      var p = pending[i.dataset.variant];
+      if (!p) return;
+      var now = Number(i.dataset.was);
+      if (p.was !== now) { i.classList.add('is-conflict'); i.title = 'Changed while you were editing: was ' + p.was + ', now ' + now; p.was = now; }
+      i.value = p.value;
+    });
+    if (view.conflicts.length) {
+      document.getElementById('rsConflicts').innerHTML = '<div class="adm-alert" role="alert"><strong>Nothing was saved.</strong> '
+        + 'The table now shows the latest numbers; your typed numbers are kept. Check the ones outlined in red, then save again.'
+        + '<ul class="rs-errors">' + view.conflicts.map(function (e) { return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></div>';
+      view.conflicts = [];
     }
-    if (cell || row.length) { row.push(cell); lines.push(row); }
-    lines = lines.filter(function (l) { return l.some(function (c) { return c.trim(); }); });
-    var head = (lines.shift() || []).map(function (h) { return h.trim().toLowerCase(); });
-    var at = { sku: head.indexOf('sku'), size: head.indexOf('size'), stock: head.indexOf('stock') };
-    if (at.sku < 0 || at.size < 0 || at.stock < 0) throw new Error('This doesn’t look like the stock sheet: it needs sku, size and stock columns. Download it again from step 1.');
-    if (!lines.length) throw new Error('The sheet has no rows.');
-    return lines.map(function (l, n) {
-      var v = (l[at.stock] || '').trim();
-      if (!/^\d+$/.test(v)) throw new Error('Row ' + (n + 2) + ': stock “' + v + '” isn’t a whole number of 0 or more.');
-      return { sku: (l[at.sku] || '').trim(), size: (l[at.size] || '').trim(), stock: parseInt(v, 10) };
+
+    function refresh(input) {                 // one size: its colour, and whether it's changed
+      var n = Number(input.value), was = Number(input.dataset.was);
+      var valid = input.value !== '' && /^\d+$/.test(input.value) && n <= 9999;
+      input.classList.toggle('is-invalid', !valid);
+      input.classList.toggle('is-changed', valid && n !== was);
+      input.classList.remove('is-out', 'is-low');
+      if (valid && n === was) { var c = stockClass(n); if (c) input.classList.add(c); }
+      if (valid && n !== was) pending[input.dataset.variant] = { value: n, was: was, sku: input.dataset.sku, size: input.dataset.size };
+      else if (valid) { delete pending[input.dataset.variant]; input.classList.remove('is-conflict'); input.removeAttribute('title'); }
+      var row = input.closest('tr'), sum = 0;
+      row.querySelectorAll('[data-variant]').forEach(function (i) { sum += Number(i.value) || 0; });
+      row.querySelector('[data-total]').textContent = sum;
+    }
+    function bar() {
+      if (me.masked) return;
+      var n = pendingCount(), bad = main.querySelectorAll('.is-invalid').length;
+      document.getElementById('rsBar').hidden = !n && !bad;
+      document.getElementById('rsCount').textContent = bad ? 'Stock is a whole number from 0 to 9999.'
+        : n + ' size' + (n === 1 ? '' : 's') + ' changed';
+      document.getElementById('rsSave').disabled = saving || !n || bad > 0;
+    }
+    inputs.forEach(function (i) { refresh(i); i.addEventListener('input', function () { refresh(i); bar(); }); });
+    bar();
+
+    // Filters: search, department, low. Rows hide in place; typed numbers stay put.
+    var qInput = document.getElementById('rsQ');
+    function applyFilter() {
+      var q = view.q.trim().toLowerCase(), shown = 0;
+      main.querySelectorAll('.rs-table tbody tr').forEach(function (r) {
+        var ok = (!view.dept || r.dataset.dept === view.dept) && (!view.low || r.dataset.low === 'true') && (!q || r.dataset.search.indexOf(q) > -1);
+        r.hidden = !ok; if (ok) shown++;
+      });
+      document.getElementById('rsNone').hidden = shown > 0;
+      main.querySelectorAll('[data-dept]').forEach(function (b) { if (b.tagName === 'BUTTON') b.setAttribute('aria-pressed', String(b.dataset.dept === view.dept)); });
+      main.querySelector('[data-low]').setAttribute('aria-pressed', String(view.low));
+    }
+    qInput.addEventListener('input', function () { view.q = qInput.value; applyFilter(); });
+    main.querySelectorAll('button[data-dept]').forEach(function (b) { b.addEventListener('click', function () { view.dept = b.dataset.dept; applyFilter(); }); });
+    main.querySelector('button[data-low]').addEventListener('click', function () { view.low = !view.low; applyFilter(); });
+    applyFilter();
+    if (me.masked) return;
+
+    document.getElementById('rsUndo').addEventListener('click', function () {
+      pending = {};
+      inputs.forEach(function (i) { i.value = i.dataset.was; i.classList.remove('is-conflict'); i.removeAttribute('title'); refresh(i); });
+      bar();
+    });
+    var save = document.getElementById('rsSave');
+    save.addEventListener('click', function () {
+      // Exactly what is sent, kept: numbers typed while it's on its way stay pending, unsent.
+      var sent = {};
+      Object.keys(pending).forEach(function (id) { sent[id] = pending[id].value; });
+      var rows = Object.keys(sent).map(function (id) { var p = pending[id]; return { sku: p.sku, size: p.size, stock: p.value, expect: p.was }; });
+      saving = true; save.disabled = true; save.textContent = 'Saving…';
+      var done = function () { saving = false; save.textContent = 'Save changes'; if (onScreen('restock')) bar(); };
+      api('/stock/bulk', { method: 'POST', body: { rows: rows, apply: true } }).then(function (r) {
+        if (!r.applied) {                     // refused (sold meanwhile, or a size gone): reload, keep what was typed
+          view.conflicts = r.errors;
+          return api('/products').then(function (d) { done(); drawRestock(d.products, view); window.scrollTo(0, 0); });
+        }
+        Object.keys(sent).forEach(function (id) {
+          var input = main.querySelector('[data-variant="' + id + '"]');
+          if (input) input.dataset.was = sent[id];                   // what the shop has now
+          if (pending[id] && pending[id].value === sent[id]) delete pending[id];
+          else if (pending[id]) pending[id].was = sent[id];          // edited again mid-save: still to send
+        });
+        inputs.forEach(refresh);
+        // Low/out marks and the "Low or sold out" count follow the saved numbers.
+        var lows = 0;
+        main.querySelectorAll('.rs-table tbody tr').forEach(function (row) {
+          var low = [].some.call(row.querySelectorAll('[data-variant]'), function (i) { return Number(i.dataset.was) <= LOW; }) && !row.querySelector('.adm-pill');
+          row.dataset.low = String(low); if (low) lows++;
+        });
+        var lowChip = main.querySelector('button[data-low] .adm-muted');
+        if (lowChip) lowChip.textContent = lows;
+        done();
+        toast('Saved ' + r.changes.length + ' size' + (r.changes.length === 1 ? '' : 's') + '. Each is in Activity.');
+      }).catch(function (err) { done(); failed(err); });
     });
   }
 
   /* ── Router: #screen?key=value ───────────────────────────────────────────────── */
   function route() {
     if (!me || me.needsTotp) return;
+    screen++;                             // answers still on their way for the old screen are dropped
     var h = location.hash.replace(/^#/, ''), path = h.split('?')[0], query = {};
     (h.split('?')[1] || '').split('&').forEach(function (kv) {
       if (!kv) return;
-      var p = kv.split('='); query[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
+      var p = kv.split('=');
+      try { query[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); } catch (e) { /* ignore a malformed part */ }
     });
     window.scrollTo(0, 0);
     if (path.indexOf('order/') === 0) return order(path.slice(6));
     if (path === 'orders') return orders(query);
     if (path === 'products') return products(query);
-    if (path === 'stock') return stockScreen();
+    if (path === 'restock') return restock(query);
+    if (path === 'stock') { location.replace('#restock'); return; }   // the old Bulk stock address
     if (path === 'insights') return insightsScreen();
     if (path === 'product/new') return newProduct();
     if (path === 'customers') return customers(query);

@@ -66,8 +66,10 @@ export async function pushPayment(paymentId) {
   // log it loudly with everything needed to match it by hand.
   for (let attempt = 1; ; attempt++) {
     try {
+      // providerRef IS NULL: if this payment were somehow pushed twice, the first prompt's ID is
+      // kept, never overwritten by the second's (which would orphan the first one's callback).
       await db.update(payments).set({ providerRef: checkoutRequestId, updatedAt: new Date() })
-        .where(and(eq(payments.id, p.id), eq(payments.status, 'PENDING')));
+        .where(and(eq(payments.id, p.id), eq(payments.status, 'PENDING'), isNull(payments.providerRef)));
       return;
     } catch (err) {
       if (attempt === 2) {

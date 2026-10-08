@@ -240,6 +240,35 @@ describe('sending the same checkout twice', () => {
     const n = (await db.execute(sql`select count(*)::int as n from orders where checkout_key = ${f.checkoutKey}`)).rows[0].n;
     expect(n).toBe(1);
   });
+
+  // Oct 2026: both requests now get the order (the second waits on the cart lock, then finds it).
+  it('both answers carry the same order when sent at once', async () => {
+    const b = browser();
+    await add(b, 'nura-019', 'M');
+    const f = form();
+    const [r1, r2] = await Promise.all([as(b).post('/api/checkout').send(f), as(b).post('/api/checkout').send(f)]);
+    expect([r1.status, r2.status]).toEqual([201, 201]);
+    expect(r1.body.order.id).toBe(r2.body.order.id);
+  });
+
+  it('a retry after the first one finished (a timeout on the way back) gets the order, not "cart is empty"', async () => {
+    const b = browser();
+    await add(b, 'nura-019', 'M');
+    const f = form();
+    const first = await as(b).post('/api/checkout').send(f);
+    expect(first.status).toBe(201);
+    const retry = await as(b).post('/api/checkout').send(f);
+    expect(retry.status).toBe(201);
+    expect(retry.body.order.id).toBe(first.body.order.id);
+  });
+
+  it('two checkouts of one cart with different keys (two tabs) make one order, not two', async () => {
+    const b = browser();
+    await add(b, 'nura-019', 'M');
+    const [r1, r2] = await Promise.all([checkout(b), checkout(b)]);
+    expect([r1.status, r2.status].sort()).toEqual([201, 400]);
+    expect([r1, r2].find((r) => r.status === 400).body.error).toMatch(/cart is empty/);
+  });
 });
 
 describe('who can see an order', () => {
@@ -292,7 +321,7 @@ describe('unpaid orders expire (for M-Pesa and cards, Phases 5-6)', () => {
     const cartId = (await db.execute(sql`select c.id from carts c join cart_items ci on ci.cart_id = c.id
       where ci.variant_id = ${V['nura-014/L']} order by c.updated_at desc limit 1`)).rows[0].id;
     const before = await stockOf('nura-014', 'L');
-    const id = await placeOrder({ cartId, userId: null, details: { ...form(), phone: '254712345678', paymentMethod: 'MPESA' } });
+    const { id } = await placeOrder({ cartId, userId: null, details: { ...form(), phone: '254712345678', paymentMethod: 'MPESA' } });
     expect(await stockOf('nura-014', 'L')).toBe(before - 2);
     expect(await expireOrders(new Date())).toBe(0);               // still inside its window
     const expired = await expireOrders(new Date(Date.now() + 16 * 60 * 1000));
