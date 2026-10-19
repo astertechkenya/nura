@@ -19,23 +19,23 @@
     "create-admin": "node --env-file-if-exists=.env src/scripts/createAdmin.js"
   },
   "dependencies": {
-    "@sentry/node": "11.4.0",
+    "@sentry/node": "11.8.0",
     "argon2": "0.45.1",
     "connect-pg-simple": "10.0.0",
-    "drizzle-orm": "0.45.3",
-    "express": "5.2.1",
-    "express-rate-limit": "8.7.0",
+    "drizzle-orm": "0.45.4",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
     "express-session": "1.19.0",
     "helmet": "8.3.0",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "pino-http": "11.0.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.11",
     "supertest": "7.3.1",
-    "vitest": "5.0.3"
+    "vitest": "5.0.5"
   },
   "allowScripts": {
     "argon2@0.45.1": true,
