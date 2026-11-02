@@ -4,7 +4,9 @@
 //
 //   PENDING, no providerRef  → openCardPayment() asks Paystack for a payment page
 //   PENDING, providerRef set → the shopper is on Paystack's page (or left it)
-//   PAID / FAILED / FLAGGED  → settled, never changed again
+//   PAID / FLAGGED           → settled, never changed again
+//   FAILED                   → settled, unless a later charge.success is confirmed by Paystack:
+//                              then PAID (see services/payments.js)
 //
 // Same rule as M-Pesa: nothing is marked paid on anyone's word. A webhook (signed) or the
 // shopper coming back only triggers settleCard(), which asks Paystack itself (verify).
@@ -123,7 +125,9 @@ export async function handlePaystackEvent(event) {
   if (event?.event !== 'charge.success' || typeof event.data?.reference !== 'string') return;
   const [p] = await db.select().from(payments).where(and(eq(payments.providerRef, event.data.reference), eq(payments.provider, 'PAYSTACK')));
   if (!p) { logger.warn({ ref: event.data.reference }, 'Paystack event for an unknown payment: ignored'); return; }
-  if (p.status !== 'PENDING') return;                             // a repeat
+  // A charge.success for a page we'd closed (abandoned, declined then retried): verify it anyway.
+  // settleCard only believes Paystack's own records, never the webhook body.
+  if (p.status !== 'PENDING' && p.status !== 'FAILED') return;   // a repeat
   await settleCard(p);
 }
 

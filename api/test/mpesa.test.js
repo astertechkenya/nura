@@ -7,7 +7,7 @@ import { db, pool } from '../src/db/client.js';
 import { sessionStore } from '../src/middleware/session.js';
 import { seed } from '../src/db/seed.js';
 import { nairobiTimestamp, resetTokenCache } from '../src/services/daraja.js';
-import { reconcilePayments } from '../src/services/payments.js';
+import { NO_ANSWER_MS, reconcilePayments } from '../src/services/payments.js';
 import { expireOrders } from '../src/services/orders.js';
 import { netlifyToken } from './helpers.js';
 import { startFakeDaraja, callbackBody } from './fakeDaraja.js';
@@ -241,5 +241,41 @@ describe('when no callback ever comes', () => {
     expect(await until(async () => (await orderRow(order.id)).refund_status === 'DUE')).toBe(true);
     expect((await orderRow(order.id)).status).toBe('EXPIRED');       // the stock is gone; the money goes back
     expect((await payRows(order.id))[0].status).toBe('PAID');
+  });
+});
+
+describe('when Safaricom is slow to give a final answer', () => {
+  it('a code that isn’t a final "no" (4999: still processing) keeps waiting, and a later "paid" settles it', async () => {
+    const { order } = await mpesaOrder();
+    const id = await ref(order.id);
+    fake.outcome.set(id, { state: 'failed', code: '4999' });       // non-zero, but not an answer
+    await reconcilePayments(new Date(Date.now() + 61 * 1000));
+    expect((await payRows(order.id))[0].status).toBe('PENDING');    // not FAILED: the shopper may be paying
+    fake.outcome.set(id, { state: 'paid' });
+    await reconcilePayments(new Date(Date.now() + 2 * 60 * 1000));
+    expect((await orderRow(order.id)).status).toBe('PAID');
+  });
+
+  it('no final answer after 3 minutes: FAILED as NO_ANSWER, the shopper is told not to pay twice, and may resend', async () => {
+    const { b, order } = await mpesaOrder();                         // outcome stays 'pending'
+    await reconcilePayments(new Date(Date.now() + NO_ANSWER_MS - 5000));
+    expect((await payRows(order.id))[0].status).toBe('PENDING');    // not yet: under 3 minutes
+    await reconcilePayments(new Date(Date.now() + NO_ANSWER_MS + 1000));
+    expect((await payRows(order.id))[0]).toMatchObject({ status: 'FAILED', result_code: 'NO_ANSWER' });
+    const seen = (await as(b).get(`/api/orders/${order.id}`)).body.order;
+    expect(seen.status).toBe('PENDING_PAYMENT');
+    expect(seen.payment.message).toMatch(/don’t pay again/);
+    expect((await as(b).post(`/api/orders/${order.id}/pay`).send({})).status).toBe(200);
+  });
+
+  it('a late "paid" from Safaricom turns a given-up payment into PAID, and the order with it', async () => {
+    const { order } = await mpesaOrder();
+    const id = await ref(order.id);
+    await reconcilePayments(new Date(Date.now() + NO_ANSWER_MS + 1000));
+    expect((await payRows(order.id))[0].status).toBe('FAILED');
+    fake.outcome.set(id, { state: 'paid' });                        // the money did move after all
+    await postCallback(callbackBody(id, { receipt: 'QK77LATE01' }));
+    expect(await until(async () => (await orderRow(order.id)).status === 'PAID')).toBe(true);
+    expect((await payRows(order.id))[0]).toMatchObject({ status: 'PAID', receipt: 'QK77LATE01', result_code: '0' });
   });
 });

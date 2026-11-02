@@ -184,6 +184,18 @@ describe('when nobody tells us', () => {
     expect((await payRows(order.id))[0]).toMatchObject({ status: 'FAILED', result_code: 'ABANDONED' });
   });
 
+  it('a confirmed charge.success after the page was closed as not completed: PAID, and a refund marked due', async () => {
+    const { order } = await cardOrder();
+    await expireOrders(new Date(Date.now() + 16 * 60 * 1000));
+    await reconcileCards(new Date(Date.now() + 17 * 60 * 1000));
+    expect((await payRows(order.id))[0]).toMatchObject({ status: 'FAILED', result_code: 'ABANDONED' });
+    const ref = await refOf(order.id);
+    fake.result.set(ref, { status: 'success', amount: 570000 });    // the shopper did pay, late
+    await webhook({ event: 'charge.success', data: { reference: ref } });
+    expect(await until(async () => (await payRows(order.id))[0].status === 'PAID')).toBe(true);
+    expect(await orderRow(order.id)).toEqual({ status: 'EXPIRED', refund_status: 'DUE' });
+  });
+
   it('paid at the last second after expiry: the money is recorded and a refund marked due', async () => {
     const { order } = await cardOrder();
     await expireOrders(new Date(Date.now() + 16 * 60 * 1000));

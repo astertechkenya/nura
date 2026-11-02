@@ -4,12 +4,16 @@
 //
 //   PENDING, no providerRef  → pushPayment() asks Safaricom to prompt the phone
 //   PENDING, providerRef set → waiting for the shopper's PIN
-//   PAID / FAILED / FLAGGED  → settled, never changed again
+//   PAID / FLAGGED           → settled, never changed again
+//   FAILED                   → settled, with one exception: if the provider later confirms the
+//                              money DID move (a late Safaricom callback, a Paystack webhook),
+//                              the payment becomes PAID. Money that moved must never sit on an
+//                              order that says it didn't.
 //
 // Settling always goes through settleFromQuery(): Safaricom's own answer to OUR question. A
 // callback posted to us only triggers that question and supplies the receipt number. Every
-// status change is a conditional UPDATE ("... where status = 'PENDING'"), so a payment can
-// only ever move forward, and only once, however many times a result arrives.
+// status change is a conditional UPDATE inside a row lock, so a payment can only ever move
+// forward, and only once, however many times a result arrives.
 import { and, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { orderEvents, orders, payments } from '../db/schema.js';
@@ -21,10 +25,15 @@ import { amountToRequest, stkPush, stkQuery } from './daraja.js';
 import { MAX_STK_ATTEMPTS, assertTransition } from './orderStates.js';
 
 export const PUSHES_PER_PHONE_PER_HOUR = 5;
+/** A prompt with no final answer by now is given up on (the prompt on the phone expired long ago). */
+export const NO_ANSWER_MS = 3 * 60_000;
+const NO_ANSWER_MESSAGE = 'We didn’t get a final answer from M-Pesa. If money left your account, please don’t pay again: contact us with your order number.';
 
 /** What to tell the shopper for Safaricom's ResultCodes. */
 const RESULT_MESSAGES = {
   1: 'Your M-Pesa balance wasn’t enough for this payment.',
+  1001: 'Another M-Pesa payment was in progress on this phone. Wait a minute, then resend the prompt.',
+  1025: 'M-Pesa couldn’t send the prompt. Please resend it.',
   1032: 'The M-Pesa prompt was cancelled.',
   1037: 'We couldn’t reach your phone. Check it’s on and has signal, then resend the prompt.',
   1019: 'The prompt expired before it was answered.',
@@ -124,7 +133,9 @@ export async function markFailed(paymentId, resultCode, desc, raw, message = fai
 export async function markPaid(paymentId, fromCallback = {}, method = 'M-Pesa') {
   const outcome = await db.transaction(async (tx) => {
     const [p] = await tx.select().from(payments).where(eq(payments.id, paymentId)).for('update');
-    if (!p || p.status !== 'PENDING') return;                     // already settled: do nothing
+    // PENDING, or FAILED that the provider now says was paid after all (see the top of this file).
+    // Only ever reached after asking the provider ourselves (settleFromQuery / settleCard).
+    if (!p || (p.status !== 'PENDING' && p.status !== 'FAILED')) return;   // already paid: nothing to do
     const wrongAmount = fromCallback.amountKes !== undefined && fromCallback.amountKes !== p.amountKes;
     const now = new Date();
     await tx.update(payments).set({
@@ -188,6 +199,7 @@ export function parseCallback(body) {
   return {
     checkoutRequestId: cb.CheckoutRequestID,
     resultCode: String(cb.ResultCode),
+    success: Number(cb.ResultCode) === 0,      // what the callback CLAIMS; settleFromQuery asks Safaricom
     amountKes: items.Amount !== undefined ? Number(items.Amount) : undefined,
     receipt: typeof items.MpesaReceiptNumber === 'string' ? items.MpesaReceiptNumber : undefined,
     raw: body,
@@ -200,14 +212,18 @@ export async function handleCallback(body) {
   if (!cb) { logger.warn('M-Pesa callback without a stkCallback: ignored'); return; }
   const [p] = await db.select().from(payments).where(eq(payments.providerRef, cb.checkoutRequestId));
   if (!p) { logger.warn({ ref: cb.checkoutRequestId }, 'M-Pesa callback for an unknown payment: ignored'); return; }
-  if (p.status !== 'PENDING') return;                             // a repeat: already settled
+  // PENDING: settle it. FAILED but the callback says paid: we may have given up too early (or
+  // Safaricom answered unclearly), so ask again; only Safaricom's own answer is believed.
+  // Anything else is a repeat of a result we already have.
+  if (!(p.status === 'PENDING' || (p.status === 'FAILED' && cb.success))) return;
   const state = await settleFromQuery(p, { receipt: cb.receipt, amountKes: cb.amountKes, raw: cb.raw });
   if (state === 'pending') logger.info({ paymentId: p.id }, 'callback arrived but Safaricom still says pending; the job will re-check');
 }
 
 /**
  * Every minute: settle prompts that have had no callback (the shopper's phone was off, or the
- * callback never reached us), and give up on pushes that never got sent.
+ * callback never reached us), give up on prompts that still have no final answer after
+ * NO_ANSWER_MS, and on pushes that never got sent.
  */
 export async function reconcilePayments(now = new Date()) {
   const quietFor = new Date(now.getTime() - 60 * 1000);
@@ -217,7 +233,14 @@ export async function reconcilePayments(now = new Date()) {
   let settled = 0;
   for (const p of open) {
     try {
-      if (await settleFromQuery(p) !== 'pending') settled += 1;
+      const state = await settleFromQuery(p);
+      if (state !== 'pending') settled += 1;
+      else if (p.createdAt < new Date(now.getTime() - NO_ANSWER_MS)) {
+        // The prompt has long expired on the phone and Safaricom still won't give a final answer.
+        // Free the order for another attempt; a late "paid" can still settle it (markPaid).
+        await markFailed(p.id, 'NO_ANSWER', 'No final answer from Safaricom after 3 minutes', null, NO_ANSWER_MESSAGE);
+        logger.warn({ paymentId: p.id }, 'M-Pesa prompt had no final answer after 3 minutes: marked failed');
+      }
     } catch (err) {
       logger.warn({ err: err.message, paymentId: p.id }, 'STK query failed; will retry next minute');
     }
