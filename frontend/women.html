@@ -153,12 +153,10 @@ body.cursor-hover .cursor-ring{width:52px;height:52px;opacity:.7;}   /* restored
 .footer__brand{max-width:420px;}
 .footer__logo{font-family:var(--display);font-size:52px;letter-spacing:8px;color:var(--white);margin-bottom:14px;}
 .footer__logo span{color:var(--purple);}
-.footer__tagline{font-size:12px;font-weight:300;color:#666;letter-spacing:1px;margin-bottom:24px;}
-.footer__social{display:flex;gap:10px;}
-.footer__social-link{width:34px;height:34px;border:1px solid #333;color:#555;font-size:10px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;justify-content:center;transition:border-color .25s,color .25s;text-decoration:none;}
-.footer__social-link:hover{border-color:var(--purple);color:var(--purple);}
+.footer__tagline{font-size:12px;font-weight:300;color:#666;letter-spacing:1px;margin-bottom:0;}
 .footer__bottom{margin-top:40px;padding:20px 0;border-top:1px solid #1a1a1a;}
-.footer__copy{font-size:10px;color:#333;letter-spacing:1px;}
+.footer__copy{font-size:11px;color:#9a9a9a;letter-spacing:1px;}
+.footer__links{list-style:none;display:flex;flex-wrap:wrap;gap:4px 24px;margin-bottom:14px;}.footer__links a{display:inline-block;padding:8px 0;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#a3a3a3;text-decoration:none;transition:color .25s;}.footer__links a:hover{color:var(--purple);}.footer__links a:focus-visible{outline:2px solid var(--purple);outline-offset:3px;}
 </style>
 </head>
 <body>
@@ -419,14 +417,14 @@ body.cursor-hover .cursor-ring{width:52px;height:52px;opacity:.7;}   /* restored
       <div class="footer__brand">
         <div class="footer__logo">NUR<span>A</span></div>
         <p class="footer__tagline">Bought in Nairobi, worn by the world.</p>
-        <div class="footer__social">
-          <a href="#" class="footer__social-link" aria-label="Instagram">IG</a>
-          <a href="#" class="footer__social-link" aria-label="TikTok">TT</a>
-          <a href="#" class="footer__social-link" aria-label="Twitter">TW</a>
-        </div>
       </div>
     </div>
     <div class="footer__bottom">
+      <ul class="footer__links">
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="privacy.html">Privacy Policy</a></li>
+        <li><a href="terms.html">Terms of Use</a></li>
+      </ul>
       <p class="footer__copy">&copy; 2026 NURA. All rights reserved.</p>
       <p style="font-size:10px;color:#fff;letter-spacing:2px;text-transform:uppercase;margin-top:8px;">Designed &amp; Developed by <span style="color:var(--purple);">ETHAN</span></p>
     </div>
