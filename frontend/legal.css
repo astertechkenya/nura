@@ -1,0 +1,32 @@
+/* NURA legal.css: the Contact, Privacy Policy and Terms of Use pages (Nov 2026).
+   Built on checkout.css (black header, white cards on the grey page), so they read as part of
+   the same shop. This file only adds what long text needs: a comfortable line length and
+   spacing, headings, lists, and the links between the three pages. */
+
+.legal{max-width:760px;}
+.legal .oc-hero__kicker{display:block;}
+.legal .oc-card{font-size:15px;line-height:1.75;color:#222;}
+.legal .oc-card h2{margin-top:30px;}
+.legal .oc-card h2:first-child{margin-top:0;}
+.legal .oc-card p + p,.legal .oc-card p + ul,.legal .oc-card ul + p{margin-top:12px;}
+.legal .oc-card ul{padding-left:20px;display:grid;gap:6px;}
+.legal .oc-card strong{font-weight:700;}
+/* Links in text: underlined, in the darker purple that passes 4.5:1 on white */
+.legal .oc-card a{color:var(--co-accent);text-decoration:underline;text-underline-offset:3px;}
+.legal .oc-card a:hover{color:var(--black);}
+.legal a:focus-visible{outline:2px solid var(--purple);outline-offset:2px;}
+.legal__updated{font-size:12px;color:var(--co-muted);}
+
+/* Contact: one row per way to reach us */
+.contact-ways{list-style:none;padding:0 !important;display:grid;gap:0 !important;}
+.contact-ways li{display:grid;grid-template-columns:110px 1fr;gap:12px;padding:16px 0;border-top:1px solid var(--light);align-items:baseline;}
+.contact-ways li:first-child{border-top:0;padding-top:0;}
+.contact-ways__label{font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--co-muted);}
+.contact-ways a{font-size:17px;font-weight:700;color:var(--black) !important;text-decoration:none !important;border-bottom:2px solid var(--purple);}
+.contact-ways a:hover{border-bottom-color:var(--black);}
+@media (max-width:420px){.contact-ways li{grid-template-columns:1fr;gap:4px;}}
+
+/* The three pages, linked from each other at the bottom */
+.legal-nav{display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:center;padding:6px 0 0;list-style:none;}
+.legal-nav a{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--co-muted);text-decoration:none;padding:10px 0;}
+.legal-nav a:hover,.legal-nav a[aria-current="page"]{color:var(--black);}
